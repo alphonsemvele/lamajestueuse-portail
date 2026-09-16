@@ -1,0 +1,147 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../views/**/*.blade.php';
+@source '../js/**/*.{ts,tsx}';
+
+/* Le theme suit la preference systeme, mais l'utilisateur peut forcer clair ou
+   sombre : la classe .dark posee sur <html> l'emporte alors. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Bleu royal : couleur principale du groupe. */
+    --color-brand-50: #eff5ff;
+    --color-brand-100: #dbe8fe;
+    --color-brand-200: #bfd7fe;
+    --color-brand-300: #93bcfd;
+    --color-brand-400: #6098fa;
+    --color-brand-500: #3b76f6;
+    --color-brand-600: #2559eb;
+    --color-brand-700: #1d45d8;
+    --color-brand-800: #1e3aaf;
+    --color-brand-900: #1e358a;
+    --color-brand-950: #172154;
+
+    /* Or discret : accent reserve aux elements de distinction. */
+    --color-gold-300: #e8d08a;
+    --color-gold-400: #d8b65c;
+    --color-gold-500: #c8a44d;
+    --color-gold-600: #a8853a;
+
+    --color-ink-50: #f6f8fb;
+    --color-ink-100: #eef2f7;
+    --color-ink-200: #e2e8f0;
+    --color-ink-400: #94a3b8;
+    --color-ink-500: #64748b;
+    --color-ink-600: #475569;
+    --color-ink-700: #334155;
+    --color-ink-800: #1e293b;
+    --color-ink-900: #0f172a;
+    --color-ink-950: #080d18;
+}
+
+@layer base {
+    /* WebKit ajoute sa propre croix d'effacement aux champs de recherche :
+       elle ferait doublon avec la notre. */
+    input[type='search']::-webkit-search-cancel-button,
+    input[type='search']::-webkit-search-decoration {
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    /* Inertia monte l'application dans un <div id="app"> sans hauteur : sans
+       cette regle, une page courte laisse une bande vide sous elle. */
+    #app {
+        min-height: 100dvh;
+    }
+
+    body {
+        @apply bg-ink-50 text-ink-800 antialiased dark:bg-ink-950 dark:text-ink-100;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+@layer components {
+    .field-label {
+        @apply block text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-500 dark:text-ink-400;
+    }
+
+    .field-input {
+        @apply w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-900
+               placeholder:text-ink-400 transition
+               focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/12
+               dark:border-white/10 dark:bg-white/5 dark:text-white dark:placeholder:text-ink-500;
+    }
+
+    .btn-primary {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl bg-linear-to-r from-brand-600 to-brand-500
+               px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-brand-600/25 transition
+               hover:from-brand-700 hover:to-brand-600 focus:outline-none focus:ring-4 focus:ring-brand-500/30
+               disabled:opacity-60;
+    }
+
+    .btn-ghost {
+        @apply inline-flex items-center justify-center gap-2 rounded-xl border border-ink-200 bg-white px-4 py-2.5
+               text-sm font-medium text-ink-700 transition hover:border-ink-400 hover:text-ink-900
+               dark:border-white/10 dark:bg-white/5 dark:text-ink-200 dark:hover:text-white;
+    }
+
+    .card {
+        @apply rounded-2xl border border-ink-200/70 bg-white shadow-sm dark:border-white/10 dark:bg-ink-900;
+    }
+
+    .badge {
+        @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium;
+    }
+}
+
+/* Bandeau de connexion : derive lente de la photo et barre de progression
+   des vues. Les deux sont neutralisees si le systeme reduit les animations. */
+@keyframes heroDrift {
+    from {
+        transform: scale(1.06) translate3d(-1.2%, -1%, 0);
+    }
+    to {
+        transform: scale(1.14) translate3d(1.2%, 1%, 0);
+    }
+}
+
+@keyframes heroProgress {
+    from {
+        width: 0%;
+    }
+    to {
+        width: 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
+}
+
+/* Trame constellee discrete du fond de l'intranet. */
+.bg-constellation {
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(37, 89, 235, 0.06), transparent 42%),
+        radial-gradient(circle at 88% 8%, rgba(200, 164, 77, 0.07), transparent 38%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='%232559eb' fill-opacity='0.10'%3E%3Ccircle cx='12' cy='18' r='1.6'/%3E%3Ccircle cx='94' cy='34' r='1.6'/%3E%3Ccircle cx='58' cy='84' r='1.6'/%3E%3Ccircle cx='108' cy='102' r='1.6'/%3E%3Ccircle cx='30' cy='60' r='1.2'/%3E%3C/g%3E%3Cg fill='none' stroke='%232559eb' stroke-opacity='0.06' stroke-width='0.8'%3E%3Cpath d='M12 18 L58 84 L94 34 Z'/%3E%3Cpath d='M58 84 L108 102'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+.dark .bg-constellation {
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(59, 118, 246, 0.10), transparent 42%),
+        radial-gradient(circle at 88% 8%, rgba(200, 164, 77, 0.08), transparent 38%);
+}

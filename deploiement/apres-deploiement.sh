@@ -40,6 +40,14 @@ if ! command -v "$PHP" >/dev/null 2>&1; then
 fi
 echo "▸ PHP : $("$PHP" -r 'echo PHP_VERSION;')"
 
+# Dossiers de travail de Laravel : ils ne viennent jamais du dépôt (storage/
+# est exclu de l'envoi pour préserver les fichiers déposés et les journaux),
+# il faut donc s'assurer qu'ils existent sur un serveur neuf.
+mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions \
+         storage/framework/views storage/logs bootstrap/cache
+chmod -R u+rwX storage bootstrap/cache
+echo "▸ Dossiers storage/ et bootstrap/cache vérifiés"
+
 # Valeur d'une variable du .env, guillemets retirés.
 valeur_env() {
     sed -nE "s/^$1=[[:space:]]*//p" .env | tail -n 1 | sed -E 's/^"(.*)"$/\1/; s/^'\''(.*)'\''$/\1/'

@@ -1,0 +1,117 @@
+name: Déploiement
+
+# Chaque poussée sur main : tests, compilation, envoi sur PlanetHoster.
+# « Run workflow » depuis l'onglet Actions permet aussi de rejouer un déploiement.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Jamais deux déploiements en même temps sur le même serveur.
+concurrency:
+  group: deploiement-production
+  cancel-in-progress: false
+
+jobs:
+  tests:
+    uses: ./.github/workflows/tests.yml
+
+  deploiement:
+    name: Mise en ligne sur lamajestueuse.com
+    needs: tests
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://lamajestueuse.com
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Vérification des secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          APP_PATH: ${{ secrets.APP_PATH }}
+        run: |
+          manquants=""
+          for nom in SSH_HOST SSH_USER SSH_KEY APP_PATH; do
+            [ -z "${!nom}" ] && manquants="$manquants $nom"
+          done
+          if [ -n "$manquants" ]; then
+            echo "::error::Secrets GitHub manquants :$manquants — voir deploiement/LISEZMOI.md"
+            exit 1
+          fi
+
+      - name: PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_mysql, intl, zip, bcmath, gd
+          coverage: none
+
+      - name: Dépendances PHP de production
+        run: composer install --no-interaction --prefer-dist --no-progress --no-dev --optimize-autoloader
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Compilation des assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Clé SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploiement
+          chmod 600 ~/.ssh/deploiement
+          ssh-keyscan -p "${SSH_PORT:-22}" "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          echo "SSH_PORT=${SSH_PORT:-22}" >> "$GITHUB_ENV"
+
+      - name: Envoi des fichiers
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_PATH: ${{ secrets.APP_PATH }}
+        run: |
+          ssh -i ~/.ssh/deploiement -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "mkdir -p '$APP_PATH'"
+          rsync -rlzc --delete \
+            -e "ssh -i ~/.ssh/deploiement -p $SSH_PORT" \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude 'node_modules' \
+            --exclude 'tests' \
+            --exclude '.env' \
+            --exclude '/storage/' \
+            --exclude '/public/storage' \
+            --exclude '/bootstrap/cache/*.php' \
+            ./ "$SSH_USER@$SSH_HOST:$APP_PATH/"
+
+      - name: Migrations, caches et remise en service
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          APP_PATH: ${{ secrets.APP_PATH }}
+          PHP_BIN: ${{ secrets.PHP_BIN }}
+        run: |
+          ssh -i ~/.ssh/deploiement -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "PHP_BIN='${PHP_BIN:-php}' bash '$APP_PATH/deploiement/apres-deploiement.sh'"
+
+      - name: Vérification du site
+        run: |
+          for essai in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -m 20 -w '%{http_code}' https://lamajestueuse.com/up || echo 000)
+            echo "tentative $essai : /up répond $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Le site ne répond pas correctement après le déploiement (/up)."
+          exit 1

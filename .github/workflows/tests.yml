@@ -1,0 +1,57 @@
+name: Tests
+
+# Sur les branches de travail et les pull requests. Les poussées sur main
+# passent par le workflow « Déploiement », qui rejoue ces mêmes tests.
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+  workflow_call:
+
+jobs:
+  tests:
+    name: Tests et vérification des types
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, intl, zip, bcmath, gd
+          coverage: none
+
+      - name: Cache des dépendances PHP
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Dépendances PHP
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Dépendances JavaScript
+        run: npm ci
+
+      - name: Préparation de l'environnement de test
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Vérification des types TypeScript
+        run: npx tsc --noEmit
+
+      - name: Compilation des assets
+        run: npm run build
+
+      - name: Tests
+        run: php artisan test

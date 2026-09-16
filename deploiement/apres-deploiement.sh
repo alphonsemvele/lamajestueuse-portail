@@ -119,6 +119,11 @@ echo "▸ Site en maintenance"
 
 [ -e public/storage ] || "$PHP" artisan storage:link || true
 
+# Un cache de configuration périmé peut contenir des chemins absents (le
+# dossier des vues compilées, par exemple, résolu à vide sur une installation
+# neuve) : on le supprime avant de le reconstruire.
+rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
+
 # optimize met en cache configuration, routes, vues et événements.
 "$PHP" artisan optimize
 "$PHP" artisan queue:restart >/dev/null 2>&1 || true

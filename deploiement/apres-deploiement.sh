@@ -3,6 +3,7 @@
 # Exécuté SUR LE SERVEUR après l'envoi des fichiers par GitHub Actions.
 #
 #   1. sauvegarde de la base (conservées : les 10 dernières) ;
+#   1 bis. racine du domaine (~/public_html) reliée à public/ ;
 #   2. mise en maintenance ;
 #   3. migrations ;
 #   4. mise en cache de la configuration, des routes et des vues ;
@@ -12,6 +13,7 @@
 #   PHP_BIN=/opt/alt/php83/usr/bin/php   binaire PHP à utiliser (défaut : php)
 #   DOSSIER_SAUVEGARDES=~/sauvegardes    où déposer les dumps
 #   SANS_SAUVEGARDE=1                    passer la sauvegarde (déconseillé)
+#   LIER_RACINE_WEB=0                    ne pas toucher à ~/public_html
 #
 # Essai à blanc, sans migration ni coupure du site :
 #   bash deploiement/apres-deploiement.sh --essai
@@ -68,6 +70,27 @@ else
 
     # On ne garde que les 10 plus récentes.
     ls -1t "$DOSSIER_SAUVEGARDES"/*.sql.gz 2>/dev/null | tail -n +11 | xargs -r rm -f
+fi
+
+# ------------------------------------------------- racine du domaine
+# N0C sert le domaine depuis ~/public_html, sans possibilité de le changer
+# dans le panneau : on le fait pointer sur le dossier public/ de Laravel.
+# Idempotent, et l'ancien dossier est conservé (suffixe .origine-<date>).
+if [ "${LIER_RACINE_WEB:-1}" = "1" ]; then
+    RACINE_WEB="${RACINE_WEB:-$HOME/public_html}"
+    CIBLE="$RACINE/public"
+
+    if [ -L "$RACINE_WEB" ] && [ "$(readlink "$RACINE_WEB")" = "$CIBLE" ]; then
+        echo "▸ Racine du domaine : déjà reliée à $CIBLE"
+    else
+        if [ -L "$RACINE_WEB" ]; then
+            rm -f "$RACINE_WEB"
+        elif [ -e "$RACINE_WEB" ]; then
+            mv "$RACINE_WEB" "$RACINE_WEB.origine-$(date +%Y%m%d-%H%M%S)"
+        fi
+        ln -s "$CIBLE" "$RACINE_WEB"
+        echo "▸ Racine du domaine : $RACINE_WEB → $CIBLE"
+    fi
 fi
 
 if [ "$ESSAI" = "1" ]; then

@@ -27,10 +27,12 @@ Si une étape échoue, le déploiement s'arrête et le site reste dans son état
 4. **Créer la base de données** MySQL et son utilisateur.
 5. **Créer le dossier de l'application**, hors du dossier public — par exemple :
    `/home/<utilisateur>/lamajestueuse-portail`
-6. **Faire pointer la racine du domaine** `lamajestueuse.com` sur
-   `/home/<utilisateur>/lamajestueuse-portail/public`.
-   Si le panneau ne le permet pas, utiliser la solution de repli `index-public_html.php`
-   (voir le commentaire en tête de ce fichier).
+6. **Racine du domaine** : rien à faire. Le panneau N0C ne permet pas de la changer
+   pour le domaine principal (elle est figée sur `/public_html`), donc le déploiement
+   relie lui-même `~/public_html` au dossier `public/` de l'application, en conservant
+   l'ancien dossier sous `public_html.origine-<date>`.
+   Pour désactiver ce comportement : `LIER_RACINE_WEB=0`. Solution de repli si les liens
+   symboliques sont refusés : `index-public_html.php` (voir son en-tête).
 7. **Déposer le fichier `.env`** dans le dossier de l'application, à partir de
    `env-production.exemple`, puis :
    ```

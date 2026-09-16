@@ -35,6 +35,15 @@ class ApplicationLaunchController extends Controller
             "Vous n'avez pas accès à cette application."
         );
 
+        /*
+         * Application declaree mais pas encore en ligne : aucun lien a suivre.
+         * On previent l'employe plutot que de le laisser sur une erreur, et on
+         * ne compte pas cette tentative comme une ouverture.
+         */
+        if ($application->destination() === null) {
+            return back()->with('status', __('« :app » sera bientôt disponible.', ['app' => $application->name]));
+        }
+
         DB::table('application_user')
             ->where('user_id', $user->id)
             ->where('application_id', $application->id)
@@ -52,8 +61,6 @@ class ApplicationLaunchController extends Controller
         ]);
 
         $destination = $application->destination();
-
-        abort_if($destination === null, 404);
 
         // Un module est servi par le portail : redirection interne ordinaire.
         if ($application->isModule()) {

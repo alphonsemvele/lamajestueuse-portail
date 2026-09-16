@@ -159,12 +159,15 @@ class InformationModuleTest extends TestCase
             ->assertSessionHasErrors('module_key');
     }
 
-    public function test_une_application_metier_exige_toujours_son_url(): void
+    public function test_une_application_metier_sans_lien_reste_sans_destination(): void
     {
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->from(route('admin.applications.create'))
             ->post(route('admin.applications.store'), ['name' => 'Sans lien', 'type' => 'application', 'is_active' => '1'])
-            ->assertSessionHasErrors('url');
+            ->assertSessionHasNoErrors();
+
+        // Pas de lien : la tuile annoncera « bientôt disponible » au lieu d'ouvrir.
+        $this->assertNull(Application::where('slug', 'sans-lien')->sole()->destination());
     }
 }

@@ -13,6 +13,21 @@ class ApplicationManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_une_application_peut_etre_creee_sans_lien_de_destination(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)->post(route('admin.applications.store'), [
+            'name' => 'Comptabilité',
+            'slug' => 'comptabilite',
+            'type' => 'application',
+            'url' => '',
+            'is_active' => true,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('applications', ['slug' => 'comptabilite', 'url' => null]);
+    }
+
     public function test_un_employe_ne_peut_pas_acceder_a_ladministration(): void
     {
         $this->actingAs(User::factory()->create())->get(route('admin.dashboard'))->assertForbidden();
@@ -45,14 +60,9 @@ class ApplicationManagementTest extends TestCase
         ]);
     }
 
-    public function test_le_lien_de_redirection_est_obligatoire_et_doit_etre_une_url(): void
+    public function test_le_lien_de_redirection_doit_etre_une_url_valide(): void
     {
         $admin = User::factory()->admin()->create();
-
-        $this->actingAs($admin)
-            ->from(route('admin.applications.create'))
-            ->post(route('admin.applications.store'), ['name' => 'Sans lien', 'type' => 'application'])
-            ->assertSessionHasErrors('url');
 
         $this->actingAs($admin)
             ->from(route('admin.applications.create'))

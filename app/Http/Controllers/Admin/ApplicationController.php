@@ -212,8 +212,9 @@ class ApplicationController extends Controller
             ],
             'description' => ['nullable', 'string', 'max:500'],
             // Le lien de redirection vers lequel le portail envoie l'employe.
-            // Un module n'en a pas : il est servi par une route du portail.
-            'url' => ['nullable', 'required_unless:type,module', 'url', 'max:255'],
+            // Facultatif : un module est servi par une route du portail, et une
+            // application pas encore en ligne s'annonce « bientot disponible ».
+            'url' => ['nullable', 'url', 'max:255'],
             'module_key' => [
                 'nullable', 'required_if:type,module',
                 Rule::in(array_keys(config('modules'))),

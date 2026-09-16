@@ -221,9 +221,7 @@ export default function ApplicationForm({
                                 </div>
                             ) : (
                                 <div>
-                                    <Label htmlFor="url" required>
-                                        {t('URL de destination')}
-                                    </Label>
+                                    <Label htmlFor="url">{t('URL de destination')}</Label>
                                     <Input
                                         id="url"
                                         type="url"
@@ -233,6 +231,11 @@ export default function ApplicationForm({
                                         onChange={(e) => setData('url', e.target.value)}
                                         maxLength={255}
                                     />
+                                    {!String(data.url).trim() && (
+                                        <p className="mt-1.5 text-xs text-ink-400">
+                                            {t("Facultatif. Sans lien, la tuile reste visible et annonce que l'application sera bientôt disponible.")}
+                                        </p>
+                                    )}
                                     {host && (
                                         <p className="mt-1.5 text-xs text-ink-400">
                                             {t('Domaine visé :')} <span className="font-mono text-ink-600 dark:text-ink-300">{host}</span>

@@ -36,6 +36,23 @@ class ApplicationLaunchTest extends TestCase
             ->assertRedirect('https://fondation.lamajestueuse.cm');
     }
 
+    public function test_une_application_sans_lien_annonce_son_ouverture_prochaine(): void
+    {
+        $user = User::factory()->create();
+        $app = Application::factory()->create(['name' => 'Bibliothèque', 'url' => null]);
+        $user->applications()->attach($app);
+
+        $this->actingAs($user)->from(route('dashboard'))->get(route('applications.open', $app))
+            ->assertRedirect(route('dashboard'))
+            ->assertSessionHas('status', fn ($message) => str_contains($message, 'Bibliothèque')
+                && str_contains($message, 'bientôt disponible'));
+
+        // Une tentative sur une application pas encore en ligne ne compte pas
+        // comme une ouverture et ne laisse pas de trace dans le journal.
+        $this->assertSame(0, (int) $user->applications()->first()->pivot->opens_count);
+        $this->assertDatabaseMissing('access_logs', ['application_id' => $app->id]);
+    }
+
     public function test_une_requete_inertia_recoit_une_navigation_complete(): void
     {
         // C'est le chemin reel du navigateur : la tuile est un lien Inertia,

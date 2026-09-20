@@ -36,6 +36,25 @@ class RegistrationTest extends TestCase
         ], $overrides);
     }
 
+    public function test_les_messages_de_validation_sont_en_francais(): void
+    {
+        User::factory()->create(['matricule' => 'LM-0001']);
+
+        $reponse = $this->from(route('register'))->post(route('register'), [
+            'name' => 'Aïcha', 'lastname' => 'NGONO', 'sexe' => 'F',
+            'matricule' => 'LM-0001', 'phone' => '+237 600000000',
+            'password' => 'MotDePasse2026!', 'password_confirmation' => 'MotDePasse2026!',
+        ]);
+
+        $erreurs = session('errors')->getBag('default');
+
+        // Sans traduction française, Laravel renverrait la clé « validation.unique ».
+        $this->assertStringNotContainsString('validation.', $erreurs->first('matricule'));
+        $this->assertStringContainsString('matricule', mb_strtolower($erreurs->first('matricule')));
+        $this->assertStringNotContainsString('validation.', $erreurs->first('photo'));
+        $reponse->assertSessionHasErrors(['matricule', 'photo']);
+    }
+
     public function test_le_formulaire_dinscription_est_public(): void
     {
         $ifpm = Application::factory()->create(['name' => 'IFPM']);

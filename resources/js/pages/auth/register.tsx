@@ -10,6 +10,11 @@ import { Card, ErrorSummary, Input } from '@/components/ui';
 import { cn, routes, useT } from '@/lib/utils';
 import type { Application, SharedProps } from '@/types';
 
+/** Message d'erreur affiché sous le champ concerné. */
+function Erreur({ message }: { message?: string }) {
+    return message ? <p className="mt-1.5 text-xs text-red-600">{message}</p> : null;
+}
+
 export default function Register({ instituts }: { instituts: Application[] }) {
     const t = useT();
     const { flash } = usePage<SharedProps>().props;
@@ -141,12 +146,14 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                             {t('Prénom')}
                                         </Label>
                                         <Input id="name" className="mt-2" value={data.name} onChange={(e) => setData('name', e.target.value)} maxLength={80} autoFocus />
+                                        <Erreur message={errors.name} />
                                     </div>
                                     <div>
                                         <Label htmlFor="lastname" required>
                                             {t('Nom de famille')}
                                         </Label>
                                         <Input id="lastname" className="mt-2" value={data.lastname} onChange={(e) => setData('lastname', e.target.value)} maxLength={80} />
+                                        <Erreur message={errors.lastname} />
                                     </div>
 
                                     <div>
@@ -193,11 +200,13 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                             onChange={(e) => setData('matricule', e.target.value)}
                                             maxLength={40}
                                         />
+                                        <Erreur message={errors.matricule} />
                                     </div>
 
                                     <div>
                                         <Label htmlFor="email">{t('Adresse e-mail')}</Label>
                                         <Input id="email" type="email" className="mt-2" value={data.email} onChange={(e) => setData('email', e.target.value)} maxLength={150} />
+                                        <Erreur message={errors.email} />
                                     </div>
                                     <div>
                                         <Label htmlFor="phone" required>
@@ -211,6 +220,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                             onChange={(e) => setData('phone', e.target.value)}
                                             maxLength={40}
                                         />
+                                        <Erreur message={errors.phone} />
                                     </div>
                                 </div>
                             </Card>
@@ -280,6 +290,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                                             onChange={(e) => setData('postes', { ...data.postes, [institut.id]: e.target.value })}
                                                             maxLength={120}
                                                         />
+                                                        <Erreur message={(errors as Record<string, string>)[`postes.${institut.id}`]} />
                                                     </div>
                                                 )}
                                             </div>
@@ -305,6 +316,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                             value={data.password}
                                             onChange={(e) => setData('password', e.target.value)}
                                         />
+                                        <Erreur message={errors.password} />
                                     </div>
                                     <div>
                                         <Label htmlFor="password_confirmation" required>
@@ -318,6 +330,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                             value={data.password_confirmation}
                                             onChange={(e) => setData('password_confirmation', e.target.value)}
                                         />
+                                        <Erreur message={errors.password_confirmation} />
                                     </div>
                                 </div>
                             </Card>
@@ -343,7 +356,13 @@ export default function Register({ instituts }: { instituts: Application[] }) {
 
             <footer className="mx-auto max-w-4xl px-5 pb-10 text-center text-xs text-ink-400">
                 © {new Date().getFullYear()} La Majestueuse · Yaoundé
-            </footer>
+            <p className="mb-2">
+                    {'Une question sur l’inscription ? '}
+                    <Link href={routes.support + '#creer-compte'} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                        {'Voir le tutoriel pas à pas'}
+                    </Link>
+                </p>
+                </footer>
         </div>
     );
 }

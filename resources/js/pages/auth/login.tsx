@@ -207,9 +207,9 @@ export default function Login() {
                     <div className="mt-6 space-y-2.5 text-center">
                         <p className="text-sm text-ink-500 dark:text-ink-400">
                             {t("Besoin d'aide ?")}{' '}
-                            <a href="mailto:support@lamajestueuse.cm" className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                                {t('Contacter le support')}
-                            </a>
+                            <Link href={routes.support} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                                {t('Consulter le centre d’aide')}
+                            </Link>
                         </p>
                         <p className="flex items-center justify-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.1em] text-ink-400">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />

@@ -15,9 +15,16 @@ use App\Http\Controllers\Modules\DirectoryController;
 use App\Http\Controllers\Modules\InformationController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PostController;
+use App\Http\Controllers\SupportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/locale/{locale}', LocaleController::class)->name('locale.switch');
+
+/*
+ * Centre d'aide : consultable sans compte, depuis la connexion comme depuis
+ * le formulaire d'inscription.
+ */
+Route::get('/support', SupportController::class)->name('support');
 
 /*
  * L'unique page de connexion de tout l'ecosysteme La Majestueuse.

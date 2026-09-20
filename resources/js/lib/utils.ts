@@ -42,6 +42,7 @@ export const routes = {
     dashboard: '/',
     locale: (code: string) => `/locale/${code}`,
     openApp: (slug: string) => `/applications/${slug}/ouvrir`,
+    support: '/support',
     checkIn: '/pointage',
     post: (slug: string) => `/actualites/${slug}`,
     annuaire: '/annuaire',

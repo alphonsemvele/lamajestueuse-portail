@@ -1,6 +1,7 @@
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/react';
+import EnCours from '@/components/en-cours';
 import type { ComponentType } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -23,9 +24,20 @@ createInertiaApp({
         return page().then((module) => module.default);
     },
     setup({ el, App, props }) {
-        createRoot(el).render(<App {...props} />);
+        // L'indicateur d'attente vit DANS l'application : il a besoin du
+        // contexte Inertia (page courante, traductions).
+        createRoot(el).render(
+            <App {...props}>
+                {({ Component, props: pageProps, key }) => (
+                    <>
+                        <EnCours />
+                        <Component key={key} {...pageProps} />
+                    </>
+                )}
+            </App>,
+        );
     },
-    progress: {
-        color: '#2559eb',
-    },
+    // L'attente est signalée par notre propre indicateur (components/en-cours),
+    // plus visible que la fine barre par défaut.
+    progress: false,
 });

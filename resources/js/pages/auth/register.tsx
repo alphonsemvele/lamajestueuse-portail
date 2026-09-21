@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import Label from '@/components/label';
 import LocaleSwitch from '@/components/locale-switch';
 import Logo from '@/components/logo';
@@ -344,8 +345,8 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         {t('Annuler')}
                                     </Link>
                                     <button type="submit" disabled={processing} className="btn-primary">
-                                        <Icon name="check" className="h-4 w-4" />
-                                        {t('Envoyer ma demande')}
+                                        {processing ? <Spinner /> : <Icon name="check" className="h-4 w-4" />}
+                                        {processing ? t('Envoi de votre demande…') : t('Envoyer ma demande')}
                                     </button>
                                 </div>
                             </div>

@@ -1,6 +1,7 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import SwitchField from '@/components/switch-field';
 import MediaField from '@/components/media-field';
 import Label from '@/components/label';
@@ -117,8 +118,8 @@ export default function PostForm({ post }: { post: Post | null }) {
 
                     <Card className="space-y-2.5 p-5">
                         <button type="submit" disabled={processing} className="btn-primary w-full">
-                            <Icon name="check" className="h-4 w-4" />
-                            {editing ? t('Enregistrer') : t('Publier')}
+                            {processing ? <Spinner /> : <Icon name="check" className="h-4 w-4" />}
+                            {processing ? t('Enregistrement…') : editing ? t('Enregistrer') : t('Publier')}
                         </button>
                         <Link href={routes.admin.posts} className="btn-ghost w-full">
                             {t('Annuler')}

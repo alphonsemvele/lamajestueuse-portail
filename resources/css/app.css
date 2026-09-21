@@ -104,6 +104,15 @@
 
 /* Bandeau de connexion : derive lente de la photo et barre de progression
    des vues. Les deux sont neutralisees si le systeme reduit les animations. */
+@keyframes glissementBarre {
+    0% { transform: translateX(-120%); }
+    100% { transform: translateX(420%); }
+}
+
+.barre-indeterminee {
+    animation: glissementBarre 1.1s ease-in-out infinite;
+}
+
 @keyframes heroDrift {
     from {
         transform: scale(1.06) translate3d(-1.2%, -1%, 0);

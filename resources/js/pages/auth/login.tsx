@@ -2,6 +2,7 @@ import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import HeroCarousel from '@/components/hero-carousel';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import Label from '@/components/label';
 import LocaleSwitch from '@/components/locale-switch';
 import Logo from '@/components/logo';
@@ -184,8 +185,8 @@ export default function Login() {
                             </label>
 
                             <button type="submit" disabled={processing} className="btn-primary w-full py-3.5">
-                                <Icon name="login" className="h-4 w-4" />
-                                {t('Se connecter')}
+                                {processing ? <Spinner /> : <Icon name="login" className="h-4 w-4" />}
+                                {processing ? t('Connexion en cours…') : t('Se connecter')}
                             </button>
                         </form>
 

@@ -2,6 +2,7 @@ import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import MultiSelect from '@/components/multi-select';
 import { Alert, Card, Input } from '@/components/ui';
 import AdminLayout from '@/layouts/admin-layout';
@@ -92,8 +93,8 @@ export default function ApplicationAccess({ application, users, granted, referen
                             </p>
                         </div>
                         <button type="button" onClick={synchronize} disabled={syncing} className="btn-ghost border border-ink-200 dark:border-white/10">
-                            <Icon name="upload" className={syncing ? 'h-4 w-4 animate-pulse' : 'h-4 w-4'} />
-                            {syncing ? t('Synchronisation…') : t('Synchroniser les rôles et le personnel')}
+                            {syncing ? <Spinner /> : <Icon name="upload" className="h-4 w-4" />}
+                            {syncing ? t('Synchronisation en cours…') : t('Synchroniser les rôles et le personnel')}
                         </button>
                         {application.roleCatalogue.length > 0 && (
                             <div className="flex w-full flex-wrap gap-1.5">
@@ -215,8 +216,8 @@ export default function ApplicationAccess({ application, users, granted, referen
 
                 <div className="flex flex-wrap items-center gap-3">
                     <button type="submit" disabled={processing} className="btn-primary">
-                        <Icon name="check" className="h-4 w-4" />
-                        {t('Enregistrer les accès')}
+                        {processing ? <Spinner /> : <Icon name="check" className="h-4 w-4" />}
+                        {processing ? t('Enregistrement…') : t('Enregistrer les accès')}
                     </button>
                     <Link href={routes.admin.applications} className="btn-ghost">
                         {t('Retour')}

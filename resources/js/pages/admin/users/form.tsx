@@ -1,6 +1,7 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import Label from '@/components/label';
 import MultiSelect from '@/components/multi-select';
 import PhotoField from '@/components/photo-field';
@@ -289,8 +290,8 @@ export default function UserForm({ user, applications, assigned, postes }: Props
 
                     <Card className="space-y-2.5 p-5">
                         <button type="submit" disabled={processing} className="btn-primary w-full">
-                            <Icon name="check" className="h-4 w-4" />
-                            {editing ? t('Enregistrer') : t('Créer le compte')}
+                            {processing ? <Spinner /> : <Icon name="check" className="h-4 w-4" />}
+                            {processing ? t('Enregistrement…') : editing ? t('Enregistrer') : t('Créer le compte')}
                         </button>
                         <Link href={routes.admin.users} className="btn-ghost w-full">
                             {t('Annuler')}

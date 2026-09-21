@@ -1,6 +1,7 @@
 import { router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import Label from '@/components/label';
 import { Card, Input } from '@/components/ui';
 import AdminLayout from '@/layouts/admin-layout';
@@ -128,8 +129,8 @@ export default function CategoriesIndex({ categories }: { categories: Category[]
                                 </div>
                             </div>
                             <button type="submit" disabled={processing} className="btn-primary w-full">
-                                <Icon name="plus" className="h-4 w-4" />
-                                {t('Ajouter')}
+                                {processing ? <Spinner /> : <Icon name="plus" className="h-4 w-4" />}
+                                {processing ? t('Ajout en cours…') : t('Ajouter')}
                             </button>
                         </div>
                     </form>

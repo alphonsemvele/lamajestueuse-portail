@@ -1,6 +1,7 @@
 import { Link, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import Label from '@/components/label';
 import MediaField from '@/components/media-field';
 import { Card, Input, Select, Textarea } from '@/components/ui';
@@ -514,8 +515,8 @@ export default function ApplicationForm({
 
                     <Card className="space-y-2.5 p-5">
                         <button type="submit" disabled={processing} className="btn-primary w-full">
-                            <Icon name="check" className="h-4 w-4" />
-                            {editing ? t('Enregistrer les modifications') : t('Créer l’application')}
+                            {processing ? <Spinner /> : <Icon name="check" className="h-4 w-4" />}
+                            {processing ? t('Enregistrement…') : editing ? t('Enregistrer les modifications') : t('Créer l’application')}
                         </button>
                         <Link href={routes.admin.applications} className="btn-ghost w-full">
                             {t('Annuler')}

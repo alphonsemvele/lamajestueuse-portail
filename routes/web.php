@@ -13,6 +13,9 @@ use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Modules\DirectoryController;
 use App\Http\Controllers\Modules\InformationController;
+use App\Http\Controllers\Modules\Personnel\PaieController;
+use App\Http\Controllers\Modules\Personnel\PersonnelController;
+use App\Http\Controllers\Modules\Personnel\ReferentielController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\SupportController;
@@ -64,6 +67,75 @@ Route::middleware('auth')->group(function () {
         Route::put('/{post}', [InformationController::class, 'update'])->name('update');
         Route::delete('/{post}', [InformationController::class, 'destroy'])->name('destroy');
         Route::post('/{post}/visibilite', [InformationController::class, 'toggleVisibility'])->name('visibility');
+    });
+
+    /*
+     * Personnel & paie : gestion administrative du personnel du groupe
+     * (dossier, diplomes, contrats, carriere) et paie mensuelle. Le module
+     * remplace ce que chaque application faisait de son cote.
+     */
+    Route::prefix('personnel')->name('personnel.')->group(function () {
+        Route::get('/', [PersonnelController::class, 'index'])->name('index');
+
+        Route::get('/agents', [PersonnelController::class, 'agents'])->name('agents');
+        Route::post('/agents', [PersonnelController::class, 'store'])->name('agents.store');
+        Route::get('/agents/{agent}', [PersonnelController::class, 'show'])->name('agents.show');
+        Route::put('/agents/{agent}', [PersonnelController::class, 'update'])->name('agents.update');
+
+        Route::post('/agents/{agent}/diplomes', [PersonnelController::class, 'storeDiplome'])->name('diplomes.store');
+        Route::put('/diplomes/{diplome}', [PersonnelController::class, 'updateDiplome'])->name('diplomes.update');
+        Route::delete('/diplomes/{diplome}', [PersonnelController::class, 'destroyDiplome'])->name('diplomes.destroy');
+
+        Route::post('/agents/{agent}/contrats', [PersonnelController::class, 'storeContrat'])->name('contrats.store');
+        Route::put('/contrats/{contrat}', [PersonnelController::class, 'updateContrat'])->name('contrats.update');
+        Route::delete('/contrats/{contrat}', [PersonnelController::class, 'destroyContrat'])->name('contrats.destroy');
+
+        Route::post('/agents/{agent}/carriere', [PersonnelController::class, 'storeEvenement'])->name('evenements.store');
+        Route::delete('/carriere/{evenement}', [PersonnelController::class, 'destroyEvenement'])->name('evenements.destroy');
+
+        // ------------------------------------------------------- paie
+        Route::get('/paie', [PaieController::class, 'index'])->name('paie.index');
+        Route::post('/paie/generer', [PaieController::class, 'generer'])->name('paie.generer');
+        Route::post('/paie/lot', [PaieController::class, 'traiterLot'])->name('paie.lot');
+        Route::get('/bulletins', [PaieController::class, 'registre'])->name('bulletins');
+        Route::get('/paie/bulletins/{bulletin}', [PaieController::class, 'show'])->name('paie.bulletin');
+        Route::post('/paie/bulletins/{bulletin}/recalculer', [PaieController::class, 'recalculer'])->name('paie.recalculer');
+        Route::post('/paie/bulletins/{bulletin}/valider', [PaieController::class, 'valider'])->name('paie.valider');
+        Route::post('/paie/bulletins/{bulletin}/payer', [PaieController::class, 'payer'])->name('paie.payer');
+        Route::put('/paie/bulletins/{bulletin}/note', [PaieController::class, 'annoter'])->name('paie.note');
+        Route::post('/contrats/{contrat}/ajustements', [PaieController::class, 'storeAjustement'])->name('ajustements.store');
+        Route::delete('/ajustements/{ajustement}', [PaieController::class, 'destroyAjustement'])->name('ajustements.destroy');
+
+        // ----------------------------------------------- referentiels
+        /*
+         * Une entree de menu par referentiel, comme dans IUM : employeurs,
+         * categories & echelons, profils, indemnites, retenues. Les cinq
+         * ouvrent le meme ecran sur la section demandee.
+         */
+        Route::get('/employeurs', [ReferentielController::class, 'employeurs'])->name('employeurs');
+        Route::get('/categories', [ReferentielController::class, 'categories'])->name('categories');
+        Route::get('/profils', [ReferentielController::class, 'profils'])->name('profils');
+        Route::get('/indemnites', [ReferentielController::class, 'indemnites'])->name('indemnites');
+        Route::get('/retenues', [ReferentielController::class, 'retenues'])->name('retenues');
+
+        Route::post('/employeurs', [ReferentielController::class, 'storeEmployeur'])->name('employeurs.store');
+        Route::put('/employeurs/{employeur}', [ReferentielController::class, 'updateEmployeur'])->name('employeurs.update');
+        Route::delete('/employeurs/{employeur}', [ReferentielController::class, 'destroyEmployeur'])->name('employeurs.destroy');
+        Route::post('/categories', [ReferentielController::class, 'storeCategorie'])->name('categories.store');
+        Route::put('/categories/{categorie}', [ReferentielController::class, 'updateCategorie'])->name('categories.update');
+        Route::delete('/categories/{categorie}', [ReferentielController::class, 'destroyCategorie'])->name('categories.destroy');
+        Route::post('/categories/{categorie}/echelons', [ReferentielController::class, 'storeEchelon'])->name('echelons.store');
+        Route::put('/echelons/{echelon}', [ReferentielController::class, 'updateEchelon'])->name('echelons.update');
+        Route::delete('/echelons/{echelon}', [ReferentielController::class, 'destroyEchelon'])->name('echelons.destroy');
+        Route::post('/indemnites', [ReferentielController::class, 'storeIndemnite'])->name('indemnites.store');
+        Route::put('/indemnites/{indemnite}', [ReferentielController::class, 'updateIndemnite'])->name('indemnites.update');
+        Route::delete('/indemnites/{indemnite}', [ReferentielController::class, 'destroyIndemnite'])->name('indemnites.destroy');
+        Route::post('/retenues', [ReferentielController::class, 'storeRetenue'])->name('retenues.store');
+        Route::put('/retenues/{retenue}', [ReferentielController::class, 'updateRetenue'])->name('retenues.update');
+        Route::delete('/retenues/{retenue}', [ReferentielController::class, 'destroyRetenue'])->name('retenues.destroy');
+        Route::post('/profils', [ReferentielController::class, 'storeProfil'])->name('profils.store');
+        Route::put('/profils/{profil}', [ReferentielController::class, 'updateProfil'])->name('profils.update');
+        Route::delete('/profils/{profil}', [ReferentielController::class, 'destroyProfil'])->name('profils.destroy');
     });
 });
 

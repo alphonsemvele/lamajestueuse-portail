@@ -117,6 +117,11 @@ echo "▸ Site en maintenance"
 
 "$PHP" artisan migrate --force
 
+# Installation des modules servis par le portail : idempotent, il ne cree que
+# ce qui manque (la tuile du module, un employeur par institut) et n'ecrase
+# jamais les donnees en place.
+"$PHP" artisan db:seed --class=PersonnelModuleSeeder --force
+
 [ -e public/storage ] || "$PHP" artisan storage:link || true
 
 # Un cache de configuration périmé peut contenir des chemins absents (le

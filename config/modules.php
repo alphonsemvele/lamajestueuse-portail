@@ -27,6 +27,17 @@ return [
         'manage_roles' => ['admin', 'editeur', 'redacteur'],
     ],
 
+    'personnel' => [
+        'name' => 'Personnel & paie',
+        'description' => "Dossiers du personnel, carrière, contrats et paie mensuelle du groupe.",
+        'route' => 'personnel.index',
+        'icon' => 'briefcase',
+        'color' => '#0f766e',
+        // Les donnees sont sensibles : la tuile donne la consultation, ces
+        // roles seuls ouvrent la saisie et la mise en paiement.
+        'manage_roles' => ['admin', 'drh', 'rh', 'gestionnaire_paie'],
+    ],
+
     'annuaire' => [
         'name' => 'Annuaire',
         'description' => "Rechercher un membre du personnel et consulter ses informations de contact.",

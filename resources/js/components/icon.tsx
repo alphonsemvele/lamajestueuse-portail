@@ -46,6 +46,12 @@ const paths: Record<string, string> = {
     'image': `<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>`,
     'sliders': `<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h10M18 18h2"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>`,
     'phone': `<path d="M15.5 21A12.5 12.5 0 0 1 3 8.5 2.5 2.5 0 0 1 5.5 6h1.8a1 1 0 0 1 1 .78l.7 3a1 1 0 0 1-.3.96l-1.3 1.2a10.5 10.5 0 0 0 4.66 4.66l1.2-1.3a1 1 0 0 1 .96-.3l3 .7a1 1 0 0 1 .78 1v1.8A2.5 2.5 0 0 1 15.5 21Z"/>`,
+    'moins': `<path d="M5 12h14"/>`,
+    'wallet': `<path d="M3 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2"/><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 13h3"/>`,
+    'calendar': `<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>`,
+    'award': `<circle cx="12" cy="9" r="6"/><path d="m8.5 14-1.5 7 5-2.5L17 21l-1.5-7"/>`,
+    'refresh': `<path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/>`,
+    'print': `<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/>`,
     'upload': `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 9 5-5 5 5"/><path d="M12 4v12"/>`,
 };
 

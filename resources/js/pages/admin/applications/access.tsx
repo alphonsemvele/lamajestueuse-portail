@@ -16,9 +16,12 @@ interface Props {
     references: Record<number, string | null>;
     /** L'application reçoit-elle une identité signée du portail ? */
     raccordee: boolean;
+    /** Entités du groupe, pour un module qui se configure par entité. */
+    employeurs: { id: number; sigle: string; nom: string }[];
+    perimetres: Record<number, number[]>;
 }
 
-export default function ApplicationAccess({ application, users, granted, references, raccordee }: Props) {
+export default function ApplicationAccess({ application, users, granted, references, raccordee, employeurs, perimetres }: Props) {
     const t = useT();
     const choice = useChoice();
     const pageErrors = usePage().props.errors as Record<string, string>;
@@ -26,15 +29,35 @@ export default function ApplicationAccess({ application, users, granted, referen
     const [onlyGranted, setOnlyGranted] = useState(false);
     const [syncing, setSyncing] = useState(false);
 
+    // Un module « par entité » (Personnel & paie) demande, en plus du rôle,
+    // les entités du groupe que la personne a le droit de suivre.
+    const parEntite = employeurs.length > 0;
+
     const { data, setData, put, processing, errors } = useForm<{
         users: number[];
         roles: Record<number, string[]>;
         references: Record<number, string>;
+        perimetres: Record<number, number[]>;
     }>({
         users: Object.keys(granted).map(Number),
         roles: Object.fromEntries(Object.entries(granted).map(([id, roles]) => [Number(id), roles ?? []])),
         references: Object.fromEntries(Object.entries(references).map(([id, ref]) => [Number(id), ref ?? ''])),
+        perimetres: Object.fromEntries(Object.entries(perimetres).map(([id, liste]) => [Number(id), liste ?? []])),
     });
+
+    const entiteOptions = employeurs.map((employeur) => ({
+        value: String(employeur.id),
+        label: employeur.sigle,
+        description: employeur.nom,
+    }));
+
+    // Choisir une entité vaut autorisation : inutile de cocher en plus.
+    const setPerimetre = (id: number, entites: string[]) =>
+        setData((current) => ({
+            ...current,
+            perimetres: { ...current.perimetres, [id]: entites.map(Number) },
+            users: entites.length > 0 && !current.users.includes(id) ? [...current.users, id] : current.users,
+        }));
 
     const options = application.roleCatalogue.map((role) => ({ value: role.code, label: role.libelle, description: role.description }));
 
@@ -145,6 +168,12 @@ export default function ApplicationAccess({ application, users, granted, referen
                     </div>
                 </Card>
 
+                {parEntite && (
+                    <Alert tone="info" icon="building">
+                        {t("Ce module se configure par entité : chaque gestionnaire ne voit que le personnel, les contrats et les bulletins des entités que vous lui attribuez. Sans entité, il n'a accès à aucun dossier. Un administrateur du portail voit l'ensemble du groupe.")}
+                    </Alert>
+                )}
+
                 {raccordee && (
                     <Alert tone="info" icon="key">
                         {t("Cette application reçoit une identité signée du portail : l'employé y entre sans mot de passe, avec les rôles attribués ici. Renseignez son matricule local s'il y possède déjà un compte, sinon un nouveau sera créé à sa première entrée.")}
@@ -198,6 +227,17 @@ export default function ApplicationAccess({ application, users, granted, referen
                                 )}
                                 {errorFor(user.id) && <p className="mt-1 text-xs text-red-600">{errorFor(user.id)}</p>}
                             </div>
+
+                            {parEntite && (
+                                <div className="w-full sm:w-64">
+                                    <MultiSelect
+                                        options={entiteOptions}
+                                        value={(data.perimetres[user.id] ?? []).map(String)}
+                                        onChange={(entites) => setPerimetre(user.id, entites)}
+                                        placeholder={t('aucune entité')}
+                                    />
+                                </div>
+                            )}
 
                             {raccordee && (
                                 <Input

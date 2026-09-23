@@ -3,9 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Models\Application;
 use App\Models\Category;
-use App\Http\Controllers\Concerns\HandlesMediaUploads;
+use App\Models\Employeur;
 use App\Models\User;
 use App\Services\ApplicationDirectorySync;
 use Illuminate\Http\RedirectResponse;
@@ -92,8 +93,21 @@ class ApplicationController extends Controller
     {
         $application->load('users');
 
+        // Le module Personnel & paie se configure par entite : on indique ici
+        // quels employeurs chaque gestionnaire a le droit de suivre.
+        $parEntite = $application->module_key === 'personnel';
+
         return Inertia::render('admin/applications/access', [
             'application' => $application->toUiArray(),
+            'employeurs' => $parEntite
+                ? Employeur::orderBy('sigle')->get()
+                    ->map(fn (Employeur $e) => ['id' => $e->id, 'sigle' => $e->sigle, 'nom' => $e->nom])->all()
+                : [],
+            'perimetres' => $parEntite
+                ? $application->users->mapWithKeys(
+                    fn ($user) => [$user->id => $user->employeursRh()->pluck('employeurs.id')->all()]
+                )->all()
+                : [],
             'users' => User::orderBy('name')->orderBy('lastname')->get()->map->toUiArray()->all(),
             'granted' => $application->users->mapWithKeys(
                 fn ($user) => [$user->id => Application::pivotRoles($user->pivot)]
@@ -121,6 +135,9 @@ class ApplicationController extends Controller
             'roles.*.*' => ['string', 'max:60'],
             'references' => ['array'],
             'references.*' => ['nullable', 'string', 'max:120'],
+            'perimetres' => ['array'],
+            'perimetres.*' => ['array'],
+            'perimetres.*.*' => ['integer', 'exists:employeurs,id'],
         ]);
 
         // Un role affecte doit figurer parmi ceux que l'application declare.
@@ -144,6 +161,17 @@ class ApplicationController extends Controller
         }
 
         $application->users()->sync($sync);
+
+        // Perimetre RH : il suit l'acces au module. Qui perd l'acces perd ses
+        // entites, sinon il les retrouverait a la prochaine autorisation.
+        if ($application->module_key === 'personnel') {
+            foreach (User::whereIn('id', array_keys($sync))->get() as $gestionnaire) {
+                $gestionnaire->employeursRh()->sync($data['perimetres'][$gestionnaire->id] ?? []);
+            }
+
+            User::whereNotIn('id', array_keys($sync))->get()
+                ->each(fn (User $ancien) => $ancien->employeursRh()->detach());
+        }
 
         return back()->with('status', 'Les accès ont été enregistrés.');
     }

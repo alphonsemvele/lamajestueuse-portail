@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Storage;
@@ -39,6 +40,36 @@ class User extends Authenticatable
         return $this->belongsToMany(Application::class)
             ->withPivot(['role_in_app', 'roles', 'poste', 'reference_locale', 'is_pinned', 'opens_count', 'last_opened_at'])
             ->withTimestamps();
+    }
+
+    /**
+     * Employeurs dont cet utilisateur gere le personnel. L'administrateur du
+     * portail les designe depuis l'ecran d'acces du module.
+     */
+    public function employeursRh(): BelongsToMany
+    {
+        return $this->belongsToMany(Employeur::class)->withTimestamps();
+    }
+
+    /**
+     * Perimetre RH : la liste des employeurs visibles, ou null quand il n'y a
+     * aucune limite (administrateur du portail).
+     *
+     * @return array<int, int>|null
+     */
+    public function perimetreRh(): ?array
+    {
+        if ($this->isAdmin()) {
+            return null;
+        }
+
+        return $this->employeursRh()->pluck('employeurs.id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    /** Dossier du module Personnel & paie, quand il a ete ouvert. */
+    public function agent(): HasOne
+    {
+        return $this->hasOne(Agent::class);
     }
 
     public function checkIns(): HasMany

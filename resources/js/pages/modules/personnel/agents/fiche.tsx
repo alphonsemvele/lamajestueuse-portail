@@ -8,8 +8,14 @@ import { cn, routes } from '@/lib/utils';
 import { Bouton, Champ, fcfa, Modale, Statut, Tableau, Vide } from '../parts';
 
 interface Agent {
-    id: number;
+    /** Le dossier RH, absent tant que rien n'y a été saisi. */
+    id: number | null;
+    dossierOuvert: boolean;
+    /** Le compte du portail : c'est lui qui identifie la fiche. */
+    userId: number;
     nom: string | null;
+    poste: string | null;
+    entite: string | null;
     matricule: string | null;
     email: string | null;
     telephone: string | null;
@@ -40,6 +46,7 @@ interface Diplome {
 
 interface Contrat {
     id: number;
+    userId: number | null;
     employeurId: number;
     employeur: string | null;
     type: string;
@@ -60,6 +67,7 @@ interface Contrat {
 
 interface Evenement {
     id: number;
+    userId: number | null;
     date: string | null;
     type: string;
     typeLibelle: string;
@@ -226,7 +234,7 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
 
     const enregistrer = (event: FormEvent) => {
         event.preventDefault();
-        formulaire.put(routes.personnel.agent(agent.id), { onSuccess: () => setEdition(false) });
+        formulaire.put(routes.personnel.agent(agent.userId), { onSuccess: () => setEdition(false) });
     };
 
     if (!edition) {
@@ -388,7 +396,7 @@ function Diplomes({ agent, diplomes, niveaux, peutGerer }: { agent: Agent; diplo
             },
         };
 
-        edite ? formulaire.put(routes.personnel.diplome(edite.id), apres) : formulaire.post(routes.personnel.diplomes(agent.id), apres);
+        edite ? formulaire.put(routes.personnel.diplome(edite.id), apres) : formulaire.post(routes.personnel.diplomes(agent.userId), apres);
     };
 
     const supprimer = (diplome: Diplome) => {
@@ -588,7 +596,7 @@ function Contrats({
             },
         };
 
-        edite ? formulaire.put(routes.personnel.contrat(edite.id), apres) : formulaire.post(routes.personnel.contrats(agent.id), apres);
+        edite ? formulaire.put(routes.personnel.contrat(edite.id), apres) : formulaire.post(routes.personnel.contrats(agent.userId), apres);
     };
 
     const supprimer = (contrat: Contrat) => {
@@ -817,7 +825,7 @@ function Carriere({
 
     const enregistrer = (event: FormEvent) => {
         event.preventDefault();
-        formulaire.post(routes.personnel.carriere(agent.id), {
+        formulaire.post(routes.personnel.carriere(agent.userId), {
             onSuccess: () => {
                 setOuvert(false);
                 formulaire.reset();

@@ -58,13 +58,14 @@ export const routes = {
     personnel: {
         index: '/personnel',
         agents: '/personnel/agents',
-        agentStore: '/personnel/agents',
-        agent: (id: number) => `/personnel/agents/${id}`,
-        diplomes: (agent: number) => `/personnel/agents/${agent}/diplomes`,
+        // Le dossier est identifié par le compte du portail : il n'a pas
+        // besoin d'exister pour qu'on ouvre la fiche.
+        agent: (user: number) => `/personnel/dossier/${user}`,
+        diplomes: (user: number) => `/personnel/dossier/${user}/diplomes`,
         diplome: (id: number) => `/personnel/diplomes/${id}`,
-        contrats: (agent: number) => `/personnel/agents/${agent}/contrats`,
+        contrats: (user: number) => `/personnel/dossier/${user}/contrats`,
         contrat: (id: number) => `/personnel/contrats/${id}`,
-        carriere: (agent: number) => `/personnel/agents/${agent}/carriere`,
+        carriere: (user: number) => `/personnel/dossier/${user}/carriere`,
         evenement: (id: number) => `/personnel/carriere/${id}`,
         paie: '/personnel/paie',
         bulletins: '/personnel/bulletins',

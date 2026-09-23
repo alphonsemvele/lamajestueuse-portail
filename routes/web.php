@@ -77,20 +77,24 @@ Route::middleware('auth')->group(function () {
     Route::prefix('personnel')->name('personnel.')->group(function () {
         Route::get('/', [PersonnelController::class, 'index'])->name('index');
 
+        /*
+         * Le personnel est celui du portail : la liste montre tout le monde,
+         * qu'un dossier ait ete ouvert ou non. Le dossier est un detail du
+         * compte, pas un objet a creer d'abord — il nait a la premiere saisie.
+         */
         Route::get('/agents', [PersonnelController::class, 'agents'])->name('agents');
-        Route::post('/agents', [PersonnelController::class, 'store'])->name('agents.store');
-        Route::get('/agents/{agent}', [PersonnelController::class, 'show'])->name('agents.show');
-        Route::put('/agents/{agent}', [PersonnelController::class, 'update'])->name('agents.update');
+        Route::get('/dossier/{user}', [PersonnelController::class, 'show'])->name('agents.show');
+        Route::put('/dossier/{user}', [PersonnelController::class, 'update'])->name('agents.update');
 
-        Route::post('/agents/{agent}/diplomes', [PersonnelController::class, 'storeDiplome'])->name('diplomes.store');
+        Route::post('/dossier/{user}/diplomes', [PersonnelController::class, 'storeDiplome'])->name('diplomes.store');
         Route::put('/diplomes/{diplome}', [PersonnelController::class, 'updateDiplome'])->name('diplomes.update');
         Route::delete('/diplomes/{diplome}', [PersonnelController::class, 'destroyDiplome'])->name('diplomes.destroy');
 
-        Route::post('/agents/{agent}/contrats', [PersonnelController::class, 'storeContrat'])->name('contrats.store');
+        Route::post('/dossier/{user}/contrats', [PersonnelController::class, 'storeContrat'])->name('contrats.store');
         Route::put('/contrats/{contrat}', [PersonnelController::class, 'updateContrat'])->name('contrats.update');
         Route::delete('/contrats/{contrat}', [PersonnelController::class, 'destroyContrat'])->name('contrats.destroy');
 
-        Route::post('/agents/{agent}/carriere', [PersonnelController::class, 'storeEvenement'])->name('evenements.store');
+        Route::post('/dossier/{user}/carriere', [PersonnelController::class, 'storeEvenement'])->name('evenements.store');
         Route::delete('/carriere/{evenement}', [PersonnelController::class, 'destroyEvenement'])->name('evenements.destroy');
 
         // ------------------------------------------------------- paie

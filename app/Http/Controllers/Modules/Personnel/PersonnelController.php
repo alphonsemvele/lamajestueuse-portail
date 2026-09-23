@@ -51,11 +51,13 @@ class PersonnelController extends Controller
             ])->all(),
             'perimetreLimite' => $perimetre !== null,
             'chiffres' => [
-                'agents' => Agent::duPerimetre($perimetre)->count(),
+                // L'effectif, c'est le personnel du portail relevant des
+                // entites suivies, dossier ouvert ou non.
+                'agents' => User::where('status', 'active')->duPerimetreRh($perimetre)->count(),
                 'contratsActifs' => Contrat::where('statut', 'actif')
                     ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
                     ->count(),
-                'sansDossier' => User::where('status', 'active')
+                'sansDossier' => User::where('status', 'active')->duPerimetreRh($perimetre)
                     ->whereDoesntHave('agent')->count(),
                 'masse' => $paie->masseSalariale($mois, $annee, null, $perimetre),
             ],
@@ -84,87 +86,110 @@ class PersonnelController extends Controller
         $statut = $request->query('statut');
         $perimetre = $this->perimetre($request);
 
-        $agents = Agent::query()
-            ->duPerimetre($perimetre)
+        /*
+         * On liste le personnel du portail, pas les dossiers deja ouverts :
+         * quelqu'un qui vient d'etre rattache a un institut doit apparaitre
+         * tout de suite, meme si personne n'a encore rempli sa fiche.
+         */
+        $personnel = User::query()
+            ->where('status', 'active')
+            ->duPerimetreRh($perimetre)
             ->with([
-                'user',
+                'agent',
                 // Les contrats affiches sont eux aussi limites au perimetre :
                 // le poste d'un agent dans un autre institut ne regarde pas
                 // le gestionnaire de celui-ci.
-                'contratsActifs' => fn ($q) => $q->when($perimetre !== null, fn ($c) => $c->whereIn('employeur_id', $perimetre)),
-                'contratsActifs.employeur', 'contratsActifs.echelon', 'contratsActifs.profil',
+                'agent.contratsActifs' => fn ($q) => $q->when($perimetre !== null, fn ($c) => $c->whereIn('employeur_id', $perimetre)),
+                'agent.contratsActifs.employeur', 'agent.contratsActifs.echelon', 'agent.contratsActifs.profil',
             ])
-            ->when($recherche !== '', fn ($q) => $q->whereHas('user', fn ($u) => $u
+            ->when($recherche !== '', fn ($q) => $q->where(fn ($sub) => $sub
                 ->where('name', 'like', "%{$recherche}%")
                 ->orWhere('lastname', 'like', "%{$recherche}%")
                 ->orWhere('matricule', 'like', "%{$recherche}%")
                 ->orWhere('email', 'like', "%{$recherche}%")))
-            ->when($employeur, fn ($q, $id) => $q->whereHas('contrats', fn ($c) => $c
+            ->when($employeur, fn ($q, $id) => $q->whereHas('agent.contrats', fn ($c) => $c
                 ->where('employeur_id', $id)->where('statut', 'actif')
                 ->when($perimetre !== null, fn ($sub) => $sub->whereIn('employeur_id', $perimetre))))
-            ->when($statut === 'sans_contrat', fn ($q) => $q->whereDoesntHave('contrats', fn ($c) => $c
+            ->when($statut === 'sans_contrat', fn ($q) => $q->whereDoesntHave('agent.contrats', fn ($c) => $c
                 ->where('statut', 'actif')
                 ->when($perimetre !== null, fn ($sub) => $sub->whereIn('employeur_id', $perimetre))))
-            ->when($statut === 'plusieurs', fn ($q) => $q->has('contratsActifs', '>', 1))
-            ->join('users', 'users.id', '=', 'agents.user_id')
-            ->orderBy('users.lastname')->orderBy('users.name')
-            ->select('agents.*')
+            ->when($statut === 'sans_dossier', fn ($q) => $q->whereDoesntHave('agent'))
+            ->when($statut === 'plusieurs', fn ($q) => $q->whereHas('agent', fn ($a) => $a->has('contratsActifs', '>', 1)))
+            ->orderBy('lastname')->orderBy('name')
             ->paginate(20)->withQueryString()
-            ->through(fn (Agent $a) => $a->toUiArray() + [
-                'contrats' => $a->contratsActifs->map(fn (Contrat $c) => $c->toUiArray())->all(),
-            ]);
+            ->through(fn (User $membre) => $this->ligneDePersonnel($membre));
 
         return Inertia::render('modules/personnel/agents/index', [
-            'agents' => $agents,
+            'agents' => $personnel,
             'filtres' => ['q' => $recherche, 'employeur' => $employeur, 'statut' => $statut],
             'employeurs' => Employeur::when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
                 ->orderBy('sigle')->get()->map(fn ($e) => $e->toUiArray())->all(),
             'peutGerer' => $this->peutGerer($request->user()),
-            // Comptes du portail qui n'ont pas encore de dossier personnel.
-            'comptesSansDossier' => $this->peutGerer($request->user())
-                ? User::where('status', 'active')->whereDoesntHave('agent')
-                    ->orderBy('lastname')->get()
-                    ->map(fn (User $u) => [
-                        'id' => $u->id,
-                        'nom' => $u->fullName(),
-                        'matricule' => $u->matricule,
-                        'email' => $u->email,
-                        'poste' => $u->poste,
-                    ])->all()
-                : [],
+            'sansDossier' => User::where('status', 'active')->duPerimetreRh($perimetre)
+                ->whereDoesntHave('agent')->count(),
         ]);
     }
 
-    public function show(Request $request, Agent $agent): Response
+    /**
+     * Une ligne de la liste : l'identite vient du compte du portail, le reste
+     * du dossier RH quand il existe.
+     *
+     * @return array<string, mixed>
+     */
+    private function ligneDePersonnel(User $membre): array
+    {
+        $agent = $membre->agent;
+
+        return [
+            'userId' => $membre->id,
+            'id' => $agent?->id,
+            'dossierOuvert' => $agent !== null,
+            'nom' => $membre->fullName(),
+            'matricule' => $membre->matricule,
+            'email' => $membre->email,
+            'telephone' => $membre->phone,
+            'poste' => $membre->poste,
+            'entite' => $membre->entite,
+            'photoUrl' => $membre->avatarUrl(),
+            'initiales' => $membre->initials(),
+            'anciennete' => $agent?->anciennete(),
+            'contrats' => $agent?->contratsActifs->map(fn (Contrat $c) => $c->toUiArray())->all() ?? [],
+        ];
+    }
+
+    public function show(Request $request, User $user): Response
     {
         $this->autoriserAcces($request->user());
-        $this->verifierAgent($request, $agent);
+        $this->verifierPersonne($request, $user);
 
         $perimetre = $this->perimetre($request);
         $dansPerimetre = fn ($q) => $q->when($perimetre !== null, fn ($sub) => $sub->whereIn('employeur_id', $perimetre));
 
-        $agent->load([
-            'user', 'diplomes',
-            'contrats.employeur', 'contrats.echelon.categorie', 'contrats.profil',
-            'evenements.contrat.employeur',
-            'bulletins.employeur',
-        ]);
+        // Le dossier n'existe pas tant que personne n'y a rien saisi : la
+        // fiche s'ouvre quand meme, vide, prete a etre remplie.
+        $agent = $user->agent;
 
         return Inertia::render('modules/personnel/agents/fiche', [
-            'agent' => $agent->toUiArray(),
-            'diplomes' => $agent->diplomes->map(fn (Diplome $d) => $d->toUiArray())->all(),
+            'agent' => $this->ficheAdministrative($user, $agent),
+            'diplomes' => $agent ? $agent->diplomes->map(fn (Diplome $d) => $d->toUiArray())->all() : [],
             // Un agent partage entre deux instituts a deux contrats : chaque
             // gestionnaire ne voit que le sien, et la paie qui va avec.
-            'contrats' => $agent->contrats()->tap($dansPerimetre)->with(['employeur', 'echelon.categorie', 'profil'])
-                ->get()->map(fn (Contrat $c) => $c->toUiArray())->all(),
-            'evenements' => $agent->evenements()->with('contrat.employeur')
-                ->when($perimetre !== null, fn ($q) => $q->where(fn ($sub) => $sub
-                    ->whereNull('contrat_id')
-                    ->orWhereHas('contrat', fn ($c) => $c->whereIn('employeur_id', $perimetre))))
-                ->get()->map(fn (EvenementCarriere $e) => $e->toUiArray())->all(),
-            'bulletins' => $agent->bulletins()->with('employeur')->tap($dansPerimetre)
-                ->orderByDesc('annee')->orderByDesc('mois')->limit(12)->get()
-                ->map(fn ($b) => $b->toUiArray())->all(),
+            'contrats' => $agent
+                ? $agent->contrats()->tap($dansPerimetre)->with(['employeur', 'echelon.categorie', 'profil'])
+                    ->get()->map(fn (Contrat $c) => $c->toUiArray())->all()
+                : [],
+            'evenements' => $agent
+                ? $agent->evenements()->with('contrat.employeur')
+                    ->when($perimetre !== null, fn ($q) => $q->where(fn ($sub) => $sub
+                        ->whereNull('contrat_id')
+                        ->orWhereHas('contrat', fn ($c) => $c->whereIn('employeur_id', $perimetre))))
+                    ->get()->map(fn (EvenementCarriere $e) => $e->toUiArray())->all()
+                : [],
+            'bulletins' => $agent
+                ? $agent->bulletins()->with('employeur')->tap($dansPerimetre)
+                    ->orderByDesc('annee')->orderByDesc('mois')->limit(12)->get()
+                    ->map(fn ($b) => $b->toUiArray())->all()
+                : [],
             'referentiels' => [
                 'employeurs' => Employeur::where('actif', true)
                     ->when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
@@ -180,27 +205,48 @@ class PersonnelController extends Controller
         ]);
     }
 
-    /** Ouvre un dossier personnel pour un compte existant du portail. */
-    public function store(Request $request): RedirectResponse
+    /**
+     * Identite du portail et dossier RH reunis. Sans dossier, les champs
+     * administratifs sont vides : la fiche reste consultable.
+     *
+     * @return array<string, mixed>
+     */
+    private function ficheAdministrative(User $user, ?Agent $agent): array
     {
-        $this->autoriserGestion($request->user());
+        $donnees = $agent?->toUiArray() ?? [
+            'id' => null,
+            'dateNaissance' => null, 'lieuNaissance' => null, 'situationFamiliale' => null,
+            'enfants' => 0, 'cni' => null, 'numeroCnps' => null, 'adresse' => null,
+            'urgenceNom' => null, 'urgenceTelephone' => null, 'observations' => null,
+            'anciennete' => null,
+        ];
 
-        $donnees = $request->validate([
-            'user_id' => ['required', 'exists:users,id', 'unique:agents,user_id'],
-        ]);
-
-        $agent = Agent::create($donnees);
-
-        return redirect()->route('personnel.agents.show', $agent)
-            ->with('status', __('Dossier ouvert.'));
+        return $donnees + [
+            'userId' => $user->id,
+            'dossierOuvert' => $agent !== null,
+            'nom' => $user->fullName(),
+            'matricule' => $user->matricule,
+            'email' => $user->email,
+            'telephone' => $user->phone,
+            'poste' => $user->poste,
+            'entite' => $user->entite,
+            'photoUrl' => $user->avatarUrl(),
+            'initiales' => $user->initials(),
+        ];
     }
 
-    public function update(Request $request, Agent $agent): RedirectResponse
+    /** Le dossier nait a la premiere saisie, pas avant. */
+    private function dossierDe(User $user): Agent
+    {
+        return Agent::firstOrCreate(['user_id' => $user->id]);
+    }
+
+    public function update(Request $request, User $user): RedirectResponse
     {
         $this->autoriserGestion($request->user());
-        $this->verifierAgent($request, $agent);
+        $this->verifierPersonne($request, $user);
 
-        $agent->update($request->validate([
+        $this->dossierDe($user)->update($request->validate([
             'date_naissance' => ['nullable', 'date'],
             'lieu_naissance' => ['nullable', 'string', 'max:255'],
             'situation_familiale' => ['nullable', Rule::in(['celibataire', 'marie', 'divorce', 'veuf'])],
@@ -218,12 +264,12 @@ class PersonnelController extends Controller
 
     // ------------------------------------------------------------ diplomes
 
-    public function storeDiplome(Request $request, Agent $agent): RedirectResponse
+    public function storeDiplome(Request $request, User $user): RedirectResponse
     {
         $this->autoriserGestion($request->user());
-        $this->verifierAgent($request, $agent);
+        $this->verifierPersonne($request, $user);
 
-        $agent->diplomes()->create($this->reglesDiplome($request));
+        $this->dossierDe($user)->diplomes()->create($this->reglesDiplome($request));
 
         return back()->with('status', __('Diplôme ajouté.'));
     }
@@ -263,14 +309,15 @@ class PersonnelController extends Controller
 
     // ------------------------------------------------------------ contrats
 
-    public function storeContrat(Request $request, Agent $agent): RedirectResponse
+    public function storeContrat(Request $request, User $user): RedirectResponse
     {
         $this->autoriserGestion($request->user());
-        $this->verifierAgent($request, $agent);
+        $this->verifierPersonne($request, $user);
 
         $donnees = $this->reglesContrat($request);
         $this->verifierEntite($request, (int) $donnees['employeur_id']);
 
+        $agent = $this->dossierDe($user);
         $contrat = $agent->contrats()->create($donnees);
 
         // Le recrutement s'inscrit tout seul dans la carriere.
@@ -344,10 +391,10 @@ class PersonnelController extends Controller
 
     // ------------------------------------------------------------ carriere
 
-    public function storeEvenement(Request $request, Agent $agent): RedirectResponse
+    public function storeEvenement(Request $request, User $user): RedirectResponse
     {
         $this->autoriserGestion($request->user());
-        $this->verifierAgent($request, $agent);
+        $this->verifierPersonne($request, $user);
 
         $donnees = $request->validate([
             'contrat_id' => ['nullable', 'exists:contrats,id'],
@@ -357,7 +404,7 @@ class PersonnelController extends Controller
             'details' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $agent->evenements()->create($donnees + ['saisi_par' => $request->user()->id]);
+        $this->dossierDe($user)->evenements()->create($donnees + ['saisi_par' => $request->user()->id]);
 
         return back()->with('status', __('Événement ajouté au dossier.'));
     }

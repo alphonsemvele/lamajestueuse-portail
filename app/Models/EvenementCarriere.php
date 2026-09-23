@@ -41,6 +41,7 @@ class EvenementCarriere extends Model
         return [
             'id' => $this->id,
             'agentId' => $this->agent_id,
+            'userId' => $this->agent?->user_id,
             'agent' => $this->agent?->user?->fullName(),
             'contratId' => $this->contrat_id,
             'date' => $this->date_evenement?->format('Y-m-d'),

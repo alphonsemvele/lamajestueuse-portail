@@ -29,6 +29,9 @@ class PersonnelModuleTest extends TestCase
 
     private Application $module;
 
+    /** L'institut, cote portail : c'est lui qui rattache le personnel. */
+    private Application $institut;
+
     private Employeur $employeur;
 
     private Echelon $echelon;
@@ -38,7 +41,12 @@ class PersonnelModuleTest extends TestCase
         parent::setUp();
 
         $this->module = Application::factory()->module('personnel')->create(['name' => 'Personnel & paie']);
-        $this->employeur = Employeur::create(['nom' => 'Institut Universitaire', 'sigle' => 'IUM']);
+        $this->institut = Application::factory()->create(['name' => 'IUM']);
+        $this->employeur = Employeur::create([
+            'nom' => 'Institut Universitaire',
+            'sigle' => 'IUM',
+            'application_id' => $this->institut->id,
+        ]);
 
         $categorie = CategorieRh::create(['libelle' => 'Enseignants']);
         $this->echelon = Echelon::create(['categorie_rh_id' => $categorie->id, 'numero' => 1, 'salaire' => 200000]);
@@ -66,9 +74,18 @@ class PersonnelModuleTest extends TestCase
         return $user;
     }
 
-    private function agent(): Agent
+    /** Un membre du personnel, rattache a l'institut cote portail. */
+    private function membre(string $nom = 'MBALLA'): User
     {
-        return Agent::create(['user_id' => User::factory()->create(['lastname' => 'MBALLA'])->id]);
+        $membre = User::factory()->create(['lastname' => $nom]);
+        $membre->applications()->attach($this->institut);
+
+        return $membre;
+    }
+
+    private function agent(string $nom = 'MBALLA'): Agent
+    {
+        return Agent::create(['user_id' => $this->membre($nom)->id]);
     }
 
     private function contrat(?Agent $agent = null, array $attributs = []): Contrat
@@ -115,7 +132,7 @@ class PersonnelModuleTest extends TestCase
                 ->component('modules/personnel/index')
                 ->where('peutGerer', false));
 
-        $this->actingAs($lecteur)->post(route('personnel.agents.store'), ['user_id' => User::factory()->create()->id])
+        $this->actingAs($lecteur)->put(route('personnel.agents.update', $this->agent()->user), ['enfants' => 2])
             ->assertForbidden();
 
         $this->actingAs($lecteur)->get(route('personnel.employeurs'))->assertForbidden();
@@ -163,55 +180,82 @@ class PersonnelModuleTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->has('echeances', 1));
     }
 
-    public function test_l_ouverture_d_un_dossier_rattache_un_compte_existant(): void
+    /** Le dossier n'est plus un objet a creer d'abord : il nait a la saisie. */
+    public function test_le_dossier_nait_a_la_premiere_saisie(): void
     {
-        $compte = User::factory()->create();
+        $compte = $this->membre('NKOA');
 
+        $this->assertSame(0, Agent::count());
+
+        // La fiche s'ouvre sans rien creer.
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $compte))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('agent.dossierOuvert', false)
+                ->where('agent.userId', $compte->id)
+                ->has('contrats', 0));
+
+        $this->assertSame(0, Agent::count());
+
+        // La premiere saisie, elle, l'ouvre.
         $this->actingAs($this->gestionnaire())
-            ->post(route('personnel.agents.store'), ['user_id' => $compte->id])
+            ->put(route('personnel.agents.update', $compte), ['enfants' => 2])
             ->assertRedirect();
 
-        $this->assertDatabaseHas('agents', ['user_id' => $compte->id]);
+        $this->assertDatabaseHas('agents', ['user_id' => $compte->id, 'enfants' => 2]);
     }
 
-    public function test_un_compte_n_a_qu_un_seul_dossier(): void
+    public function test_deux_saisies_de_suite_ne_creent_qu_un_dossier(): void
     {
-        $agent = $this->agent();
+        $compte = $this->membre('NKOA');
+        $gestionnaire = $this->gestionnaire();
 
-        $this->actingAs($this->gestionnaire())
-            ->post(route('personnel.agents.store'), ['user_id' => $agent->user_id])
-            ->assertSessionHasErrors('user_id');
+        $this->actingAs($gestionnaire)->put(route('personnel.agents.update', $compte), ['enfants' => 1]);
+        $this->actingAs($gestionnaire)->post(route('personnel.diplomes.store', $compte), ['intitule' => 'Licence']);
+
+        $this->assertSame(1, Agent::where('user_id', $compte->id)->count());
     }
 
-    public function test_la_liste_ne_propose_que_les_comptes_sans_dossier(): void
+    public function test_la_liste_montre_le_personnel_du_portail_dossier_ou_non(): void
+    {
+        $this->agent();                  // dossier deja ouvert
+        User::factory()->create();       // compte sans dossier
+
+        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('modules/personnel/agents/index')
+                // Les deux comptes, plus l'administrateur lui-meme.
+                ->has('agents.data', 3)
+                ->where('sansDossier', 2));
+    }
+
+    public function test_le_filtre_dossier_non_renseigne(): void
     {
         $this->agent();
         User::factory()->create();
 
-        $this->actingAs($this->gestionnaire())->get(route('personnel.agents'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('modules/personnel/agents/index')
-                ->has('agents.data', 1)
-                // Le gestionnaire lui-meme et le compte libre, pas l'agent deja suivi.
-                ->has('comptesSansDossier', 2));
+        $this->actingAs(User::factory()->admin()->create())
+            ->get(route('personnel.agents', ['statut' => 'sans_dossier']))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 2));
     }
 
     public function test_la_recherche_filtre_par_nom(): void
     {
         $this->agent();
-        Agent::create(['user_id' => User::factory()->create(['lastname' => 'ATANGANA'])->id]);
+        $this->agent('ATANGANA');
 
-        $this->actingAs($this->gestionnaire())->get(route('personnel.agents', ['q' => 'atangana']))
+        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents', ['q' => 'atangana']))
             ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
     }
 
     public function test_le_filtre_sans_contrat_isole_les_dossiers_a_completer(): void
     {
         $this->contrat();
-        $this->agent();
+        $admin = User::factory()->admin()->create();
 
-        $this->actingAs($this->gestionnaire())->get(route('personnel.agents', ['statut' => 'sans_contrat']))
+        $this->actingAs($admin)->get(route('personnel.agents', ['statut' => 'sans_contrat']))
+            // Tout le monde sauf la personne sous contrat.
             ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
     }
 
@@ -221,7 +265,7 @@ class PersonnelModuleTest extends TestCase
         $this->contrat($agent);
         $agent->diplomes()->create(['intitule' => 'Master en gestion', 'niveau' => 'Master']);
 
-        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $agent))
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $agent->user))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('modules/personnel/agents/fiche')
@@ -236,7 +280,7 @@ class PersonnelModuleTest extends TestCase
     {
         $agent = $this->agent();
 
-        $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $agent), [
+        $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $agent->user), [
             'date_naissance' => '1988-04-12',
             'lieu_naissance' => 'Douala',
             'situation_familiale' => 'marie',
@@ -252,7 +296,7 @@ class PersonnelModuleTest extends TestCase
         $agent = $this->agent();
 
         $this->actingAs($this->gestionnaire())
-            ->put(route('personnel.agents.update', $agent), ['situation_familiale' => 'concubinage'])
+            ->put(route('personnel.agents.update', $agent->user), ['situation_familiale' => 'concubinage'])
             ->assertSessionHasErrors('situation_familiale');
     }
 
@@ -261,7 +305,7 @@ class PersonnelModuleTest extends TestCase
         $agent = $this->agent();
         $gestionnaire = $this->gestionnaire();
 
-        $this->actingAs($gestionnaire)->post(route('personnel.diplomes.store', $agent), [
+        $this->actingAs($gestionnaire)->post(route('personnel.diplomes.store', $agent->user), [
             'intitule' => 'Licence en droit',
             'niveau' => 'Licence',
             'annee_obtention' => 2012,
@@ -285,7 +329,7 @@ class PersonnelModuleTest extends TestCase
     public function test_un_niveau_hors_liste_est_refuse(): void
     {
         $this->actingAs($this->gestionnaire())
-            ->post(route('personnel.diplomes.store', $this->agent()), ['intitule' => 'Brevet', 'niveau' => 'Certificat maison'])
+            ->post(route('personnel.diplomes.store', $this->agent()->user), ['intitule' => 'Brevet', 'niveau' => 'Certificat maison'])
             ->assertSessionHasErrors('niveau');
     }
 
@@ -295,7 +339,7 @@ class PersonnelModuleTest extends TestCase
     {
         $agent = $this->agent();
 
-        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $agent), [
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $agent->user), [
             'employeur_id' => $this->employeur->id,
             'type' => 'cdd',
             'poste' => 'Chargé de cours',
@@ -318,7 +362,7 @@ class PersonnelModuleTest extends TestCase
 
     public function test_une_date_de_fin_anterieure_au_debut_est_refusee(): void
     {
-        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $this->agent()), [
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $this->agent()->user), [
             'employeur_id' => $this->employeur->id,
             'type' => 'cdd',
             'poste' => 'Chargé de cours',
@@ -366,7 +410,7 @@ class PersonnelModuleTest extends TestCase
         $agent = $this->agent();
         $gestionnaire = $this->gestionnaire();
 
-        $this->actingAs($gestionnaire)->post(route('personnel.evenements.store', $agent), [
+        $this->actingAs($gestionnaire)->post(route('personnel.evenements.store', $agent->user), [
             'date_evenement' => '2026-09-01',
             'type' => 'avancement',
             'libelle' => 'Passage à l’échelon 2',

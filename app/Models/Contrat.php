@@ -90,6 +90,7 @@ class Contrat extends Model
         return [
             'id' => $this->id,
             'agentId' => $this->agent_id,
+            'userId' => $this->agent?->user_id,
             'agent' => $this->agent?->user?->fullName(),
             'employeurId' => $this->employeur_id,
             'employeur' => $this->employeur?->sigle,

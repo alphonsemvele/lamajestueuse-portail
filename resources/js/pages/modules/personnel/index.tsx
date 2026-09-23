@@ -29,13 +29,13 @@ interface Props {
     echeances: {
         id: number;
         agent: string | null;
-        agentId: number;
+        userId: number;
         employeur: string | null;
         poste: string;
         typeLibelle: string;
         dateFin: string | null;
     }[];
-    evenements: { id: number; agent: string | null; agentId: number; date: string | null; typeLibelle: string; libelle: string }[];
+    evenements: { id: number; agent: string | null; userId: number; date: string | null; typeLibelle: string; libelle: string }[];
     peutGerer: boolean;
     /** L'utilisateur ne suit qu'une partie des entités du groupe. */
     perimetreLimite: boolean;
@@ -189,7 +189,7 @@ export default function TableauDeBordPersonnel({
                         {echeances.map((contrat) => (
                             <Link
                                 key={contrat.id}
-                                href={routes.personnel.agent(contrat.agentId)}
+                                href={routes.personnel.agent(contrat.userId)}
                                 className="block rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2.5 transition hover:bg-amber-50 dark:border-amber-500/25 dark:bg-amber-500/10"
                             >
                                 <p className="truncate text-sm font-medium text-ink-900 dark:text-white">{contrat.agent ?? '—'}</p>
@@ -213,7 +213,7 @@ export default function TableauDeBordPersonnel({
                     {evenements.map((evenement) => (
                         <Link
                             key={evenement.id}
-                            href={routes.personnel.agent(evenement.agentId)}
+                            href={routes.personnel.agent(evenement.userId)}
                             className="flex flex-wrap items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-ink-50 dark:hover:bg-white/5"
                         >
                             <span className="w-24 shrink-0 text-xs tabular-nums text-ink-400">{dateCourte(evenement.date)}</span>

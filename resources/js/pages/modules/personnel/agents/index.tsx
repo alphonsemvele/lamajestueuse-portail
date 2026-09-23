@@ -1,13 +1,12 @@
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import Avatar from '@/components/avatar';
-import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
 import { routes } from '@/lib/utils';
 import type { Paginated } from '@/types';
-import { Bouton, Champ, Entete, fcfa, Modale, Vide } from '../parts';
+import { Champ, Entete, fcfa, Vide } from '../parts';
 
 interface ContratLigne {
     id: number;
@@ -19,29 +18,32 @@ interface ContratLigne {
     statut: string;
 }
 
-interface AgentLigne {
-    id: number;
-    nom: string | null;
+interface Membre {
+    userId: number;
+    id: number | null;
+    dossierOuvert: boolean;
+    nom: string;
     matricule: string | null;
     email: string | null;
-    telephone: string | null;
+    poste: string | null;
+    entite: string | null;
     photoUrl: string | null;
-    initiales: string | null;
+    initiales: string;
     anciennete: number | null;
     contrats: ContratLigne[];
 }
 
 interface Props {
-    agents: Paginated<AgentLigne>;
+    agents: Paginated<Membre>;
     filtres: { q: string; employeur: string | null; statut: string | null };
     employeurs: { id: number; sigle: string; nom: string }[];
-    comptesSansDossier: { id: number; nom: string; matricule: string | null; email: string; poste: string | null }[];
     peutGerer: boolean;
+    /** Combien de personnes n'ont pas encore de dossier renseigné. */
+    sansDossier: number;
 }
 
-export default function ListePersonnel({ agents, filtres, employeurs, comptesSansDossier, peutGerer }: Props) {
+export default function ListePersonnel({ agents, filtres, employeurs, peutGerer, sansDossier }: Props) {
     const [q, setQ] = useState(filtres.q);
-    const [ouvrir, setOuvrir] = useState(false);
 
     const chercher = (params: Record<string, string> = {}) =>
         router.get(
@@ -67,32 +69,24 @@ export default function ListePersonnel({ agents, filtres, employeurs, comptesSan
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [q]);
 
-    const formulaire = useForm({ user_id: '' });
-
-    const ouvrirDossier = (event: FormEvent) => {
+    const soumettre = (event: FormEvent) => {
         event.preventDefault();
-        formulaire.post(routes.personnel.agentStore, {
-            onSuccess: () => {
-                setOuvrir(false);
-                formulaire.reset();
-            },
-        });
+        chercher();
     };
 
     return (
         <PersonnelLayout
             title="Personnel"
             peutGerer={peutGerer}
-            entete={<Entete titre="Personnel" sous={`${agents.total} dossier(s) au total.`} />}
+            entete={
+                <Entete
+                    titre="Personnel"
+                    sous={`${agents.total} personne(s)${sansDossier > 0 ? ` · ${sansDossier} dossier(s) à renseigner` : ''}`}
+                />
+            }
         >
             <Card className="p-4">
-                <form
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        chercher();
-                    }}
-                    className="flex flex-wrap items-end gap-3"
-                >
+                <form onSubmit={soumettre} className="flex flex-wrap items-end gap-3">
                     <Champ libelle="Rechercher" className="min-w-[220px] flex-1">
                         <Input
                             type="search"
@@ -124,16 +118,11 @@ export default function ListePersonnel({ agents, filtres, employeurs, comptesSan
                             className="w-auto"
                         >
                             <option value="">Toutes</option>
+                            <option value="sans_dossier">Dossier non renseigné</option>
                             <option value="sans_contrat">Sans contrat actif</option>
                             <option value="plusieurs">Plusieurs employeurs</option>
                         </Select>
                     </Champ>
-
-                    {peutGerer && (
-                        <Bouton type="button" icon="plus" onClick={() => setOuvrir(true)} className="ml-auto">
-                            Ouvrir un dossier
-                        </Bouton>
-                    )}
                 </form>
             </Card>
 
@@ -141,33 +130,45 @@ export default function ListePersonnel({ agents, filtres, employeurs, comptesSan
                 {agents.data.length === 0 && (
                     <div className="sm:col-span-2 xl:col-span-3">
                         <Card className="p-4">
-                            <Vide message="Aucun dossier ne correspond à cette recherche." icon="users" />
+                            <Vide
+                                message={
+                                    filtres.q || filtres.employeur || filtres.statut
+                                        ? 'Personne ne correspond à cette recherche.'
+                                        : "Aucun membre du personnel n'est rattaché à vos entités. Le rattachement se fait dans l'administration du portail."
+                                }
+                                icon="users"
+                            />
                         </Card>
                     </div>
                 )}
 
-                {agents.data.map((agent) => (
-                    <Link key={agent.id} href={routes.personnel.agent(agent.id)}>
+                {agents.data.map((membre) => (
+                    <Link key={membre.userId} href={routes.personnel.agent(membre.userId)}>
                         <Card className="h-full p-5 transition hover:border-teal-400 hover:shadow-md dark:hover:border-teal-500/40">
                             <div className="flex items-start gap-3">
-                                <Avatar url={agent.photoUrl} initials={agent.initiales ?? '?'} className="h-11 w-11" />
+                                <Avatar url={membre.photoUrl} initials={membre.initiales} className="h-11 w-11" />
                                 <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">{agent.nom}</p>
+                                    <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">{membre.nom}</p>
                                     <p className="truncate text-xs text-ink-500 dark:text-ink-400">
-                                        {agent.matricule ?? 'sans matricule'}
-                                        {agent.anciennete !== null && ` · ${agent.anciennete} an(s) d'ancienneté`}
+                                        {membre.matricule ?? 'sans matricule'}
+                                        {membre.poste && ` · ${membre.poste}`}
                                     </p>
                                 </div>
+                                {!membre.dossierOuvert && (
+                                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
+                                        à renseigner
+                                    </span>
+                                )}
                             </div>
 
                             <div className="mt-4 space-y-2">
-                                {agent.contrats.length === 0 && (
-                                    <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-                                        Aucun contrat actif.
+                                {membre.contrats.length === 0 && (
+                                    <p className="rounded-lg bg-ink-50 px-3 py-2 text-xs text-ink-500 dark:bg-white/5 dark:text-ink-400">
+                                        {membre.entite ? `Rattaché à ${membre.entite}` : 'Aucun contrat enregistré.'}
                                     </p>
                                 )}
 
-                                {agent.contrats.map((contrat) => (
+                                {membre.contrats.map((contrat) => (
                                     <div
                                         key={contrat.id}
                                         className="flex items-center justify-between gap-3 rounded-lg bg-ink-50 px-3 py-2 dark:bg-white/5"
@@ -193,45 +194,6 @@ export default function ListePersonnel({ agents, filtres, employeurs, comptesSan
             </div>
 
             <Pagination page={agents} />
-
-            <Modale titre="Ouvrir un dossier personnel" ouverte={ouvrir} onFermer={() => setOuvrir(false)}>
-                <form onSubmit={ouvrirDossier} className="space-y-4">
-                    <p className="text-sm text-ink-600 dark:text-ink-300">
-                        Le dossier se rattache à un compte existant du portail : l'identité, la photo et les contacts
-                        restent gérés dans l'annuaire.
-                    </p>
-
-                    <Champ libelle="Compte du portail" erreur={formulaire.errors.user_id}>
-                        <Select
-                            value={formulaire.data.user_id}
-                            onChange={(event) => formulaire.setData('user_id', event.target.value)}
-                            required
-                        >
-                            <option value="">Choisir…</option>
-                            {comptesSansDossier.map((compte) => (
-                                <option key={compte.id} value={compte.id}>
-                                    {compte.nom} {compte.matricule ? `(${compte.matricule})` : ''}
-                                </option>
-                            ))}
-                        </Select>
-                    </Champ>
-
-                    {comptesSansDossier.length === 0 && (
-                        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
-                            Tous les comptes actifs du portail ont déjà un dossier.
-                        </p>
-                    )}
-
-                    <div className="flex justify-end gap-2">
-                        <Bouton type="button" variante="secondaire" onClick={() => setOuvrir(false)}>
-                            Annuler
-                        </Bouton>
-                        <Bouton type="submit" icon="check" disabled={formulaire.processing || !formulaire.data.user_id}>
-                            {formulaire.processing ? 'Ouverture…' : 'Ouvrir le dossier'}
-                        </Bouton>
-                    </div>
-                </form>
-            </Modale>
         </PersonnelLayout>
     );
 }

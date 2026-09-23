@@ -27,6 +27,10 @@ class PerimetreRhTest extends TestCase
 
     private Application $module;
 
+    private Application $appIum;
+
+    private Application $appIfpm;
+
     private Employeur $ium;
 
     private Employeur $ifpm;
@@ -38,8 +42,18 @@ class PerimetreRhTest extends TestCase
         parent::setUp();
 
         $this->module = Application::factory()->module('personnel')->create(['name' => 'Personnel & paie']);
-        $this->ium = Employeur::create(['nom' => 'Institut Universitaire', 'sigle' => 'IUM']);
-        $this->ifpm = Employeur::create(['nom' => 'Institut de Formation', 'sigle' => 'IFPM']);
+
+        // Chaque employeur correspond a un institut du portail : c'est par lui
+        // que le personnel est rattache avant meme d'avoir un contrat.
+        $this->appIum = Application::factory()->create(['name' => 'IUM']);
+        $this->appIfpm = Application::factory()->create(['name' => 'IFPM']);
+
+        $this->ium = Employeur::create([
+            'nom' => 'Institut Universitaire', 'sigle' => 'IUM', 'application_id' => $this->appIum->id,
+        ]);
+        $this->ifpm = Employeur::create([
+            'nom' => 'Institut de Formation', 'sigle' => 'IFPM', 'application_id' => $this->appIfpm->id,
+        ]);
 
         $categorie = CategorieRh::create(['libelle' => 'Enseignants']);
         $this->echelon = Echelon::create(['categorie_rh_id' => $categorie->id, 'numero' => 1, 'salaire' => 200000]);
@@ -55,15 +69,22 @@ class PerimetreRhTest extends TestCase
         return $user;
     }
 
-    private function agent(string $nom): Agent
+    /** Un membre du personnel rattache a un institut, avec son dossier. */
+    private function agent(string $nom, ?Application $institut = null): Agent
     {
-        return Agent::create(['user_id' => User::factory()->create(['lastname' => $nom])->id]);
+        $membre = User::factory()->create(['lastname' => $nom]);
+        $membre->applications()->attach($institut ?? $this->appIum);
+
+        return Agent::create(['user_id' => $membre->id]);
     }
 
     private function contrat(Employeur $employeur, ?Agent $agent = null, array $attributs = []): Contrat
     {
+        // Sans agent designe, on en cree un rattache a l'institut concerne.
+        $defaut = fn () => $this->agent('MBALLA', $employeur->id === $this->ifpm->id ? $this->appIfpm : $this->appIum);
+
         return Contrat::create(array_merge([
-            'agent_id' => ($agent ?? $this->agent('MBALLA'))->id,
+            'agent_id' => ($agent ?? $defaut())->id,
             'employeur_id' => $employeur->id,
             'type' => 'cdi',
             'poste' => 'Enseignant',
@@ -125,7 +146,7 @@ class PerimetreRhTest extends TestCase
     public function test_le_gestionnaire_ne_voit_que_le_personnel_de_ses_entites(): void
     {
         $this->contrat($this->ium, $this->agent('NKOA'));
-        $this->contrat($this->ifpm, $this->agent('ATANGANA'));
+        $this->contrat($this->ifpm, $this->agent('ATANGANA', $this->appIfpm));
 
         $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents'))
             ->assertOk()
@@ -136,18 +157,42 @@ class PerimetreRhTest extends TestCase
                 ->has('employeurs', 1));
     }
 
-    public function test_un_dossier_sans_contrat_reste_visible_pour_etre_complete(): void
+    /**
+     * Sans contrat encore saisi, c'est le rattachement du portail qui dit de
+     * qui releve la personne : autrement, un nouvel arrivant serait invisible
+     * de celui-la meme qui doit lui faire son contrat.
+     */
+    public function test_le_rattachement_a_l_institut_suffit_a_faire_apparaitre_une_personne(): void
     {
-        $this->agent('SANS CONTRAT');
+        $this->agent('NOUVEAU', $this->appIum);
 
         $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents'))
-            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('agents.data', 1)
+                ->where('agents.data.0.dossierOuvert', true));
+
+        $this->actingAs($this->gestionnaire($this->ifpm))->get(route('personnel.agents'))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 0));
+    }
+
+    public function test_une_personne_rattachee_a_aucun_institut_ne_remonte_qu_a_l_administrateur(): void
+    {
+        $isole = User::factory()->create(['lastname' => 'ISOLÉ']);
+
+        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents'))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 0));
+
+        $reponse = $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents'));
+        $noms = collect($reponse->viewData('page')['props']['agents']['data'])->pluck('nom');
+
+        $this->assertTrue($noms->contains(fn ($nom) => str_contains((string) $nom, 'ISOLÉ')));
+        $this->assertSame('ISOLÉ', $isole->lastname);
     }
 
     public function test_le_gestionnaire_de_deux_entites_voit_les_deux(): void
     {
         $this->contrat($this->ium, $this->agent('NKOA'));
-        $this->contrat($this->ifpm, $this->agent('ATANGANA'));
+        $this->contrat($this->ifpm, $this->agent('ATANGANA', $this->appIfpm));
 
         $this->actingAs($this->gestionnaire($this->ium, $this->ifpm))->get(route('personnel.agents'))
             ->assertInertia(fn (Assert $page) => $page->has('agents.data', 2)->has('employeurs', 2));
@@ -164,10 +209,10 @@ class PerimetreRhTest extends TestCase
 
     public function test_la_fiche_d_un_agent_hors_perimetre_est_refusee(): void
     {
-        $agent = $this->agent('ATANGANA');
+        $agent = $this->agent('ATANGANA', $this->appIfpm);
         $this->contrat($this->ifpm, $agent);
 
-        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent))
+        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent->user))
             ->assertForbidden();
     }
 
@@ -178,14 +223,14 @@ class PerimetreRhTest extends TestCase
         $this->contrat($this->ium, $agent, ['poste' => 'Enseignant IUM']);
         $this->contrat($this->ifpm, $agent, ['poste' => 'Formateur IFPM']);
 
-        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent))
+        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent->user))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('contrats', 1)
                 ->where('contrats.0.poste', 'Enseignant IUM')
                 ->has('referentiels.employeurs', 1));
 
-        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents.show', $agent))
+        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents.show', $agent->user))
             ->assertInertia(fn (Assert $page) => $page->has('contrats', 2));
     }
 
@@ -199,7 +244,7 @@ class PerimetreRhTest extends TestCase
             $paie->genererMois($employeur, 9, 2026);
         }
 
-        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent))
+        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent->user))
             ->assertInertia(fn (Assert $page) => $page->has('bulletins', 1)->where('bulletins.0.employeur', 'IUM'));
     }
 
@@ -217,7 +262,7 @@ class PerimetreRhTest extends TestCase
             'date_evenement' => '2026-04-01', 'type' => 'formation', 'libelle' => 'Formation du groupe',
         ]);
 
-        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent))
+        $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents.show', $agent->user))
             ->assertInertia(fn (Assert $page) => $page
                 // L'evenement sans contrat concerne la personne, pas l'institut.
                 ->has('evenements', 1)
@@ -227,7 +272,7 @@ class PerimetreRhTest extends TestCase
     public function test_le_tableau_de_bord_ne_compte_que_les_entites_suivies(): void
     {
         $this->contrat($this->ium, $this->agent('NKOA'));
-        $this->contrat($this->ifpm, $this->agent('ATANGANA'));
+        $this->contrat($this->ifpm, $this->agent('ATANGANA', $this->appIfpm));
         app(PaieService::class)->genererMois($this->ifpm, 9, 2026);
 
         $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.index', ['mois' => 9, 'annee' => 2026]))
@@ -245,7 +290,7 @@ class PerimetreRhTest extends TestCase
     {
         $paie = app(PaieService::class);
         $this->contrat($this->ium, $this->agent('NKOA'));
-        $this->contrat($this->ifpm, $this->agent('ATANGANA'));
+        $this->contrat($this->ifpm, $this->agent('ATANGANA', $this->appIfpm));
         $paie->genererMois($this->ium, 9, 2026);
         $paie->genererMois($this->ifpm, 9, 2026);
 
@@ -319,7 +364,7 @@ class PerimetreRhTest extends TestCase
     {
         $agent = $this->agent('NKOA');
 
-        $this->actingAs($this->gestionnaire($this->ium))->post(route('personnel.contrats.store', $agent), [
+        $this->actingAs($this->gestionnaire($this->ium))->post(route('personnel.contrats.store', $agent->user), [
             'employeur_id' => $this->ifpm->id,
             'type' => 'cdi',
             'poste' => 'Formateur',
@@ -355,18 +400,18 @@ class PerimetreRhTest extends TestCase
 
     public function test_le_dossier_d_un_agent_hors_perimetre_ne_se_modifie_pas(): void
     {
-        $agent = $this->agent('ATANGANA');
+        $agent = $this->agent('ATANGANA', $this->appIfpm);
         $this->contrat($this->ifpm, $agent);
 
         $gestionnaire = $this->gestionnaire($this->ium);
 
-        $this->actingAs($gestionnaire)->put(route('personnel.agents.update', $agent), ['enfants' => 4])
+        $this->actingAs($gestionnaire)->put(route('personnel.agents.update', $agent->user), ['enfants' => 4])
             ->assertForbidden();
 
-        $this->actingAs($gestionnaire)->post(route('personnel.diplomes.store', $agent), ['intitule' => 'Master'])
+        $this->actingAs($gestionnaire)->post(route('personnel.diplomes.store', $agent->user), ['intitule' => 'Master'])
             ->assertForbidden();
 
-        $this->actingAs($gestionnaire)->post(route('personnel.evenements.store', $agent), [
+        $this->actingAs($gestionnaire)->post(route('personnel.evenements.store', $agent->user), [
             'date_evenement' => '2026-09-01', 'type' => 'sanction', 'libelle' => 'Avertissement',
         ])->assertForbidden();
     }

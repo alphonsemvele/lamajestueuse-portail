@@ -66,6 +66,7 @@ class Bulletin extends Model
             'id' => $this->id,
             'contratId' => $this->contrat_id,
             'agentId' => $this->agent_id,
+            'userId' => $this->agent?->user_id,
             'agent' => $this->agent?->user?->fullName(),
             'matricule' => $this->agent?->user?->matricule,
             'employeur' => $this->employeur?->sigle,

@@ -76,13 +76,21 @@ trait ServesModule
         );
     }
 
-    /** Refuse un dossier qui releve d'entites que l'utilisateur ne suit pas. */
-    protected function verifierAgent(Request $request, Agent $agent): void
+    /** Refuse une personne qui releve d'entites que l'utilisateur ne suit pas. */
+    protected function verifierPersonne(Request $request, User $personne): void
     {
         abort_unless(
-            $agent->dansLePerimetre($this->perimetre($request)),
+            $personne->releveDuPerimetreRh($this->perimetre($request)),
             403,
             __("Ce dossier ne relève pas de votre périmètre.")
         );
+    }
+
+    /** Meme controle a partir du dossier RH. */
+    protected function verifierAgent(Request $request, ?Agent $agent): void
+    {
+        abort_if($agent === null, 404);
+
+        $this->verifierPersonne($request, $agent->user);
     }
 }

@@ -52,6 +52,37 @@ class User extends Authenticatable
     }
 
     /**
+     * Personnel relevant d'un perimetre RH. Une personne en fait partie par
+     * son contrat, ou — tant qu'elle n'en a pas encore — par l'institut
+     * auquel le portail la rattache.
+     *
+     * @param  array<int, int>|null  $employeurs  null : aucune limite
+     */
+    public function scopeDuPerimetreRh(Builder $query, ?array $employeurs): Builder
+    {
+        if ($employeurs === null) {
+            return $query;
+        }
+
+        $applications = Employeur::whereIn('id', $employeurs)
+            ->whereNotNull('application_id')->pluck('application_id')->all();
+
+        return $query->where(fn ($sub) => $sub
+            ->whereHas('agent.contrats', fn ($c) => $c->whereIn('employeur_id', $employeurs))
+            ->orWhereHas('applications', fn ($a) => $a->whereIn('applications.id', $applications)));
+    }
+
+    /** Cette personne releve-t-elle du perimetre donne ? */
+    public function releveDuPerimetreRh(?array $employeurs): bool
+    {
+        if ($employeurs === null) {
+            return true;
+        }
+
+        return static::whereKey($this->id)->duPerimetreRh($employeurs)->exists();
+    }
+
+    /**
      * Perimetre RH : la liste des employeurs visibles, ou null quand il n'y a
      * aucune limite (administrateur du portail).
      *

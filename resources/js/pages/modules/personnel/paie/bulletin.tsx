@@ -38,7 +38,7 @@ interface Bulletin {
 
 interface Props {
     bulletin: Bulletin;
-    contrat: { id: number; quotite: number; echelon: string | null; profil: string | null; typeLibelle: string; agentId: number } | null;
+    contrat: { id: number; quotite: number; echelon: string | null; profil: string | null; typeLibelle: string; userId: number | null } | null;
     employeur: { nom: string; sigle: string; niu: string | null; numeroCnps: string | null; signataire: string | null } | null;
     agent: { id: number; nom: string | null; numeroCnps: string | null; enfants: number } | null;
     ajustements: { id: number; type: string; mode: string; libelle: string; montant: number; motif: string | null }[];
@@ -140,7 +140,7 @@ export default function DetailBulletin({ bulletin, contrat, employeur, agent, aj
                     <div>
                         <p className="text-[11px] uppercase tracking-wide text-ink-400">Agent</p>
                         <Link
-                            href={contrat ? routes.personnel.agent(contrat.agentId) : '#'}
+                            href={contrat?.userId ? routes.personnel.agent(contrat.userId) : '#'}
                             className="mt-0.5 block text-sm font-medium text-ink-900 hover:underline dark:text-white"
                         >
                             {bulletin.agent}

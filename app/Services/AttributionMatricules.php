@@ -80,31 +80,38 @@ class AttributionMatricules
     }
 
     /**
-     * Attribue les matricules manquants. Une personne qui en a deja un n'est
-     * jamais renumerotee : la regle est qu'un matricule ne change pas.
+     * Attribue les matricules aux personnes designees.
+     *
+     * Par defaut, celles qui en portent deja un sont laissees tranquilles :
+     * la regle du groupe est qu'un matricule ne change pas. `$remplacer` leve
+     * cette reserve, pour les corrections decidees en connaissance de cause ;
+     * les nouveaux numeros prennent alors la suite du plus haut attribue, et
+     * l'ancien numero reste brule — il ne sera donne a personne d'autre.
      *
      * @param  array<int, int>  $identifiants
-     * @return array<int, array{id: int, nom: string, matricule: string}>
+     * @return array<int, array{id: int, nom: string, matricule: string, ancien: ?string}>
      */
-    public function attribuer(array $identifiants): array
+    public function attribuer(array $identifiants, bool $remplacer = false): array
     {
-        return DB::transaction(function () use ($identifiants) {
+        return DB::transaction(function () use ($identifiants, $remplacer) {
             $numero = $this->dernierNumero();
             $attribues = [];
 
             $personnes = User::whereIn('id', $identifiants)
-                ->whereNull('matricule')
+                ->when(! $remplacer, fn ($q) => $q->whereNull('matricule'))
                 ->lockForUpdate()
                 ->orderBy('lastname')->orderBy('name')
                 ->get();
 
             foreach ($personnes as $personne) {
+                $ancien = $personne->matricule;
                 $personne->update(['matricule' => $this->formater(++$numero)]);
 
                 $attribues[] = [
                     'id' => $personne->id,
                     'nom' => $personne->fullName(),
                     'matricule' => $personne->matricule,
+                    'ancien' => $ancien,
                 ];
             }
 

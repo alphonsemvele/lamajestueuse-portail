@@ -165,17 +165,21 @@ class UserController extends Controller
     }
 
     /**
-     * Attribue les matricules aux comptes cochés. Un compte qui en porte deja
-     * un est laisse tel quel : un matricule ne se remplace pas ici.
+     * Attribue les matricules aux comptes coches.
+     *
+     * Sans `remplacer`, ceux qui en portent deja un sont laisses tels quels.
+     * Avec, ils sont renumerotes : c'est une decision qui se prend a
+     * l'ecran, case cochee, et le message rappelle ce qui a change.
      */
     public function attribuerMatricules(Request $request, AttributionMatricules $attribution): RedirectResponse
     {
         $donnees = $request->validate([
             'users' => ['required', 'array', 'min:1'],
             'users.*' => ['integer', 'exists:users,id'],
+            'remplacer' => ['boolean'],
         ]);
 
-        $attribues = $attribution->attribuer($donnees['users']);
+        $attribues = $attribution->attribuer($donnees['users'], $request->boolean('remplacer'));
 
         if ($attribues === []) {
             return back()->withErrors([
@@ -183,7 +187,9 @@ class UserController extends Controller
             ]);
         }
 
-        return back()->with('status', trans_choice(
+        $remplaces = collect($attribues)->filter(fn ($a) => filled($a['ancien']))->count();
+
+        $message = trans_choice(
             '{1}Un matricule attribué : :premier.|[2,*]:nombre matricules attribués, de :premier à :dernier.',
             count($attribues),
             [
@@ -191,7 +197,18 @@ class UserController extends Controller
                 'premier' => $attribues[0]['matricule'],
                 'dernier' => end($attribues)['matricule'],
             ],
-        ));
+        );
+
+        if ($remplaces > 0) {
+            $message .= ' '.trans_choice(
+                '{1}Un ancien numéro a été remplacé ; il ne sera réattribué à personne.'
+                .'|[2,*]:nombre anciens numéros ont été remplacés ; ils ne seront réattribués à personne.',
+                $remplaces,
+                ['nombre' => $remplaces],
+            );
+        }
+
+        return back()->with('status', $message);
     }
 
     private function validated(Request $request, ?User $user = null): array

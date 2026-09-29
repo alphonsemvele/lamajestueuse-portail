@@ -38,16 +38,39 @@ export default function UsersIndex({
 
     // Attribution des matricules : la sélection porte sur la page affichée.
     const [coches, setCoches] = useState<number[]>([]);
-    const attribuables = users.data.filter((user) => !user.matricule).map((user) => user.id);
-    const toutCoche = attribuables.length > 0 && attribuables.every((id) => coches.includes(id));
+    const [remplacer, setRemplacer] = useState(false);
+
+    const idsPage = users.data.map((user) => user.id);
+    const toutCoche = idsPage.length > 0 && idsPage.every((id) => coches.includes(id));
+
+    // Ceux qui portent déjà un numéro : les renuméroter est une décision.
+    const dejaMatricules = users.data.filter((user) => coches.includes(user.id) && user.matricule);
 
     const attribuer = () => {
         if (coches.length === 0) return;
 
+        if (
+            remplacer &&
+            dejaMatricules.length > 0 &&
+            !confirm(
+                `${dejaMatricules.length} compte(s) portent déjà un matricule et vont en recevoir un nouveau.\n\n` +
+                    'Leurs anciens numéros seront perdus et ne seront réattribués à personne. ' +
+                    'Les badges, fichiers et documents déjà émis porteront l’ancien numéro.\n\nContinuer ?',
+            )
+        ) {
+            return;
+        }
+
         router.post(
             routes.admin.userMatricules,
-            { users: coches },
-            { preserveScroll: true, onSuccess: () => setCoches([]) },
+            { users: coches, remplacer },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    setCoches([]);
+                    setRemplacer(false);
+                },
+            },
         );
     };
 
@@ -159,6 +182,18 @@ export default function UsersIndex({
                         {t('La numérotation reprend à :matricule.', { matricule: prochainMatricule })}
                     </span>
 
+                    {dejaMatricules.length > 0 && (
+                        <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+                            <input
+                                type="checkbox"
+                                checked={remplacer}
+                                onChange={(event) => setRemplacer(event.target.checked)}
+                                className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500/30"
+                            />
+                            {t('Remplacer les :n matricule(s) existant(s)', { n: dejaMatricules.length })}
+                        </label>
+                    )}
+
                     <div className="ml-auto flex gap-2">
                         <button type="button" onClick={() => setCoches([])} className="btn-ghost">
                             {t('Tout décocher')}
@@ -180,10 +215,10 @@ export default function UsersIndex({
                                     <input
                                         type="checkbox"
                                         checked={toutCoche}
-                                        disabled={attribuables.length === 0}
-                                        onChange={() => setCoches(toutCoche ? [] : attribuables)}
+                                        disabled={idsPage.length === 0}
+                                        onChange={() => setCoches(toutCoche ? [] : idsPage)}
                                         className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500/30 disabled:opacity-40 dark:border-white/20 dark:bg-white/5"
-                                        aria-label={t('Sélectionner les comptes sans matricule de cette page')}
+                                        aria-label={t('Sélectionner tous les comptes de cette page')}
                                     />
                                 </th>
                                 <th className="px-5 py-3 font-semibold">{t('Employé')}</th>
@@ -212,28 +247,19 @@ export default function UsersIndex({
                             {users.data.map((user) => (
                                 <tr key={user.id} className="transition hover:bg-ink-50/60 dark:hover:bg-white/5">
                                     <td className="px-5 py-3.5">
-                                        {user.matricule ? (
-                                            <span
-                                                className="block font-mono text-[11px] text-ink-400"
-                                                title={t('Déjà matriculé')}
-                                            >
-                                                {user.matricule}
-                                            </span>
-                                        ) : (
-                                            <input
-                                                type="checkbox"
-                                                checked={coches.includes(user.id)}
-                                                onChange={() =>
-                                                    setCoches((actuels) =>
-                                                        actuels.includes(user.id)
-                                                            ? actuels.filter((id) => id !== user.id)
-                                                            : [...actuels, user.id],
-                                                    )
-                                                }
-                                                className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500/30 dark:border-white/20 dark:bg-white/5"
-                                                aria-label={t('Attribuer un matricule à :nom', { nom: user.fullName })}
-                                            />
-                                        )}
+                                        <input
+                                            type="checkbox"
+                                            checked={coches.includes(user.id)}
+                                            onChange={() =>
+                                                setCoches((actuels) =>
+                                                    actuels.includes(user.id)
+                                                        ? actuels.filter((id) => id !== user.id)
+                                                        : [...actuels, user.id],
+                                                )
+                                            }
+                                            className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500/30 dark:border-white/20 dark:bg-white/5"
+                                            aria-label={t('Sélectionner :nom', { nom: user.fullName })}
+                                        />
                                     </td>
                                     <td className="px-5 py-3.5">
                                         <div className="flex items-center gap-3">
@@ -245,7 +271,14 @@ export default function UsersIndex({
                                                         <span className="badge ml-1 bg-brand-50 text-brand-700 dark:bg-brand-500/12 dark:text-brand-300">{t('auto-inscrit')}</span>
                                                     )}
                                                 </p>
-                                                <p className="text-xs text-ink-400">{user.email ?? user.matricule ?? '—'}</p>
+                                                <p className="text-xs text-ink-400">
+                                                    {user.matricule ? (
+                                                        <span className="font-mono text-ink-500 dark:text-ink-300">{user.matricule}</span>
+                                                    ) : (
+                                                        <span className="text-amber-600 dark:text-amber-400">{t('sans matricule')}</span>
+                                                    )}
+                                                    {user.email && <span className="ml-2">{user.email}</span>}
+                                                </p>
                                             </div>
                                         </div>
                                     </td>

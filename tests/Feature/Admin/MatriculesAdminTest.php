@@ -78,6 +78,62 @@ class MatriculesAdminTest extends TestCase
         $this->assertSame('LM-00010', $sans->refresh()->matricule);
     }
 
+    public function test_un_matricule_se_remplace_quand_on_le_demande(): void
+    {
+        $deja = $this->compte('DEJA', 'LM-00009');
+        $sans = $this->compte('SANS');
+
+        $this->actingAs($this->admin())->post(route('admin.users.matricules'), [
+            'users' => [$deja->id, $sans->id],
+            'remplacer' => true,
+        ])->assertRedirect();
+
+        // Les nouveaux numeros prennent la suite du plus haut attribue.
+        $this->assertSame('LM-00010', $deja->refresh()->matricule);
+        $this->assertSame('LM-00011', $sans->refresh()->matricule);
+    }
+
+    /** Un numero remplace est brule : il ne revient a personne. */
+    public function test_l_ancien_numero_n_est_pas_recycle(): void
+    {
+        $deja = $this->compte('DEJA', 'LM-00009');
+        $admin = $this->admin();
+
+        $this->actingAs($admin)->post(route('admin.users.matricules'), [
+            'users' => [$deja->id],
+            'remplacer' => true,
+        ]);
+
+        $suivant = $this->compte('SUIVANT');
+        $this->actingAs($admin)->post(route('admin.users.matricules'), ['users' => [$suivant->id]]);
+
+        $this->assertSame('LM-00010', $deja->refresh()->matricule);
+        // LM-00009 est libre mais n'est pas repris.
+        $this->assertSame('LM-00011', $suivant->refresh()->matricule);
+    }
+
+    public function test_le_message_signale_les_remplacements(): void
+    {
+        $deja = $this->compte('DEJA', 'LM-00009');
+
+        $this->actingAs($this->admin())->post(route('admin.users.matricules'), [
+            'users' => [$deja->id],
+            'remplacer' => true,
+        ])->assertSessionHas('status', fn ($message) => str_contains($message, 'réattribué'));
+    }
+
+    public function test_sans_le_drapeau_rien_n_est_remplace(): void
+    {
+        $deja = $this->compte('DEJA', 'LM-00009');
+
+        $this->actingAs($this->admin())->post(route('admin.users.matricules'), [
+            'users' => [$deja->id],
+            'remplacer' => false,
+        ])->assertSessionHasErrors('matricules');
+
+        $this->assertSame('LM-00009', $deja->refresh()->matricule);
+    }
+
     public function test_une_selection_sans_rien_a_faire_le_dit(): void
     {
         $deja = $this->compte('DEJA', 'LM-00009');

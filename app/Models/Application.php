@@ -209,6 +209,19 @@ class Application extends Model
         return (bool) array_intersect(self::pivotRoles($pivot), $this->module()['manage_roles'] ?? []);
     }
 
+    /** Module que tout le personnel voit, sans attribution individuelle. */
+    public function estOuvertATous(): bool
+    {
+        return (bool) ($this->module()['ouvert_a_tous'] ?? false);
+    }
+
+    /** Les modules ouverts a tout le personnel, actifs. */
+    public static function ouvertesATous()
+    {
+        return static::active()->where('type', 'module')->get()
+            ->filter(fn (self $application) => $application->estOuvertATous());
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

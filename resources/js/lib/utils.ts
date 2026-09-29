@@ -55,6 +55,14 @@ export const routes = {
         destroy: (slug: string) => `/informations/${slug}`,
         visibility: (slug: string) => `/informations/${slug}/visibilite`,
     },
+    badges: {
+        index: '/badges',
+        store: '/badges',
+        destroy: (id: number) => `/badges/${id}`,
+        gestion: '/badges/gestion',
+        impression: '/badges/impression',
+        traiter: (id: number) => `/badges/${id}/traiter`,
+    },
     personnel: {
         index: '/personnel',
         agents: '/personnel/agents',

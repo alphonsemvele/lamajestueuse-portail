@@ -11,6 +11,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegistrationController;
 use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Modules\BadgeController;
 use App\Http\Controllers\Modules\DirectoryController;
 use App\Http\Controllers\Modules\InformationController;
 use App\Http\Controllers\Modules\Personnel\PaieController;
@@ -67,6 +68,20 @@ Route::middleware('auth')->group(function () {
         Route::put('/{post}', [InformationController::class, 'update'])->name('update');
         Route::delete('/{post}', [InformationController::class, 'destroy'])->name('destroy');
         Route::post('/{post}/visibilite', [InformationController::class, 'toggleVisibility'])->name('visibility');
+    });
+
+    /*
+     * Badges du personnel : la demande est ouverte a tous, le traitement est
+     * reserve aux roles declares dans config/modules.php.
+     */
+    Route::prefix('badges')->name('badges.')->group(function () {
+        Route::get('/', [BadgeController::class, 'index'])->name('index');
+        Route::post('/', [BadgeController::class, 'store'])->name('store');
+        Route::delete('/{demande}', [BadgeController::class, 'destroy'])->name('destroy');
+
+        Route::get('/gestion', [BadgeController::class, 'gestion'])->name('gestion');
+        Route::get('/impression', [BadgeController::class, 'impression'])->name('impression');
+        Route::post('/{demande}/traiter', [BadgeController::class, 'traiter'])->name('traiter');
     });
 
     /*

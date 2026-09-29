@@ -8,7 +8,7 @@ use App\Models\Echelon;
 use App\Models\Employeur;
 use App\Models\ProfilSalaire;
 use App\Models\User;
-use Database\Seeders\PersonnelModuleSeeder;
+use Database\Seeders\ModulesPortailSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -22,7 +22,7 @@ class InstallationPersonnelTest extends TestCase
 
     private function installer(): void
     {
-        $this->seed(PersonnelModuleSeeder::class);
+        $this->seed(ModulesPortailSeeder::class);
     }
 
     public function test_l_installation_cree_la_tuile_et_les_employeurs(): void
@@ -42,6 +42,15 @@ class InstallationPersonnelTest extends TestCase
         $this->assertTrue($admin->applications()->where('applications.id', $module->id)->exists());
     }
 
+    public function test_l_installation_pose_aussi_le_module_badges(): void
+    {
+        $this->installer();
+
+        $badges = Application::where('module_key', 'badges')->first();
+        $this->assertNotNull($badges);
+        $this->assertTrue($badges->estOuvertATous());
+    }
+
     public function test_rejouer_l_installation_ne_duplique_rien(): void
     {
         $this->installer();
@@ -49,6 +58,7 @@ class InstallationPersonnelTest extends TestCase
         $this->installer();
 
         $this->assertSame(1, Application::where('module_key', 'personnel')->count());
+        $this->assertSame(1, Application::where('module_key', 'badges')->count());
         $this->assertSame(3, Employeur::count());
     }
 

@@ -120,7 +120,7 @@ echo "▸ Site en maintenance"
 # Installation des modules servis par le portail : idempotent, il ne cree que
 # ce qui manque (la tuile du module, un employeur par institut) et n'ecrase
 # jamais les donnees en place.
-"$PHP" artisan db:seed --class=PersonnelModuleSeeder --force
+"$PHP" artisan db:seed --class=ModulesPortailSeeder --force
 
 [ -e public/storage ] || "$PHP" artisan storage:link || true
 

@@ -27,6 +27,19 @@ return [
         'manage_roles' => ['admin', 'editeur', 'redacteur'],
     ],
 
+    'badges' => [
+        'name' => 'Badges',
+        'description' => "Demander son badge professionnel et suivre sa fabrication.",
+        'route' => 'badges.index',
+        'icon' => 'key',
+        'color' => '#4f46e5',
+        // Chacun demande son badge : la tuile se pose d'elle-meme sur le
+        // tableau de bord de tout le personnel, sans attribution prealable.
+        'ouvert_a_tous' => true,
+        // Seuls ces roles traitent les demandes et impriment les badges.
+        'manage_roles' => ['admin', 'drh', 'rh', 'accueil'],
+    ],
+
     'personnel' => [
         'name' => 'Personnel & paie',
         'description' => "Dossiers du personnel, carrière, contrats et paie mensuelle du groupe.",

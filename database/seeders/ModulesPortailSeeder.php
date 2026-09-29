@@ -9,7 +9,8 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 
 /**
- * Installe le module Personnel & paie : sa tuile et un employeur par institut.
+ * Installe les modules servis par le portail : Personnel & paie avec ses
+ * employeurs, et Badges.
  *
  * Idempotent, et joue a chaque deploiement : il ne cree que ce qui manque et
  * n'ecrase jamais ce qui existe. La tuile n'est attribuee aux administrateurs
@@ -19,7 +20,7 @@ use Illuminate\Database\Seeder;
  * La grille salariale de demonstration vit dans son propre semeur
  * (GrilleRhExempleSeeder) : les montants reels se saisissent dans l'interface.
  */
-class PersonnelModuleSeeder extends Seeder
+class ModulesPortailSeeder extends Seeder
 {
     public function run(): void
     {
@@ -45,6 +46,24 @@ class PersonnelModuleSeeder extends Seeder
     private function tuile(): Application
     {
         $categorie = Category::firstWhere('slug', 'ressources-humaines');
+
+        // Badges : ouvert a tout le personnel, il se pose de lui-meme sur les
+        // tableaux de bord ; la tuile suffit a l'existence du module.
+        Application::updateOrCreate(
+            ['module_key' => 'badges'],
+            [
+                'name' => 'Badges',
+                'slug' => 'badges',
+                'description' => "Demander son badge professionnel et suivre sa fabrication.",
+                'type' => 'module',
+                'url' => null,
+                'category_id' => $categorie?->id,
+                'icon' => 'key',
+                'color' => '#4f46e5',
+                'is_active' => true,
+                'sort_order' => 8,
+            ],
+        );
 
         return Application::updateOrCreate(
             ['module_key' => 'personnel'],

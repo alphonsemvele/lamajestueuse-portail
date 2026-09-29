@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Application;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,6 +21,14 @@ class DashboardController extends Controller
             ->orderBy('applications.sort_order')
             ->orderBy('applications.name')
             ->get();
+
+        // Les modules ouverts a tout le personnel (demander son badge, par
+        // exemple) s'ajoutent d'eux-memes : personne n'a a les attribuer.
+        $applications = $applications
+            ->concat(Application::ouvertesATous()->load('category'))
+            ->unique('id')
+            ->sortBy([['sort_order', 'asc'], ['name', 'asc']])
+            ->values();
 
         $search = trim((string) $request->query('q'));
         $categoryFilter = $request->query('category');

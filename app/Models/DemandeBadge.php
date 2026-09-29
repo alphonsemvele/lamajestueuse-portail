@@ -1,0 +1,126 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
+
+/**
+ * Demande de badge : ce que l'employe veut voir imprime, et ou en est le
+ * traitement.
+ */
+class DemandeBadge extends Model
+{
+    protected $table = 'demandes_badge';
+
+    protected $fillable = [
+        'numero', 'user_id', 'application_id', 'nom_affiche', 'poste_affiche',
+        'modele', 'motif', 'photo', 'commentaire', 'statut', 'motif_refus',
+        'traite_par', 'traite_le',
+    ];
+
+    protected $casts = ['traite_le' => 'datetime'];
+
+    /** Pourquoi le badge est demande. */
+    public const MOTIFS = [
+        'premiere' => 'Première demande',
+        'renouvellement' => 'Renouvellement',
+        'perte' => 'Perte ou vol',
+        'changement' => 'Changement de nom ou de fonction',
+    ];
+
+    /** Les etapes, dans l'ordre ou elles se suivent. */
+    public const STATUTS = [
+        'en_attente' => 'En attente',
+        'approuvee' => 'Approuvée',
+        'imprimee' => 'Imprimée',
+        'remise' => 'Remise',
+        'refusee' => 'Refusée',
+    ];
+
+    /** Une demande en cours occupe la place : on n'en ouvre pas deux. */
+    public const EN_COURS = ['en_attente', 'approuvee', 'imprimee'];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /** L'institut dont le logo figure sur le badge. */
+    public function institut(): BelongsTo
+    {
+        return $this->belongsTo(Application::class, 'application_id');
+    }
+
+    public function traitePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'traite_par');
+    }
+
+    public function scopeEnCours(Builder $query): Builder
+    {
+        return $query->whereIn('statut', self::EN_COURS);
+    }
+
+    /** Photo du badge : celle qui a ete jointe, sinon celle du compte. */
+    public function photoUrl(): ?string
+    {
+        if (filled($this->photo)) {
+            return Storage::disk('public')->url($this->photo);
+        }
+
+        return $this->user?->avatarUrl();
+    }
+
+    public function estFigee(): bool
+    {
+        return in_array($this->statut, ['remise', 'refusee'], true);
+    }
+
+    /**
+     * Prochain numero : BDG-000123, numerotation continue.
+     */
+    public static function prochainNumero(): string
+    {
+        $dernier = static::where('numero', 'like', 'BDG-%')
+            ->orderByRaw('CAST(SUBSTRING(numero, 5) AS UNSIGNED) DESC')
+            ->value('numero');
+
+        $numero = $dernier ? ((int) substr($dernier, 4)) + 1 : 1;
+
+        return 'BDG-'.str_pad((string) $numero, 6, '0', STR_PAD_LEFT);
+    }
+
+    public function toUiArray(): array
+    {
+        return [
+            'id' => $this->id,
+            'numero' => $this->numero,
+            'userId' => $this->user_id,
+            'demandeur' => $this->user?->fullName(),
+            'matricule' => $this->user?->matricule,
+            'email' => $this->user?->email,
+            'nomAffiche' => $this->nom_affiche,
+            'posteAffiche' => $this->poste_affiche,
+            'modele' => $this->modele,
+            'motif' => $this->motif,
+            'motifLibelle' => self::MOTIFS[$this->motif] ?? $this->motif,
+            'photoUrl' => $this->photoUrl(),
+            'commentaire' => $this->commentaire,
+            'statut' => $this->statut,
+            'statutLibelle' => self::STATUTS[$this->statut] ?? $this->statut,
+            'motifRefus' => $this->motif_refus,
+            'institut' => $this->institut ? [
+                'id' => $this->institut->id,
+                'name' => $this->institut->name,
+                'color' => $this->institut->color,
+                'logoUrl' => $this->institut->logoUrl(),
+            ] : null,
+            'traitePar' => $this->traitePar?->fullName(),
+            'traiteLe' => $this->traite_le?->format('d/m/Y'),
+            'demandeLe' => $this->created_at?->format('d/m/Y'),
+        ];
+    }
+}

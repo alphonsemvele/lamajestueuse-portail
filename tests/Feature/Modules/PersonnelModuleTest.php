@@ -199,7 +199,7 @@ class PersonnelModuleTest extends TestCase
 
         // La premiere saisie, elle, l'ouvre.
         $this->actingAs($this->gestionnaire())
-            ->put(route('personnel.agents.update', $compte), ['enfants' => 2])
+            ->put(route('personnel.agents.update', $compte), ['name' => $compte->name, 'enfants' => 2])
             ->assertRedirect();
 
         $this->assertDatabaseHas('agents', ['user_id' => $compte->id, 'enfants' => 2]);
@@ -210,7 +210,7 @@ class PersonnelModuleTest extends TestCase
         $compte = $this->membre('NKOA');
         $gestionnaire = $this->gestionnaire();
 
-        $this->actingAs($gestionnaire)->put(route('personnel.agents.update', $compte), ['enfants' => 1]);
+        $this->actingAs($gestionnaire)->put(route('personnel.agents.update', $compte), ['name' => $compte->name, 'enfants' => 1]);
         $this->actingAs($gestionnaire)->post(route('personnel.diplomes.store', $compte), ['intitule' => 'Licence']);
 
         $this->assertSame(1, Agent::where('user_id', $compte->id)->count());
@@ -281,6 +281,7 @@ class PersonnelModuleTest extends TestCase
         $agent = $this->agent();
 
         $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $agent->user), [
+            'name' => $agent->user->name,
             'date_naissance' => '1988-04-12',
             'lieu_naissance' => 'Douala',
             'situation_familiale' => 'marie',
@@ -296,7 +297,10 @@ class PersonnelModuleTest extends TestCase
         $agent = $this->agent();
 
         $this->actingAs($this->gestionnaire())
-            ->put(route('personnel.agents.update', $agent->user), ['situation_familiale' => 'concubinage'])
+            ->put(route('personnel.agents.update', $agent->user), [
+                'name' => $agent->user->name,
+                'situation_familiale' => 'concubinage',
+            ])
             ->assertSessionHasErrors('situation_familiale');
     }
 
@@ -331,6 +335,139 @@ class PersonnelModuleTest extends TestCase
         $this->actingAs($this->gestionnaire())
             ->post(route('personnel.diplomes.store', $this->agent()->user), ['intitule' => 'Brevet', 'niveau' => 'Certificat maison'])
             ->assertSessionHasErrors('niveau');
+    }
+
+    // ---------------------------------------------------------- identité
+
+    public function test_la_rh_saisit_le_matricule_et_l_identite(): void
+    {
+        $membre = $this->membre('NKOA');
+
+        $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $membre), [
+            'name' => 'Claire',
+            'lastname' => 'NKOA',
+            'matricule' => 'LM-2026-118',
+            'email' => 'claire.nkoa@lamajestueuse.cm',
+            'phone' => '+237 699 00 11 22',
+            'poste' => 'Chargée de scolarité',
+            'enfants' => 2,
+        ])->assertRedirect();
+
+        $membre->refresh();
+        $this->assertSame('LM-2026-118', $membre->matricule);
+        $this->assertSame('Claire', $membre->name);
+        $this->assertSame('claire.nkoa@lamajestueuse.cm', $membre->email);
+        $this->assertSame('Chargée de scolarité', $membre->poste);
+
+        // Le dossier RH suit dans la meme saisie.
+        $this->assertDatabaseHas('agents', ['user_id' => $membre->id, 'enfants' => 2]);
+    }
+
+    public function test_un_matricule_deja_pris_est_refuse(): void
+    {
+        $this->membre('NKOA')->update(['matricule' => 'LM-0001']);
+        $autre = $this->membre('ATANGANA');
+
+        $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $autre), [
+            'name' => 'Paul',
+            'matricule' => 'LM-0001',
+        ])->assertSessionHasErrors('matricule');
+    }
+
+    public function test_le_lecteur_ne_touche_pas_a_l_identite(): void
+    {
+        $membre = $this->membre('NKOA');
+        $lecteur = User::factory()->create();
+        $lecteur->applications()->attach($this->module, ['role_in_app' => 'lecteur', 'roles' => json_encode(['lecteur'])]);
+
+        $this->actingAs($lecteur)->put(route('personnel.agents.update', $membre), [
+            'name' => 'Pirate', 'matricule' => 'LM-9999',
+        ])->assertForbidden();
+
+        $this->assertNotSame('LM-9999', $membre->refresh()->matricule);
+    }
+
+    // --------------------------------------------------- nouvel arrivant
+
+    public function test_la_rh_cree_la_fiche_d_un_arrivant(): void
+    {
+        $this->actingAs($this->gestionnaire())->post(route('personnel.agents.store'), [
+            'name' => 'Paul',
+            'lastname' => 'ATANGANA',
+            'matricule' => 'LM-2026-200',
+            'email' => 'paul.atangana@lamajestueuse.cm',
+            'poste' => 'Enseignant',
+            'employeur_id' => $this->employeur->id,
+            'password' => 'motdepasse2026',
+            'password_confirmation' => 'motdepasse2026',
+        ])->assertRedirect();
+
+        $cree = User::where('matricule', 'LM-2026-200')->firstOrFail();
+        $this->assertSame('active', $cree->status);
+        $this->assertSame('employee', $cree->role);
+        $this->assertSame('IUM', $cree->entite);
+
+        // Rattache a son institut, donc visible de la RH ; mais sans acces
+        // au module lui-meme : cela reste la main de l'administrateur.
+        $this->assertTrue($cree->applications()->where('applications.id', $this->institut->id)->exists());
+        $this->assertFalse($cree->applications()->where('applications.id', $this->module->id)->exists());
+    }
+
+    public function test_l_arrivant_apparait_aussitot_dans_la_liste(): void
+    {
+        $gestionnaire = $this->gestionnaire();
+
+        $this->actingAs($gestionnaire)->post(route('personnel.agents.store'), [
+            'name' => 'Paul',
+            'matricule' => 'LM-2026-200',
+            'employeur_id' => $this->employeur->id,
+            'password' => 'motdepasse2026',
+            'password_confirmation' => 'motdepasse2026',
+        ]);
+
+        $this->actingAs($gestionnaire)->get(route('personnel.agents', ['q' => 'LM-2026-200']))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
+    }
+
+    public function test_un_mot_de_passe_trop_court_est_refuse(): void
+    {
+        $this->actingAs($this->gestionnaire())->post(route('personnel.agents.store'), [
+            'name' => 'Paul',
+            'employeur_id' => $this->employeur->id,
+            'password' => 'court',
+            'password_confirmation' => 'court',
+        ])->assertSessionHasErrors('password');
+
+        $this->assertSame(0, User::where('name', 'Paul')->count());
+    }
+
+    public function test_on_ne_cree_pas_dans_une_entite_non_suivie(): void
+    {
+        $autre = Employeur::create(['nom' => 'Institut de Formation', 'sigle' => 'IFPM']);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.agents.store'), [
+            'name' => 'Paul',
+            'employeur_id' => $autre->id,
+            'password' => 'motdepasse2026',
+            'password_confirmation' => 'motdepasse2026',
+        ])->assertForbidden();
+    }
+
+    /** Sans institut rattache, la personne creee serait invisible. */
+    public function test_une_entite_sans_institut_refuse_la_creation(): void
+    {
+        $orpheline = Employeur::create(['nom' => 'Entité isolée', 'sigle' => 'ISO']);
+        $gestionnaire = $this->gestionnaire();
+        $gestionnaire->employeursRh()->attach($orpheline);
+
+        $this->actingAs($gestionnaire)->post(route('personnel.agents.store'), [
+            'name' => 'Paul',
+            'employeur_id' => $orpheline->id,
+            'password' => 'motdepasse2026',
+            'password_confirmation' => 'motdepasse2026',
+        ])->assertSessionHasErrors('employeur_id');
+
+        $this->assertSame(0, User::where('name', 'Paul')->count());
     }
 
     // ---------------------------------------------------------- contrats

@@ -1,12 +1,12 @@
-import { Link, router } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Pagination from '@/components/pagination';
-import { Card, Input, Select } from '@/components/ui';
+import { Card, ErrorSummary, Input, Select } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
 import { routes } from '@/lib/utils';
 import type { Paginated } from '@/types';
-import { Champ, Entete, fcfa, Vide } from '../parts';
+import { Bouton, Champ, Entete, fcfa, Modale, Vide } from '../parts';
 
 interface ContratLigne {
     id: number;
@@ -44,6 +44,29 @@ interface Props {
 
 export default function ListePersonnel({ agents, filtres, employeurs, peutGerer, sansDossier }: Props) {
     const [q, setQ] = useState(filtres.q);
+    const [nouvelle, setNouvelle] = useState(false);
+
+    const arrivant = useForm({
+        name: '',
+        lastname: '',
+        matricule: '',
+        email: '',
+        phone: '',
+        poste: '',
+        employeur_id: employeurs.length === 1 ? String(employeurs[0].id) : '',
+        password: '',
+        password_confirmation: '',
+    });
+
+    const creer = (event: FormEvent) => {
+        event.preventDefault();
+        arrivant.post(routes.personnel.agentStore, {
+            onSuccess: () => {
+                setNouvelle(false);
+                arrivant.reset();
+            },
+        });
+    };
 
     const chercher = (params: Record<string, string> = {}) =>
         router.get(
@@ -123,6 +146,12 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                             <option value="plusieurs">Plusieurs employeurs</option>
                         </Select>
                     </Champ>
+
+                    {peutGerer && (
+                        <Bouton type="button" icon="plus" onClick={() => setNouvelle(true)} className="ml-auto">
+                            Nouvel arrivant
+                        </Bouton>
+                    )}
                 </form>
             </Card>
 
@@ -194,6 +223,112 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
             </div>
 
             <Pagination page={agents} />
+
+            <Modale titre="Nouvel arrivant" ouverte={nouvelle} onFermer={() => setNouvelle(false)} large>
+                <form onSubmit={creer} className="space-y-4">
+                    <p className="text-sm text-ink-600 dark:text-ink-300">
+                        Le compte est créé actif et rattaché à l'entité choisie. Il n'ouvre encore aucune application :
+                        c'est un administrateur du portail qui décidera de ce à quoi il donne droit.
+                    </p>
+
+                    <ErrorSummary errors={arrivant.errors} title="Corrigez ces points" />
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Champ libelle="Prénom" erreur={arrivant.errors.name}>
+                            <Input
+                                value={arrivant.data.name}
+                                onChange={(event) => arrivant.setData('name', event.target.value)}
+                                maxLength={80}
+                                required
+                            />
+                        </Champ>
+                        <Champ libelle="Nom de famille" erreur={arrivant.errors.lastname}>
+                            <Input
+                                value={arrivant.data.lastname}
+                                onChange={(event) => arrivant.setData('lastname', event.target.value)}
+                                maxLength={80}
+                            />
+                        </Champ>
+                        <Champ libelle="Matricule" erreur={arrivant.errors.matricule} aide="Unique dans tout le groupe.">
+                            <Input
+                                value={arrivant.data.matricule}
+                                onChange={(event) => arrivant.setData('matricule', event.target.value)}
+                                maxLength={40}
+                                className="font-mono text-[13px]"
+                            />
+                        </Champ>
+                        <Champ libelle="Entité" erreur={arrivant.errors.employeur_id}>
+                            <Select
+                                value={arrivant.data.employeur_id}
+                                onChange={(event) => arrivant.setData('employeur_id', event.target.value)}
+                                required
+                            >
+                                <option value="">Choisir…</option>
+                                {employeurs.map((employeur) => (
+                                    <option key={employeur.id} value={employeur.id}>
+                                        {employeur.sigle} — {employeur.nom}
+                                    </option>
+                                ))}
+                            </Select>
+                        </Champ>
+                        <Champ
+                            libelle="Adresse professionnelle"
+                            erreur={arrivant.errors.email}
+                            aide="Elle lui servira d'identifiant de connexion."
+                        >
+                            <Input
+                                type="email"
+                                value={arrivant.data.email}
+                                onChange={(event) => arrivant.setData('email', event.target.value)}
+                                maxLength={150}
+                            />
+                        </Champ>
+                        <Champ libelle="Téléphone" erreur={arrivant.errors.phone}>
+                            <Input
+                                value={arrivant.data.phone}
+                                onChange={(event) => arrivant.setData('phone', event.target.value)}
+                                maxLength={40}
+                            />
+                        </Champ>
+                        <Champ libelle="Poste" erreur={arrivant.errors.poste} className="sm:col-span-2">
+                            <Input
+                                value={arrivant.data.poste}
+                                onChange={(event) => arrivant.setData('poste', event.target.value)}
+                                maxLength={120}
+                            />
+                        </Champ>
+                        <Champ
+                            libelle="Mot de passe provisoire"
+                            erreur={arrivant.errors.password}
+                            aide="Huit caractères au moins. À lui transmettre, il pourra le changer."
+                        >
+                            <Input
+                                type="password"
+                                value={arrivant.data.password}
+                                onChange={(event) => arrivant.setData('password', event.target.value)}
+                                required
+                            />
+                        </Champ>
+                        <Champ libelle="Confirmation" erreur={arrivant.errors.password_confirmation}>
+                            <Input
+                                type="password"
+                                value={arrivant.data.password_confirmation}
+                                onChange={(event) => arrivant.setData('password_confirmation', event.target.value)}
+                                required
+                            />
+                        </Champ>
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                        <Bouton type="button" variante="secondaire" onClick={() => setNouvelle(false)}>
+                            Annuler
+                        </Bouton>
+                        <Bouton type="submit" icon="check" disabled={arrivant.processing}>
+                            {arrivant.processing ? 'Création…' : 'Créer la fiche'}
+                        </Bouton>
+                    </div>
+                </form>
+            </Modale>
         </PersonnelLayout>
     );
 }

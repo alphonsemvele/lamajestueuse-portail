@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Modules\Personnel;
 
+use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Http\Controllers\Concerns\ServesModule;
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
@@ -15,6 +16,7 @@ use App\Services\PaieService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,6 +27,7 @@ use Inertia\Response;
  */
 class PersonnelController extends Controller
 {
+    use HandlesMediaUploads;
     use ServesModule;
 
     public const MODULE = 'personnel';
@@ -225,6 +228,8 @@ class PersonnelController extends Controller
             'userId' => $user->id,
             'dossierOuvert' => $agent !== null,
             'nom' => $user->fullName(),
+            'prenom' => $user->name,
+            'nomFamille' => $user->lastname,
             'matricule' => $user->matricule,
             'email' => $user->email,
             'telephone' => $user->phone,
@@ -241,10 +246,59 @@ class PersonnelController extends Controller
         return Agent::firstOrCreate(['user_id' => $user->id]);
     }
 
+    /**
+     * Cree la fiche d'un nouvel arrivant : son compte du portail, son
+     * matricule, et son rattachement a l'institut qui l'embauche. Le compte
+     * n'ouvre encore aucune application : c'est l'administrateur du portail
+     * qui decide de ce a quoi il donne droit.
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $entite = $request->validate([
+            'employeur_id' => ['required', 'exists:employeurs,id'],
+            'password' => ['required', 'confirmed', Password::min(8)],
+        ]);
+
+        $this->verifierEntite($request, (int) $entite['employeur_id']);
+
+        $employeur = Employeur::findOrFail($entite['employeur_id']);
+
+        // Sans institut correspondant, la personne creee ne releverait du
+        // perimetre de personne : elle disparaitrait aussitot de la liste.
+        if ($employeur->application_id === null) {
+            return back()->withErrors([
+                'employeur_id' => __("L'entité « :sigle » n'est rattachée à aucun institut du portail : "
+                    ."demandez à un administrateur de faire ce rattachement avant d'y créer du personnel.",
+                    ['sigle' => $employeur->sigle]),
+            ]);
+        }
+
+        $identite = $this->reglesIdentite($request);
+
+        $user = User::create($identite + [
+            'password' => $entite['password'],
+            'role' => 'employee',
+            'status' => 'active',
+            'locale' => 'fr',
+            'entite' => $employeur->sigle,
+            'email_verified_at' => now(),
+        ]);
+
+        $user->applications()->attach($employeur->application_id, ['poste' => $identite['poste'] ?? null]);
+
+        return redirect()->route('personnel.agents.show', $user)
+            ->with('status', __('Fiche créée pour :nom.', ['nom' => $user->fullName()]));
+    }
+
     public function update(Request $request, User $user): RedirectResponse
     {
         $this->autoriserGestion($request->user());
         $this->verifierPersonne($request, $user);
+
+        // L'identite vit sur le compte du portail, le reste sur le dossier RH.
+        $user->update($this->reglesIdentite($request, $user));
 
         $this->dossierDe($user)->update($request->validate([
             'date_naissance' => ['nullable', 'date'],
@@ -292,6 +346,30 @@ class PersonnelController extends Controller
         $diplome->delete();
 
         return back()->with('status', __('Diplôme supprimé.'));
+    }
+
+    /**
+     * Identite portee par le compte du portail. Le matricule et l'adresse
+     * restent uniques : ils identifient la personne dans tout le groupe.
+     *
+     * @return array<string, mixed>
+     */
+    private function reglesIdentite(Request $request, ?User $user = null): array
+    {
+        $donnees = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'lastname' => ['nullable', 'string', 'max:80'],
+            'matricule' => ['nullable', 'string', 'max:40', Rule::unique('users', 'matricule')->ignore($user?->id)],
+            'email' => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($user?->id)],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'poste' => ['nullable', 'string', 'max:120'],
+            'avatar_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        unset($donnees['avatar_file']);
+        $donnees['avatar'] = $this->resolveMedia($request, $user?->avatar, 'avatar', 'utilisateurs/photos');
+
+        return $donnees;
     }
 
     /** @return array<string, mixed> */

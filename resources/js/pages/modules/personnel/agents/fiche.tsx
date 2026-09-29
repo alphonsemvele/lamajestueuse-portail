@@ -1,7 +1,8 @@
-import { Link, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
+import PhotoField from '@/components/photo-field';
 import { Card, ErrorSummary, Input, Select, Textarea } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
 import { cn, routes } from '@/lib/utils';
@@ -14,6 +15,8 @@ interface Agent {
     /** Le compte du portail : c'est lui qui identifie la fiche. */
     userId: number;
     nom: string | null;
+    prenom: string;
+    nomFamille: string | null;
     poste: string | null;
     entite: string | null;
     matricule: string | null;
@@ -114,6 +117,28 @@ function dateCourte(valeur: string | null): string {
     const [annee, mois, jour] = valeur.split('-');
 
     return `${jour}/${mois}/${annee}`;
+}
+
+/** Ce que porte le formulaire du dossier : identité du portail et fiche RH. */
+interface SaisieDossier {
+    name: string;
+    lastname: string;
+    matricule: string;
+    email: string;
+    phone: string;
+    poste: string;
+    avatar_file: File | null;
+    remove_avatar: boolean;
+    date_naissance: string;
+    lieu_naissance: string;
+    situation_familiale: string;
+    enfants: number;
+    cni: string;
+    numero_cnps: string;
+    adresse: string;
+    urgence_nom: string;
+    urgence_telephone: string;
+    observations: string;
 }
 
 /** Ligne libellé / valeur du dossier administratif. */
@@ -218,8 +243,19 @@ export default function FicheAgent({ agent, diplomes, contrats, evenements, bull
 
 function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
     const [edition, setEdition] = useState(false);
+    const [apercu, setApercu] = useState<string | null>(agent.photoUrl);
 
-    const formulaire = useForm({
+    const formulaire = useForm<SaisieDossier>({
+        // Identité : elle vit sur le compte du portail.
+        name: agent.prenom ?? '',
+        lastname: agent.nomFamille ?? '',
+        matricule: agent.matricule ?? '',
+        email: agent.email ?? '',
+        phone: agent.telephone ?? '',
+        poste: agent.poste ?? '',
+        avatar_file: null,
+        remove_avatar: false,
+        // Dossier administratif.
         date_naissance: agent.dateNaissance ?? '',
         lieu_naissance: agent.lieuNaissance ?? '',
         situation_familiale: agent.situationFamiliale ?? '',
@@ -234,7 +270,13 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
 
     const enregistrer = (event: FormEvent) => {
         event.preventDefault();
-        formulaire.put(routes.personnel.agent(agent.userId), { onSuccess: () => setEdition(false) });
+
+        // La photo voyage en multipart : Inertia passe par POST + _method.
+        router.post(
+            routes.personnel.agent(agent.userId),
+            { ...formulaire.data, _method: 'put' },
+            { forceFormData: true, preserveScroll: true, onSuccess: () => setEdition(false) },
+        );
     };
 
     if (!edition) {
@@ -273,9 +315,81 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
     return (
         <Card className="p-6">
             <form onSubmit={enregistrer} className="space-y-5">
-                <h2 className="text-sm font-semibold text-ink-900 dark:text-white">Modifier le dossier</h2>
-
                 <ErrorSummary errors={formulaire.errors} title="Corrigez ces points" />
+
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">Identité</h2>
+
+                <div className="flex flex-wrap items-start gap-6">
+                    <PhotoField
+                        preview={apercu}
+                        initials={agent.initiales ?? '?'}
+                        error={formulaire.errors.avatar_file}
+                        onPick={(fichier) => {
+                            formulaire.setData((actuel) => ({ ...actuel, avatar_file: fichier, remove_avatar: false }));
+                            setApercu(URL.createObjectURL(fichier));
+                        }}
+                        onDrop={() => {
+                            formulaire.setData((actuel) => ({ ...actuel, avatar_file: null, remove_avatar: true }));
+                            setApercu(null);
+                        }}
+                    />
+
+                    <div className="grid min-w-[260px] flex-1 gap-4 sm:grid-cols-2">
+                        <Champ libelle="Prénom" erreur={formulaire.errors.name}>
+                            <Input
+                                value={formulaire.data.name}
+                                onChange={(event) => formulaire.setData('name', event.target.value)}
+                                maxLength={80}
+                                required
+                            />
+                        </Champ>
+                        <Champ libelle="Nom de famille" erreur={formulaire.errors.lastname}>
+                            <Input
+                                value={formulaire.data.lastname}
+                                onChange={(event) => formulaire.setData('lastname', event.target.value)}
+                                maxLength={80}
+                            />
+                        </Champ>
+                        <Champ libelle="Matricule" erreur={formulaire.errors.matricule} aide="Unique dans tout le groupe.">
+                            <Input
+                                value={formulaire.data.matricule}
+                                onChange={(event) => formulaire.setData('matricule', event.target.value)}
+                                maxLength={40}
+                                className="font-mono text-[13px]"
+                            />
+                        </Champ>
+                        <Champ libelle="Poste" erreur={formulaire.errors.poste}>
+                            <Input
+                                value={formulaire.data.poste}
+                                onChange={(event) => formulaire.setData('poste', event.target.value)}
+                                maxLength={120}
+                            />
+                        </Champ>
+                        <Champ
+                            libelle="Adresse professionnelle"
+                            erreur={formulaire.errors.email}
+                            aide="C'est aussi son identifiant de connexion au portail."
+                        >
+                            <Input
+                                type="email"
+                                value={formulaire.data.email}
+                                onChange={(event) => formulaire.setData('email', event.target.value)}
+                                maxLength={150}
+                            />
+                        </Champ>
+                        <Champ libelle="Téléphone" erreur={formulaire.errors.phone}>
+                            <Input
+                                value={formulaire.data.phone}
+                                onChange={(event) => formulaire.setData('phone', event.target.value)}
+                                maxLength={40}
+                            />
+                        </Champ>
+                    </div>
+                </div>
+
+                <h2 className="border-t border-ink-100 pt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400 dark:border-white/5">
+                    Dossier administratif
+                </h2>
 
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     <Champ libelle="Date de naissance" erreur={formulaire.errors.date_naissance}>

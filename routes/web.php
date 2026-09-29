@@ -83,6 +83,7 @@ Route::middleware('auth')->group(function () {
          * compte, pas un objet a creer d'abord — il nait a la premiere saisie.
          */
         Route::get('/agents', [PersonnelController::class, 'agents'])->name('agents');
+        Route::post('/agents', [PersonnelController::class, 'store'])->name('agents.store');
         Route::get('/dossier/{user}', [PersonnelController::class, 'show'])->name('agents.show');
         Route::put('/dossier/{user}', [PersonnelController::class, 'update'])->name('agents.update');
 

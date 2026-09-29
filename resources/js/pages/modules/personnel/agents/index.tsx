@@ -1,6 +1,7 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import Avatar from '@/components/avatar';
+import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, ErrorSummary, Input, Select } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
@@ -42,9 +43,54 @@ interface Props {
     sansDossier: number;
 }
 
+interface APourvoir {
+    id: number;
+    nom: string;
+    poste: string | null;
+    entite: string | null;
+    email: string | null;
+    matricule: string;
+}
+
 export default function ListePersonnel({ agents, filtres, employeurs, peutGerer, sansDossier }: Props) {
     const [q, setQ] = useState(filtres.q);
     const [nouvelle, setNouvelle] = useState(false);
+
+    // Attribution des matricules : on montre d'abord qui recevrait quoi.
+    const [matricules, setMatricules] = useState<{ dernier: string | null; personnes: APourvoir[] } | null>(null);
+    const [chargement, setChargement] = useState(false);
+    const [retenus, setRetenus] = useState<number[]>([]);
+    const attribution = useForm<{ personnes: number[] }>({ personnes: [] });
+
+    const ouvrirMatricules = async () => {
+        setChargement(true);
+
+        try {
+            const reponse = await fetch(routes.personnel.matriculesAPourvoir, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            const donnees = (await reponse.json()) as { dernier: string | null; personnes: APourvoir[] };
+
+            setMatricules(donnees);
+            setRetenus(donnees.personnes.map((personne) => personne.id));
+        } finally {
+            setChargement(false);
+        }
+    };
+
+    const attribuer = (event: FormEvent) => {
+        event.preventDefault();
+
+        attribution.transform(() => ({ personnes: retenus }));
+        attribution.post(routes.personnel.matriculesAttribuer, {
+            preserveScroll: true,
+            onSuccess: () => setMatricules(null),
+        });
+    };
+
+    /** Les numéros se suivent : ne garder qu'une partie laisse des trous. */
+    const numeroteRetenus = (matricules?.personnes ?? []).filter((personne) => retenus.includes(personne.id));
 
     const arrivant = useForm({
         name: '',
@@ -148,9 +194,27 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                     </Champ>
 
                     {peutGerer && (
-                        <Bouton type="button" icon="plus" onClick={() => setNouvelle(true)} className="ml-auto">
-                            Nouvel arrivant
-                        </Bouton>
+                        <div className="ml-auto flex flex-wrap gap-2">
+                            <Bouton
+                                type="button"
+                                variante="secondaire"
+                                icon="key"
+                                onClick={ouvrirMatricules}
+                                disabled={chargement}
+                            >
+                                {chargement ? 'Lecture…' : 'Matricules'}
+                            </Bouton>
+                            <a
+                                href={routes.personnel.export}
+                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200 dark:hover:bg-white/10"
+                            >
+                                <Icon name="upload" className="h-4 w-4 rotate-180" />
+                                Exporter
+                            </a>
+                            <Bouton type="button" icon="plus" onClick={() => setNouvelle(true)}>
+                                Nouvel arrivant
+                            </Bouton>
+                        </div>
                     )}
                 </form>
             </Card>
@@ -223,6 +287,118 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
             </div>
 
             <Pagination page={agents} />
+
+            <Modale
+                titre="Attribuer les matricules"
+                ouverte={matricules !== null}
+                onFermer={() => setMatricules(null)}
+                large
+            >
+                {matricules && (
+                    <form onSubmit={attribuer} className="space-y-4">
+                        {matricules.personnes.length === 0 ? (
+                            <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-200">
+                                Tout le monde a déjà un matricule.
+                            </p>
+                        ) : (
+                            <>
+                                <p className="text-sm text-ink-600 dark:text-ink-300">
+                                    {matricules.personnes.length} personne(s) sans matricule. La numérotation reprend
+                                    {matricules.dernier ? ` après ${matricules.dernier}` : ' au premier numéro'}.
+                                    Décochez qui ne doit pas en recevoir maintenant.
+                                </p>
+
+                                <div className="max-h-[380px] overflow-y-auto rounded-xl border border-ink-200 dark:border-white/10">
+                                    <table className="w-full text-left text-sm">
+                                        <thead className="sticky top-0 bg-ink-50 text-[11px] uppercase tracking-wide text-ink-400 dark:bg-ink-800">
+                                            <tr>
+                                                <th className="w-10 px-3 py-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={retenus.length === matricules.personnes.length}
+                                                        onChange={(event) =>
+                                                            setRetenus(
+                                                                event.target.checked
+                                                                    ? matricules.personnes.map((p) => p.id)
+                                                                    : [],
+                                                            )
+                                                        }
+                                                        className="h-4 w-4 rounded border-ink-300 text-teal-600 focus:ring-teal-500"
+                                                        aria-label="Tout sélectionner"
+                                                    />
+                                                </th>
+                                                <th className="px-3 py-2 font-medium">Personne</th>
+                                                <th className="px-3 py-2 font-medium">Poste</th>
+                                                <th className="px-3 py-2 font-medium">Matricule</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-ink-100 dark:divide-white/5">
+                                            {matricules.personnes.map((personne) => {
+                                                const retenu = retenus.includes(personne.id);
+                                                // Le numéro affiché tient compte des cases décochées.
+                                                // Les numéros se suivent : le n-ième retenu prend le n-ième
+                                                // numéro de la séquence, quelles que soient les cases décochées.
+                                                const rang = numeroteRetenus.findIndex((p) => p.id === personne.id);
+                                                const numero = retenu ? (matricules.personnes[rang]?.matricule ?? null) : null;
+
+                                                return (
+                                                    <tr key={personne.id} className={retenu ? '' : 'opacity-50'}>
+                                                        <td className="px-3 py-2">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={retenu}
+                                                                onChange={() =>
+                                                                    setRetenus((actuels) =>
+                                                                        retenu
+                                                                            ? actuels.filter((id) => id !== personne.id)
+                                                                            : [...actuels, personne.id],
+                                                                    )
+                                                                }
+                                                                className="h-4 w-4 rounded border-ink-300 text-teal-600 focus:ring-teal-500"
+                                                                aria-label={`Attribuer à ${personne.nom}`}
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <p className="font-medium text-ink-900 dark:text-white">
+                                                                {personne.nom}
+                                                            </p>
+                                                            <p className="text-xs text-ink-500 dark:text-ink-400">
+                                                                {personne.email}
+                                                                {personne.entite && ` · ${personne.entite}`}
+                                                            </p>
+                                                        </td>
+                                                        <td className="px-3 py-2 text-ink-600 dark:text-ink-300">
+                                                            {personne.poste ?? '—'}
+                                                        </td>
+                                                        <td className="px-3 py-2 font-mono text-[13px] text-ink-900 dark:text-white">
+                                                            {numero ?? '—'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <p className="text-xs text-ink-400">
+                                    Un matricule attribué ne se change plus et n'est jamais réattribué.
+                                </p>
+
+                                <div className="flex justify-end gap-2">
+                                    <Bouton type="button" variante="secondaire" onClick={() => setMatricules(null)}>
+                                        Annuler
+                                    </Bouton>
+                                    <Bouton type="submit" icon="check" disabled={attribution.processing || retenus.length === 0}>
+                                        {attribution.processing
+                                            ? 'Attribution…'
+                                            : `Attribuer ${retenus.length} matricule(s)`}
+                                    </Bouton>
+                                </div>
+                            </>
+                        )}
+                    </form>
+                )}
+            </Modale>
 
             <Modale titre="Nouvel arrivant" ouverte={nouvelle} onFermer={() => setNouvelle(false)} large>
                 <form onSubmit={creer} className="space-y-4">

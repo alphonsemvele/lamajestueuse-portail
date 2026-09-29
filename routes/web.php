@@ -99,6 +99,11 @@ Route::middleware('auth')->group(function () {
          */
         Route::get('/agents', [PersonnelController::class, 'agents'])->name('agents');
         Route::post('/agents', [PersonnelController::class, 'store'])->name('agents.store');
+
+        // Matricules et fichier du personnel.
+        Route::get('/matricules/a-pourvoir', [PersonnelController::class, 'matriculesAPourvoir'])->name('matricules.apourvoir');
+        Route::post('/matricules', [PersonnelController::class, 'attribuerMatricules'])->name('matricules.attribuer');
+        Route::get('/export', [PersonnelController::class, 'exporter'])->name('export');
         Route::get('/dossier/{user}', [PersonnelController::class, 'show'])->name('agents.show');
         Route::put('/dossier/{user}', [PersonnelController::class, 'update'])->name('agents.update');
 

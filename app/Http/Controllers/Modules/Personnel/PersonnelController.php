@@ -12,13 +12,16 @@ use App\Models\Employeur;
 use App\Models\EvenementCarriere;
 use App\Models\ProfilSalaire;
 use App\Models\User;
+use App\Services\AttributionMatricules;
 use App\Services\PaieService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Gestion administrative du personnel : dossier, diplomes, contrats et
@@ -158,6 +161,126 @@ class PersonnelController extends Controller
             'anciennete' => $agent?->anciennete(),
             'contrats' => $agent?->contratsActifs->map(fn (Contrat $c) => $c->toUiArray())->all() ?? [],
         ];
+    }
+
+    /**
+     * Qui n'a pas encore de matricule, et lequel recevrait-il. Rien n'est
+     * enregistre : c'est l'ecran de verification avant attribution.
+     */
+    public function matriculesAPourvoir(Request $request, AttributionMatricules $attribution): JsonResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $sans = User::where('status', 'active')
+            ->duPerimetreRh($this->perimetre($request))
+            ->whereNull('matricule')
+            ->orderBy('lastname')->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'dernier' => $attribution->dernierNumero() > 0
+                ? $attribution->formater($attribution->dernierNumero())
+                : null,
+            'personnes' => $attribution->simuler($sans),
+        ]);
+    }
+
+    /** Attribue les matricules aux personnes designees. */
+    public function attribuerMatricules(Request $request, AttributionMatricules $attribution): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $donnees = $request->validate([
+            'personnes' => ['required', 'array', 'min:1'],
+            'personnes.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        // On ne matricule que dans son perimetre, et jamais quelqu'un qui en
+        // a deja un : un matricule ne se remplace pas.
+        $autorisees = User::whereIn('id', $donnees['personnes'])
+            ->where('status', 'active')
+            ->duPerimetreRh($this->perimetre($request))
+            ->whereNull('matricule')
+            ->pluck('id')->all();
+
+        if ($autorisees === []) {
+            return back()->withErrors(['matricules' => __('Aucune de ces personnes n’attend un matricule.')]);
+        }
+
+        $attribues = $attribution->attribuer($autorisees);
+
+        return back()->with('status', trans_choice(
+            '{1}Un matricule attribué : :premier.|[2,*]:nombre matricules attribués, de :premier à :dernier.',
+            count($attribues),
+            [
+                'nombre' => count($attribues),
+                'premier' => $attribues[0]['matricule'] ?? '',
+                'dernier' => end($attribues)['matricule'] ?? '',
+            ],
+        ));
+    }
+
+    /**
+     * Le fichier du personnel : matricule, identite, rattachement et contrats
+     * en cours. Separateur point-virgule et BOM, pour qu'Excel l'ouvre bien
+     * en francais.
+     */
+    public function exporter(Request $request, AttributionMatricules $attribution): StreamedResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $perimetre = $this->perimetre($request);
+
+        $personnel = User::where('status', 'active')
+            ->duPerimetreRh($perimetre)
+            ->with([
+                'applications' => fn ($q) => $q->where('applications.type', 'application'),
+                'agent.contratsActifs.employeur',
+                'agent.contratsActifs.echelon',
+            ])
+            ->orderByRaw('matricule IS NULL DESC')
+            ->orderBy('matricule')
+            ->orderBy('lastname')->orderBy('name')
+            ->get();
+
+        $nom = 'personnel-la-majestueuse-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($personnel) {
+            $sortie = fopen('php://output', 'w');
+
+            // Excel reconnait l'UTF-8 a ce marqueur, sans quoi les accents
+            // arrivent en charabia.
+            fwrite($sortie, "\xEF\xBB\xBF");
+
+            fputcsv($sortie, [
+                'Matricule', 'Nom', 'Prénom', 'E-mail', 'Téléphone', 'Poste',
+                'Entité déclarée', 'Instituts', 'Employeurs', 'Contrats actifs',
+                'Dossier RH', 'Compte créé le',
+            ], ';');
+
+            foreach ($personnel as $personne) {
+                $contrats = $personne->agent?->contratsActifs ?? collect();
+
+                fputcsv($sortie, [
+                    $personne->matricule ?? '',
+                    $personne->lastname ?? '',
+                    $personne->name,
+                    $personne->email ?? '',
+                    $personne->phone ?? '',
+                    $personne->poste ?? '',
+                    $personne->entite ?? '',
+                    $personne->applications->pluck('name')->implode(', '),
+                    $contrats->map(fn ($c) => $c->employeur?->sigle)->filter()->unique()->implode(', '),
+                    $contrats->map(fn ($c) => $c->poste)->implode(' / '),
+                    $personne->agent ? 'oui' : 'non',
+                    $personne->created_at?->format('d/m/Y') ?? '',
+                ], ';');
+            }
+
+            fclose($sortie);
+        }, $nom, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
     }
 
     public function show(Request $request, User $user): Response

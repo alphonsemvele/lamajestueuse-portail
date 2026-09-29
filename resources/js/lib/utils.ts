@@ -67,6 +67,9 @@ export const routes = {
         index: '/personnel',
         agents: '/personnel/agents',
         agentStore: '/personnel/agents',
+        matriculesAPourvoir: '/personnel/matricules/a-pourvoir',
+        matriculesAttribuer: '/personnel/matricules',
+        export: '/personnel/export',
         // Le dossier est identifié par le compte du portail : il n'a pas
         // besoin d'exister pour qu'on ouvre la fiche.
         agent: (user: number) => `/personnel/dossier/${user}`,

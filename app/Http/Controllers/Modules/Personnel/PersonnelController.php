@@ -174,12 +174,17 @@ class PersonnelController extends Controller
         $sans = User::where('status', 'active')
             ->duPerimetreRh($this->perimetre($request))
             ->whereNull('matricule')
+            ->with('agent')
             ->orderBy('lastname')->orderBy('name')
             ->get();
 
+        $annee = (int) date('Y');
+
         return response()->json([
-            'dernier' => $attribution->dernierNumero() > 0
-                ? $attribution->formater($attribution->dernierNumero())
+            // Le dernier numero de l'annee en cours : les autres annees ont
+            // leur propre sequence, et l'apercu les montre ligne a ligne.
+            'dernier' => $attribution->dernierNumero($annee) > 0
+                ? $attribution->formater($annee, $attribution->dernierNumero($annee))
                 : null,
             'personnes' => $attribution->simuler($sans),
         ]);

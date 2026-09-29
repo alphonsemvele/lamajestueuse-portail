@@ -63,33 +63,94 @@ class MatriculesTest extends TestCase
 
     public function test_la_sequence_part_du_premier_numero(): void
     {
-        $this->assertSame('LM-00001', app(AttributionMatricules::class)->prochain());
+        $this->assertSame('LM-26-0001', app(AttributionMatricules::class)->prochain());
     }
 
     public function test_la_sequence_reprend_apres_le_plus_haut_attribue(): void
     {
-        $this->enseignant('NKOA', 'LM-00007');
-        $this->enseignant('ATANGANA', 'LM-00003');
+        $this->enseignant('NKOA', 'LM-26-0007');
+        $this->enseignant('ATANGANA', 'LM-26-0003');
 
-        $this->assertSame('LM-00008', app(AttributionMatricules::class)->prochain());
+        $this->assertSame('LM-26-0008', app(AttributionMatricules::class)->prochain());
     }
 
     /** Un matricule d'un autre format ne perturbe pas la numérotation. */
     public function test_un_ancien_matricule_non_conforme_est_ignore(): void
     {
         $this->enseignant('NKOA', 'IUM/2019/44');
-        $this->enseignant('ATANGANA', 'LM-00002');
+        $this->enseignant('ATANGANA', 'LM-26-0002');
 
-        $this->assertSame('LM-00003', app(AttributionMatricules::class)->prochain());
+        $this->assertSame('LM-26-0003', app(AttributionMatricules::class)->prochain());
     }
 
     public function test_un_numero_libere_par_un_depart_ne_revient_pas(): void
     {
-        $parti = $this->enseignant('PARTI', 'LM-00005');
+        $parti = $this->enseignant('PARTI', 'LM-26-0005');
         $parti->update(['status' => 'suspended']);
 
         // Le compte est suspendu, son numéro reste pris.
-        $this->assertSame('LM-00006', app(AttributionMatricules::class)->prochain());
+        $this->assertSame('LM-26-0006', app(AttributionMatricules::class)->prochain());
+    }
+
+    /** L'année vient du premier contrat quand il est connu. */
+    public function test_l_annee_est_celle_du_premier_contrat(): void
+    {
+        $ancien = $this->enseignant('ANCIEN');
+        $agent = \App\Models\Agent::create(['user_id' => $ancien->id]);
+        $agent->contrats()->create([
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi',
+            'poste' => 'Enseignant',
+            'date_debut' => '2019-10-01',
+            'quotite' => 100,
+            'statut' => 'actif',
+        ]);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.matricules.attribuer'), [
+            'personnes' => [$ancien->id],
+        ])->assertRedirect();
+
+        // Recruté en 2019, quelle que soit la date de création du compte.
+        $this->assertSame('LM-19-0001', $ancien->refresh()->matricule);
+    }
+
+    public function test_sans_contrat_l_annee_est_celle_du_compte(): void
+    {
+        $recent = $this->enseignant('RECENT');
+        // created_at n'est pas assignable en masse : on passe par la requete.
+        User::where('id', $recent->id)->update(['created_at' => '2024-03-12 08:00:00']);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.matricules.attribuer'), [
+            'personnes' => [$recent->id],
+        ])->assertRedirect();
+
+        $this->assertSame('LM-24-0001', $recent->refresh()->matricule);
+    }
+
+    /** Chaque année a sa propre séquence : elles ne se marchent pas dessus. */
+    public function test_les_sequences_sont_independantes_d_une_annee_a_l_autre(): void
+    {
+        $this->enseignant('DEJA2019', 'LM-19-0007');
+
+        $ancien = $this->enseignant('ANCIEN');
+        $agent = \App\Models\Agent::create(['user_id' => $ancien->id]);
+        $agent->contrats()->create([
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi',
+            'poste' => 'Enseignant',
+            'date_debut' => '2019-10-01',
+            'quotite' => 100,
+            'statut' => 'actif',
+        ]);
+
+        $nouveau = $this->enseignant('NOUVEAU');
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.matricules.attribuer'), [
+            'personnes' => [$ancien->id, $nouveau->id],
+        ])->assertRedirect();
+
+        $this->assertSame('LM-19-0008', $ancien->refresh()->matricule);
+        $this->assertSame('LM-26-0001', $nouveau->refresh()->matricule);
     }
 
     // ----------------------------------------------------- l'attribution
@@ -98,16 +159,16 @@ class MatriculesTest extends TestCase
     {
         $this->enseignant('ATANGANA');
         $this->enseignant('NKOA');
-        $this->enseignant('DEJA', 'LM-00010');
+        $this->enseignant('DEJA', 'LM-26-0010');
 
         $this->actingAs($this->gestionnaire())->getJson(route('personnel.matricules.apourvoir'))
             ->assertOk()
-            ->assertJsonPath('dernier', 'LM-00010')
+            ->assertJsonPath('dernier', 'LM-26-0010')
             // Les deux enseignants sans matricule. Le gestionnaire, rattaché
             // au seul module et non à l'institut, ne relève pas de son propre
             // périmètre : il n'y figure pas.
-            ->assertJsonPath('personnes.0.matricule', 'LM-00011')
-            ->assertJsonPath('personnes.1.matricule', 'LM-00012')
+            ->assertJsonPath('personnes.0.matricule', 'LM-26-0011')
+            ->assertJsonPath('personnes.1.matricule', 'LM-26-0012')
             ->assertJsonCount(2, 'personnes');
 
         // Rien n'a été enregistré : c'est un aperçu.
@@ -123,8 +184,8 @@ class MatriculesTest extends TestCase
             'personnes' => [$nkoa->id, $atangana->id],
         ])->assertRedirect()->assertSessionHas('status');
 
-        $this->assertSame('LM-00001', $atangana->refresh()->matricule);
-        $this->assertSame('LM-00002', $nkoa->refresh()->matricule);
+        $this->assertSame('LM-26-0001', $atangana->refresh()->matricule);
+        $this->assertSame('LM-26-0002', $nkoa->refresh()->matricule);
     }
 
     public function test_on_attribue_seulement_aux_personnes_designees(): void
@@ -143,13 +204,13 @@ class MatriculesTest extends TestCase
     /** La règle 2 du document : un matricule ne change jamais. */
     public function test_un_matricule_existant_n_est_jamais_remplace(): void
     {
-        $deja = $this->enseignant('NKOA', 'LM-00042');
+        $deja = $this->enseignant('NKOA', 'LM-26-0042');
 
         $this->actingAs($this->gestionnaire())->post(route('personnel.matricules.attribuer'), [
             'personnes' => [$deja->id],
         ])->assertSessionHasErrors('matricules');
 
-        $this->assertSame('LM-00042', $deja->refresh()->matricule);
+        $this->assertSame('LM-26-0042', $deja->refresh()->matricule);
     }
 
     public function test_deux_attributions_de_suite_ne_se_chevauchent_pas(): void
@@ -162,8 +223,8 @@ class MatriculesTest extends TestCase
         $second = $this->enseignant('BBB');
         $this->actingAs($gestionnaire)->post(route('personnel.matricules.attribuer'), ['personnes' => [$second->id]]);
 
-        $this->assertSame('LM-00001', $premier->refresh()->matricule);
-        $this->assertSame('LM-00002', $second->refresh()->matricule);
+        $this->assertSame('LM-26-0001', $premier->refresh()->matricule);
+        $this->assertSame('LM-26-0002', $second->refresh()->matricule);
     }
 
     public function test_un_gestionnaire_ne_matricule_que_son_perimetre(): void
@@ -201,11 +262,11 @@ class MatriculesTest extends TestCase
 
     public function test_la_fiche_propose_le_prochain_numero_libre(): void
     {
-        $this->enseignant('NKOA', 'LM-00012');
+        $this->enseignant('NKOA', 'LM-26-0012');
 
         $this->actingAs($this->gestionnaire())->getJson(route('personnel.matricules.prochain'))
             ->assertOk()
-            ->assertJson(['matricule' => 'LM-00013']);
+            ->assertJson(['matricule' => 'LM-26-0013']);
 
         // Rien n'est reserve : le numero reste libre tant qu'il n'est pas saisi.
         $this->assertSame(1, User::whereNotNull('matricule')->count());
@@ -226,40 +287,40 @@ class MatriculesTest extends TestCase
         $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $sans), [
             'name' => 'Claire',
             'lastname' => 'NKOA',
-            'matricule' => 'LM-00013',
+            'matricule' => 'LM-26-0013',
         ])->assertRedirect();
 
-        $this->assertSame('LM-00013', $sans->refresh()->matricule);
+        $this->assertSame('LM-26-0013', $sans->refresh()->matricule);
     }
 
     public function test_un_matricule_se_remplace_mais_jamais_par_celui_d_un_autre(): void
     {
-        $premier = $this->enseignant('NKOA', 'LM-00001');
-        $second = $this->enseignant('ATANGANA', 'LM-00002');
+        $premier = $this->enseignant('NKOA', 'LM-26-0001');
+        $second = $this->enseignant('ATANGANA', 'LM-26-0002');
 
         // Reprendre le numero du voisin est refuse.
         $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $second), [
             'name' => 'Claire',
-            'matricule' => 'LM-00001',
+            'matricule' => 'LM-26-0001',
         ])->assertSessionHasErrors('matricule');
 
-        $this->assertSame('LM-00002', $second->refresh()->matricule);
+        $this->assertSame('LM-26-0002', $second->refresh()->matricule);
 
         // Le corriger vers un numero libre reste possible.
         $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $second), [
             'name' => 'Claire',
-            'matricule' => 'LM-00009',
+            'matricule' => 'LM-26-0009',
         ])->assertRedirect();
 
-        $this->assertSame('LM-00009', $second->refresh()->matricule);
-        $this->assertSame('LM-00001', $premier->refresh()->matricule);
+        $this->assertSame('LM-26-0009', $second->refresh()->matricule);
+        $this->assertSame('LM-26-0001', $premier->refresh()->matricule);
     }
 
     // --------------------------------------------------------- le fichier
 
     public function test_le_fichier_du_personnel_se_telecharge(): void
     {
-        $this->enseignant('NKOA', 'LM-00001');
+        $this->enseignant('NKOA', 'LM-26-0001');
         $this->enseignant('ATANGANA');
 
         $reponse = $this->actingAs($this->gestionnaire())->get(route('personnel.export'));
@@ -276,14 +337,14 @@ class MatriculesTest extends TestCase
         // Excel a besoin du marqueur UTF-8 pour les accents.
         $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
         $this->assertStringContainsString('Matricule;Nom;Prénom', $csv);
-        $this->assertStringContainsString('LM-00001;NKOA;Claire', $csv);
+        $this->assertStringContainsString('LM-26-0001;NKOA;Claire', $csv);
         // Celui qui n'en a pas encore figure aussi, en tête de liste.
         $this->assertStringContainsString(';ATANGANA;Claire', $csv);
     }
 
     public function test_le_fichier_reprend_les_instituts_et_contrats(): void
     {
-        $enseignant = $this->enseignant('NKOA', 'LM-00001');
+        $enseignant = $this->enseignant('NKOA', 'LM-26-0001');
         $agent = \App\Models\Agent::create(['user_id' => $enseignant->id]);
         $agent->contrats()->create([
             'employeur_id' => $this->employeur->id,

@@ -49,6 +49,8 @@ interface APourvoir {
     poste: string | null;
     entite: string | null;
     email: string | null;
+    /** Année de recrutement retenue : premier contrat, sinon création du compte. */
+    annee: number;
     matricule: string;
 }
 
@@ -89,8 +91,29 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
         });
     };
 
-    /** Les numéros se suivent : ne garder qu'une partie laisse des trous. */
-    const numeroteRetenus = (matricules?.personnes ?? []).filter((personne) => retenus.includes(personne.id));
+    /**
+     * Numéro de chacun, recalculé quand on décoche : chaque année a sa file,
+     * et les personnes retenues y prennent les numéros dans l'ordre.
+     */
+    const numerosRetenus = (() => {
+        const files: Record<number, string[]> = {};
+
+        for (const personne of matricules?.personnes ?? []) {
+            (files[personne.annee] ??= []).push(personne.matricule);
+        }
+
+        const curseurs: Record<number, number> = {};
+        const numeros: Record<number, string> = {};
+
+        for (const personne of matricules?.personnes ?? []) {
+            if (!retenus.includes(personne.id)) continue;
+
+            curseurs[personne.annee] ??= 0;
+            numeros[personne.id] = files[personne.annee][curseurs[personne.annee]++];
+        }
+
+        return numeros;
+    })();
 
     const arrivant = useForm({
         name: '',
@@ -303,8 +326,9 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                         ) : (
                             <>
                                 <p className="text-sm text-ink-600 dark:text-ink-300">
-                                    {matricules.personnes.length} personne(s) sans matricule. La numérotation reprend
-                                    {matricules.dernier ? ` après ${matricules.dernier}` : ' au premier numéro'}.
+                                    {matricules.personnes.length} personne(s) sans matricule. Chaque année a sa propre
+                                    séquence
+                                    {matricules.dernier ? ` ; celle de cette année reprend après ${matricules.dernier}` : ''}.
                                     Décochez qui ne doit pas en recevoir maintenant.
                                 </p>
 
@@ -329,6 +353,7 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                                                 </th>
                                                 <th className="px-3 py-2 font-medium">Personne</th>
                                                 <th className="px-3 py-2 font-medium">Poste</th>
+                                                <th className="px-3 py-2 font-medium">Recruté en</th>
                                                 <th className="px-3 py-2 font-medium">Matricule</th>
                                             </tr>
                                         </thead>
@@ -336,10 +361,7 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                                             {matricules.personnes.map((personne) => {
                                                 const retenu = retenus.includes(personne.id);
                                                 // Le numéro affiché tient compte des cases décochées.
-                                                // Les numéros se suivent : le n-ième retenu prend le n-ième
-                                                // numéro de la séquence, quelles que soient les cases décochées.
-                                                const rang = numeroteRetenus.findIndex((p) => p.id === personne.id);
-                                                const numero = retenu ? (matricules.personnes[rang]?.matricule ?? null) : null;
+                                                const numero = numerosRetenus[personne.id] ?? null;
 
                                                 return (
                                                     <tr key={personne.id} className={retenu ? '' : 'opacity-50'}>
@@ -370,6 +392,9 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                                                         <td className="px-3 py-2 text-ink-600 dark:text-ink-300">
                                                             {personne.poste ?? '—'}
                                                         </td>
+                                                        <td className="px-3 py-2 tabular-nums text-ink-600 dark:text-ink-300">
+                                                            {personne.annee}
+                                                        </td>
                                                         <td className="px-3 py-2 font-mono text-[13px] text-ink-900 dark:text-white">
                                                             {numero ?? '—'}
                                                         </td>
@@ -381,7 +406,8 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                                 </div>
 
                                 <p className="text-xs text-ink-400">
-                                    Un matricule attribué ne se change plus et n'est jamais réattribué.
+                                    L'année vient du premier contrat de la personne, ou à défaut de la création de son
+                                    compte. Un matricule attribué n'est jamais réattribué à quelqu'un d'autre.
                                 </p>
 
                                 <div className="flex justify-end gap-2">

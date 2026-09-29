@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
 
         // Matricules et fichier du personnel.
         Route::get('/matricules/a-pourvoir', [PersonnelController::class, 'matriculesAPourvoir'])->name('matricules.apourvoir');
+        Route::get('/matricules/prochain', [PersonnelController::class, 'prochainMatricule'])->name('matricules.prochain');
         Route::post('/matricules', [PersonnelController::class, 'attribuerMatricules'])->name('matricules.attribuer');
         Route::get('/export', [PersonnelController::class, 'exporter'])->name('export');
         Route::get('/dossier/{user}', [PersonnelController::class, 'show'])->name('agents.show');

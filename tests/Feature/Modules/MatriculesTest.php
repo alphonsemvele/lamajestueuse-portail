@@ -197,6 +197,64 @@ class MatriculesTest extends TestCase
         $this->assertNull($enseignant->refresh()->matricule);
     }
 
+    // ------------------------------------------- matricule d'une personne
+
+    public function test_la_fiche_propose_le_prochain_numero_libre(): void
+    {
+        $this->enseignant('NKOA', 'LM-00012');
+
+        $this->actingAs($this->gestionnaire())->getJson(route('personnel.matricules.prochain'))
+            ->assertOk()
+            ->assertJson(['matricule' => 'LM-00013']);
+
+        // Rien n'est reserve : le numero reste libre tant qu'il n'est pas saisi.
+        $this->assertSame(1, User::whereNotNull('matricule')->count());
+    }
+
+    public function test_un_lecteur_ne_demande_pas_de_numero(): void
+    {
+        $lecteur = User::factory()->create();
+        $lecteur->applications()->attach($this->module, ['role_in_app' => 'lecteur', 'roles' => json_encode(['lecteur'])]);
+
+        $this->actingAs($lecteur)->getJson(route('personnel.matricules.prochain'))->assertForbidden();
+    }
+
+    public function test_le_matricule_se_saisit_depuis_la_fiche(): void
+    {
+        $sans = $this->enseignant('NKOA');
+
+        $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $sans), [
+            'name' => 'Claire',
+            'lastname' => 'NKOA',
+            'matricule' => 'LM-00013',
+        ])->assertRedirect();
+
+        $this->assertSame('LM-00013', $sans->refresh()->matricule);
+    }
+
+    public function test_un_matricule_se_remplace_mais_jamais_par_celui_d_un_autre(): void
+    {
+        $premier = $this->enseignant('NKOA', 'LM-00001');
+        $second = $this->enseignant('ATANGANA', 'LM-00002');
+
+        // Reprendre le numero du voisin est refuse.
+        $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $second), [
+            'name' => 'Claire',
+            'matricule' => 'LM-00001',
+        ])->assertSessionHasErrors('matricule');
+
+        $this->assertSame('LM-00002', $second->refresh()->matricule);
+
+        // Le corriger vers un numero libre reste possible.
+        $this->actingAs($this->gestionnaire())->put(route('personnel.agents.update', $second), [
+            'name' => 'Claire',
+            'matricule' => 'LM-00009',
+        ])->assertRedirect();
+
+        $this->assertSame('LM-00009', $second->refresh()->matricule);
+        $this->assertSame('LM-00001', $premier->refresh()->matricule);
+    }
+
     // --------------------------------------------------------- le fichier
 
     public function test_le_fichier_du_personnel_se_telecharge(): void

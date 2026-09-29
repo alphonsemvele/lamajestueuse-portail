@@ -185,6 +185,18 @@ class PersonnelController extends Controller
         ]);
     }
 
+    /**
+     * Le prochain matricule libre, pour le proposer sur une fiche. Il n'est
+     * pas reserve : deux saisies simultanees se disputeraient le meme numero,
+     * et l'unicite en base tranche a l'enregistrement.
+     */
+    public function prochainMatricule(Request $request, AttributionMatricules $attribution): JsonResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        return response()->json(['matricule' => $attribution->prochain()]);
+    }
+
     /** Attribue les matricules aux personnes designees. */
     public function attribuerMatricules(Request $request, AttributionMatricules $attribution): RedirectResponse
     {

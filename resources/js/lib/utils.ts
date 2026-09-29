@@ -69,6 +69,7 @@ export const routes = {
         agents: '/personnel/agents',
         agentStore: '/personnel/agents',
         matriculesAPourvoir: '/personnel/matricules/a-pourvoir',
+        matriculeProchain: '/personnel/matricules/prochain',
         matriculesAttribuer: '/personnel/matricules',
         export: '/personnel/export',
         // Le dossier est identifié par le compte du portail : il n'a pas

@@ -244,6 +244,7 @@ export default function FicheAgent({ agent, diplomes, contrats, evenements, bull
 function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
     const [edition, setEdition] = useState(false);
     const [apercu, setApercu] = useState<string | null>(agent.photoUrl);
+    const [cherche, setCherche] = useState(false);
 
     const formulaire = useForm<SaisieDossier>({
         // Identité : elle vit sur le compte du portail.
@@ -267,6 +268,39 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
         urgence_telephone: agent.urgenceTelephone ?? '',
         observations: agent.observations ?? '',
     });
+
+    /**
+     * Propose le prochain numéro libre. Le matricule ne se change en principe
+     * pas : on demande confirmation quand il y en a déjà un.
+     */
+    const genererMatricule = async () => {
+        const actuel = formulaire.data.matricule.trim();
+
+        if (
+            actuel !== '' &&
+            !confirm(
+                `Cette personne porte déjà le matricule ${actuel}.\n\n` +
+                    'Un matricule ne se change pas : il suit la personne toute sa carrière, ' +
+                    'et son ancien numéro ne sera jamais réattribué. Le remplacer quand même ?',
+            )
+        ) {
+            return;
+        }
+
+        setCherche(true);
+
+        try {
+            const reponse = await fetch(routes.personnel.matriculeProchain, {
+                headers: { Accept: 'application/json' },
+                credentials: 'same-origin',
+            });
+            const donnees = (await reponse.json()) as { matricule: string };
+
+            formulaire.setData('matricule', donnees.matricule);
+        } finally {
+            setCherche(false);
+        }
+    };
 
     const enregistrer = (event: FormEvent) => {
         event.preventDefault();
@@ -350,13 +384,30 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
                                 maxLength={80}
                             />
                         </Champ>
-                        <Champ libelle="Matricule" erreur={formulaire.errors.matricule} aide="Unique dans tout le groupe.">
-                            <Input
-                                value={formulaire.data.matricule}
-                                onChange={(event) => formulaire.setData('matricule', event.target.value)}
-                                maxLength={40}
-                                className="font-mono text-[13px]"
-                            />
+                        <Champ
+                            libelle="Matricule"
+                            erreur={formulaire.errors.matricule}
+                            aide="Unique dans tout le groupe. « Générer » propose le prochain numéro libre."
+                        >
+                            <div className="flex gap-2">
+                                <Input
+                                    value={formulaire.data.matricule}
+                                    onChange={(event) => formulaire.setData('matricule', event.target.value)}
+                                    maxLength={40}
+                                    className="font-mono text-[13px]"
+                                    placeholder="LM-00147"
+                                />
+                                <Bouton
+                                    type="button"
+                                    variante="secondaire"
+                                    icon="refresh"
+                                    onClick={genererMatricule}
+                                    disabled={cherche}
+                                    className="shrink-0"
+                                >
+                                    {cherche ? '…' : formulaire.data.matricule.trim() ? 'Remplacer' : 'Générer'}
+                                </Bouton>
+                            </div>
                         </Champ>
                         <Champ libelle="Poste" erreur={formulaire.errors.poste}>
                             <Input

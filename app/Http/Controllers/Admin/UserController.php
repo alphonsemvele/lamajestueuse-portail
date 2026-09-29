@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\User;
+use App\Services\AttributionMatricules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -32,6 +33,9 @@ class UserController extends Controller
             })
             ->when($request->query('role'), fn ($q, $role) => $q->where('role', $role))
             ->when($request->query('status'), fn ($q, $status) => $q->where('status', $status))
+            // Isoler ceux qui attendent un matricule : on les coche ensuite
+            // tous d'un coup.
+            ->when($request->boolean('sans_matricule'), fn ($q) => $q->whereNull('matricule'))
             // Le personnel d'un institut : les comptes ayant acces a son application.
             ->when($request->query('application'), fn ($q, $slug) => $q->whereHas(
                 'applications', fn ($sub) => $sub->where('slug', $slug)
@@ -50,6 +54,8 @@ class UserController extends Controller
         return Inertia::render('admin/users/index', [
             'users' => $users,
             'pendingCount' => User::pending()->count(),
+            'sansMatriculeCount' => User::whereNull('matricule')->count(),
+            'prochainMatricule' => app(AttributionMatricules::class)->prochain(),
             'institutions' => Application::where('type', 'application')->whereNotNull('client_id')
                 ->orderBy('name')->get()
                 ->map(fn ($a) => ['slug' => $a->slug, 'name' => $a->name])->all(),
@@ -59,6 +65,7 @@ class UserController extends Controller
                 'status' => $request->query('status'),
                 'application' => $request->query('application'),
                 'ordre' => $ordre,
+                'sansMatricule' => $request->boolean('sans_matricule'),
             ],
         ]);
     }
@@ -155,6 +162,36 @@ class UserController extends Controller
         $user->applications()->detach();
 
         return back()->with('status', __('La demande de :nom a été refusée.', ['nom' => $user->fullName()]));
+    }
+
+    /**
+     * Attribue les matricules aux comptes cochés. Un compte qui en porte deja
+     * un est laisse tel quel : un matricule ne se remplace pas ici.
+     */
+    public function attribuerMatricules(Request $request, AttributionMatricules $attribution): RedirectResponse
+    {
+        $donnees = $request->validate([
+            'users' => ['required', 'array', 'min:1'],
+            'users.*' => ['integer', 'exists:users,id'],
+        ]);
+
+        $attribues = $attribution->attribuer($donnees['users']);
+
+        if ($attribues === []) {
+            return back()->withErrors([
+                'matricules' => __('Aucun de ces comptes n’attend un matricule.'),
+            ]);
+        }
+
+        return back()->with('status', trans_choice(
+            '{1}Un matricule attribué : :premier.|[2,*]:nombre matricules attribués, de :premier à :dernier.',
+            count($attribues),
+            [
+                'nombre' => count($attribues),
+                'premier' => $attribues[0]['matricule'],
+                'dernier' => end($attribues)['matricule'],
+            ],
+        ));
     }
 
     private function validated(Request $request, ?User $user = null): array

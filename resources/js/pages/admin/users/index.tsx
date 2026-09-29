@@ -12,13 +12,44 @@ interface Props {
     users: Paginated<PortalUser>;
     pendingCount: number;
     institutions: { slug: string; name: string }[];
-    filters: { q: string | null; role: string | null; status: string | null; application: string | null; ordre: string };
+    filters: {
+        q: string | null;
+        role: string | null;
+        status: string | null;
+        application: string | null;
+        ordre: string;
+        sansMatricule: boolean;
+    };
+    sansMatriculeCount: number;
+    prochainMatricule: string;
 }
 
-export default function UsersIndex({ users, pendingCount, institutions, filters }: Props) {
+export default function UsersIndex({
+    users,
+    pendingCount,
+    institutions,
+    filters,
+    sansMatriculeCount,
+    prochainMatricule,
+}: Props) {
     const t = useT();
     const choice = useChoice();
     const [q, setQ] = useState(filters.q ?? '');
+
+    // Attribution des matricules : la sélection porte sur la page affichée.
+    const [coches, setCoches] = useState<number[]>([]);
+    const attribuables = users.data.filter((user) => !user.matricule).map((user) => user.id);
+    const toutCoche = attribuables.length > 0 && attribuables.every((id) => coches.includes(id));
+
+    const attribuer = () => {
+        if (coches.length === 0) return;
+
+        router.post(
+            routes.admin.userMatricules,
+            { users: coches },
+            { preserveScroll: true, onSuccess: () => setCoches([]) },
+        );
+    };
 
     const roles: Record<string, string> = { admin: t('Administrateur'), manager: t('Responsable'), employee: t('Employé') };
     const statuses: Record<string, string> = { active: t('Actif'), suspended: t('Suspendu'), pending: t('En attente') };
@@ -99,17 +130,62 @@ export default function UsersIndex({ users, pendingCount, institutions, filters 
                     </select>
                 </form>
 
+                <button
+                    type="button"
+                    onClick={() => go({ sans_matricule: filters.sansMatricule ? '' : '1' })}
+                    className={cn(
+                        'inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition',
+                        filters.sansMatricule
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-400/40 dark:bg-brand-500/10 dark:text-brand-300'
+                            : 'border-ink-200 text-ink-600 hover:bg-ink-50 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5',
+                    )}
+                >
+                    <Icon name="key" className="h-4 w-4" />
+                    {t('Sans matricule')} ({sansMatriculeCount})
+                </button>
+
                 <Link href={routes.admin.userCreate} className="btn-primary">
                     <Icon name="plus" className="h-4 w-4" />
                     {t('Nouvel employé')}
                 </Link>
             </div>
 
+            {coches.length > 0 && (
+                <div className="sticky top-4 z-30 mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-brand-300 bg-white p-3 shadow-lg dark:border-brand-400/40 dark:bg-ink-900">
+                    <span className="text-sm font-medium text-ink-900 dark:text-white">
+                        {t(':n compte(s) sélectionné(s)', { n: coches.length })}
+                    </span>
+                    <span className="text-xs text-ink-500 dark:text-ink-400">
+                        {t('La numérotation reprend à :matricule.', { matricule: prochainMatricule })}
+                    </span>
+
+                    <div className="ml-auto flex gap-2">
+                        <button type="button" onClick={() => setCoches([])} className="btn-ghost">
+                            {t('Tout décocher')}
+                        </button>
+                        <button type="button" onClick={attribuer} className="btn-primary">
+                            <Icon name="key" className="h-4 w-4" />
+                            {t('Attribuer les matricules')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <Card className="overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[920px] text-left text-sm">
+                    <table className="w-full min-w-[1000px] text-left text-sm">
                         <thead className="border-b border-ink-100 bg-ink-50/70 text-[11px] uppercase tracking-[0.07em] text-ink-500 dark:border-white/10 dark:bg-white/5">
                             <tr>
+                                <th className="w-10 px-5 py-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={toutCoche}
+                                        disabled={attribuables.length === 0}
+                                        onChange={() => setCoches(toutCoche ? [] : attribuables)}
+                                        className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500/30 disabled:opacity-40 dark:border-white/20 dark:bg-white/5"
+                                        aria-label={t('Sélectionner les comptes sans matricule de cette page')}
+                                    />
+                                </th>
                                 <th className="px-5 py-3 font-semibold">{t('Employé')}</th>
                                 <th className="px-5 py-3 font-semibold">{t('Entité')}</th>
                                 <th className="px-5 py-3 font-semibold">{t('Portail')}</th>
@@ -135,6 +211,30 @@ export default function UsersIndex({ users, pendingCount, institutions, filters 
                         <tbody className="divide-y divide-ink-100 dark:divide-white/10">
                             {users.data.map((user) => (
                                 <tr key={user.id} className="transition hover:bg-ink-50/60 dark:hover:bg-white/5">
+                                    <td className="px-5 py-3.5">
+                                        {user.matricule ? (
+                                            <span
+                                                className="block font-mono text-[11px] text-ink-400"
+                                                title={t('Déjà matriculé')}
+                                            >
+                                                {user.matricule}
+                                            </span>
+                                        ) : (
+                                            <input
+                                                type="checkbox"
+                                                checked={coches.includes(user.id)}
+                                                onChange={() =>
+                                                    setCoches((actuels) =>
+                                                        actuels.includes(user.id)
+                                                            ? actuels.filter((id) => id !== user.id)
+                                                            : [...actuels, user.id],
+                                                    )
+                                                }
+                                                className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500/30 dark:border-white/20 dark:bg-white/5"
+                                                aria-label={t('Attribuer un matricule à :nom', { nom: user.fullName })}
+                                            />
+                                        )}
+                                    </td>
                                     <td className="px-5 py-3.5">
                                         <div className="flex items-center gap-3">
                                             <Avatar url={user.avatarUrl} initials={user.initials} className="h-9 w-9 text-[11px]" />

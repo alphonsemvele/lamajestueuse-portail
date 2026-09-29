@@ -178,6 +178,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
         ->name('applications.sync');
     Route::resource('applications', ApplicationController::class)->except('show');
 
+    // Avant la ressource : « users/matricules » n'est pas un identifiant.
+    Route::post('users/matricules', [UserController::class, 'attribuerMatricules'])->name('users.matricules');
     Route::post('users/{user}/valider', [UserController::class, 'approve'])->name('users.approve');
     Route::post('users/{user}/refuser', [UserController::class, 'reject'])->name('users.reject');
     Route::resource('users', UserController::class)->except('show');

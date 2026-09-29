@@ -117,6 +117,7 @@ export const routes = {
         users: '/admin/users',
         user: (id: number) => `/admin/users/${id}`,
         userCreate: '/admin/users/create',
+        userMatricules: '/admin/users/matricules',
         userEdit: (id: number) => `/admin/users/${id}/edit`,
         userApprove: (id: number) => `/admin/users/${id}/valider`,
         userReject: (id: number) => `/admin/users/${id}/refuser`,

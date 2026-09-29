@@ -20,6 +20,7 @@ interface Props {
 export default function PortalLayout({ title, categories = [], filters, alerts = 0, showSearch = false, children }: PropsWithChildren<Props>) {
     const t = useT();
     const { auth, flash } = usePage<SharedProps>().props;
+    const { url } = usePage();
     const [menuOpen, setMenuOpen] = useState(false);
     const [dismissed, setDismissed] = useState(false);
     const [search, setSearch] = useState(filters?.q ?? '');
@@ -51,6 +52,18 @@ export default function PortalLayout({ title, categories = [], filters, alerts =
                             <span className="block text-[10px] uppercase tracking-[0.14em] text-ink-400">{t('Portail entreprise')}</span>
                         </span>
                     </Link>
+
+                    {/* Sortie du module : le tableau de bord, lui, n'en a pas besoin. */}
+                    {url.split('?')[0] !== routes.dashboard && (
+                        <Link
+                            href={routes.dashboard}
+                            title={t('Retour au portail')}
+                            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-ink-200 px-2.5 py-1.5 text-[13px] font-medium text-ink-600 transition hover:bg-ink-50 hover:text-ink-900 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5 dark:hover:text-white"
+                        >
+                            <Icon name="arrow-right" className="h-4 w-4 rotate-180" />
+                            <span className="hidden sm:inline">{t('Retour au portail')}</span>
+                        </Link>
+                    )}
 
                     {showSearch ? (
                     <form onSubmit={submitSearch} className="ml-auto flex flex-1 items-center gap-2 sm:ml-4 sm:max-w-2xl">

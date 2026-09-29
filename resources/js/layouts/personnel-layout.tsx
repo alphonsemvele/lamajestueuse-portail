@@ -129,17 +129,6 @@ export default function PersonnelLayout({ title, peutGerer, entete, children }: 
                             </p>
                             {menu}
 
-                            {/* On sort du module par où l'on y est entré. */}
-                            <div className="mt-4 border-t border-ink-100 pt-3 dark:border-white/10">
-                                <Link
-                                    href={routes.dashboard}
-                                    onClick={() => setOuvert(false)}
-                                    className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-ink-600 transition hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-white/5 dark:hover:text-white"
-                                >
-                                    <Icon name="arrow-right" className="h-4 w-4 shrink-0 rotate-180" />
-                                    <span className="truncate">Retour au portail</span>
-                                </Link>
-                            </div>
                         </div>
                     </aside>
                 </div>

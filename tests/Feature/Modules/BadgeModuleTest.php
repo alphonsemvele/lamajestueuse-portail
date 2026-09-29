@@ -133,14 +133,27 @@ class BadgeModuleTest extends TestCase
 
     // ---------------------------------------------------------- la demande
 
-    public function test_le_formulaire_propose_l_identite_et_un_modele_par_defaut(): void
+    public function test_le_formulaire_reprend_l_identite_du_compte(): void
     {
-        $this->actingAs($this->employe($this->ium))->get(route('badges.index'))
+        $employe = $this->employe($this->ium);
+
+        $this->actingAs($employe)->get(route('badges.index'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('identite.nom', 'Claire NKOA')
-                ->where('identite.matricule', 'LM-0147')
-                ->has('modeles', 3)
-                ->where('modeles.0.defaut', true));
+                ->where('identite.matricule', $employe->matricule)
+                // Plus de choix de modele : le badge du groupe est unique.
+                ->missing('modeles'));
+    }
+
+    public function test_le_modele_du_groupe_s_applique_sans_qu_on_le_demande(): void
+    {
+        $this->actingAs($this->employe($this->ium))->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+        ])->assertRedirect();
+
+        $this->assertSame('classique', DemandeBadge::firstOrFail()->modele);
     }
 
     public function test_une_demande_simple_est_enregistree(): void
@@ -150,7 +163,6 @@ class BadgeModuleTest extends TestCase
         $this->actingAs($employe)->post(route('badges.store'), [
             'nom_affiche' => 'Dr Claire NKOA',
             'poste_affiche' => 'Enseignante-chercheuse',
-            'modele' => 'classique',
             'motif' => 'premiere',
             'application_id' => $this->ium->id,
         ])->assertRedirect()->assertSessionHas('status');
@@ -213,7 +225,6 @@ class BadgeModuleTest extends TestCase
     {
         $this->actingAs($this->employe())->post(route('badges.store'), [
             'nom_affiche' => 'Claire NKOA',
-            'modele' => 'sobre',
             'motif' => 'premiere',
         ])->assertRedirect();
 

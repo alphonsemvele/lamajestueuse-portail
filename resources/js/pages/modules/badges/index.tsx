@@ -6,7 +6,7 @@ import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
 import { cn, routes } from '@/lib/utils';
 import type { SharedProps } from '@/types';
-import CarteBadge, { type Institut } from './carte';
+import CarteBadge, { type DonneesBadge, type Institut } from './carte';
 
 interface Demande {
     id: number;
@@ -26,18 +26,10 @@ interface Demande {
     traitePar: string | null;
 }
 
-interface Modele {
-    cle: string;
-    nom: string;
-    description: string;
-    defaut: boolean;
-}
-
 interface Props {
     demandes: Demande[];
     enCours: boolean;
     instituts: (Institut & { poste: string | null })[];
-    modeles: Modele[];
     identite: {
         nom: string;
         matricule: string | null;
@@ -62,7 +54,6 @@ export default function MonBadge({
     demandes,
     enCours,
     instituts,
-    modeles,
     identite,
     motifs,
     validite,
@@ -78,7 +69,6 @@ export default function MonBadge({
     const formulaire = useForm<{
         nom_affiche: string;
         poste_affiche: string;
-        modele: string;
         motif: string;
         application_id: string;
         commentaire: string;
@@ -86,7 +76,6 @@ export default function MonBadge({
     }>({
         nom_affiche: identite.nom,
         poste_affiche: institutUnique?.poste ?? identite.poste ?? '',
-        modele: modeles.find((m) => m.defaut)?.cle ?? modeles[0]?.cle ?? 'classique',
         motif: 'premiere',
         application_id: institutUnique ? String(institutUnique.id) : '',
         commentaire: '',
@@ -103,17 +92,26 @@ export default function MonBadge({
         photoUrl: photoApercu,
         initiales: identite.initiales,
         institut: institutChoisi,
-        modele: formulaire.data.modele,
     };
+
+    // Badge montré en grand : après l'envoi, ou depuis la liste des demandes.
+    const [agrandi, setAgrandi] = useState<DonneesBadge | null>(null);
+    const [envoye, setEnvoye] = useState(false);
 
     const envoyer = (event: FormEvent) => {
         event.preventDefault();
+
+        // On fige ce qui part : le formulaire se vide juste après.
+        const soumis = { ...apercu };
+
         formulaire.post(routes.badges.store, {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
                 formulaire.reset('commentaire', 'photo_file');
                 setPhotoApercu(identite.photoUrl);
+                setEnvoye(true);
+                setAgrandi(soumis);
             },
         });
     };
@@ -295,42 +293,6 @@ export default function MonBadge({
                             </Card>
 
                             <Card className="p-5">
-                                <h2 className="text-sm font-semibold text-ink-900 dark:text-white">Modèle</h2>
-
-                                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                                    {modeles.map((modele) => {
-                                        const actif = formulaire.data.modele === modele.cle;
-
-                                        return (
-                                            <button
-                                                key={modele.cle}
-                                                type="button"
-                                                onClick={() => formulaire.setData('modele', modele.cle)}
-                                                className={cn(
-                                                    'rounded-xl border px-3.5 py-3 text-left transition',
-                                                    actif
-                                                        ? 'border-indigo-500 bg-indigo-50/60 dark:border-indigo-400/50 dark:bg-indigo-500/10'
-                                                        : 'border-ink-200 hover:bg-ink-50 dark:border-white/10 dark:hover:bg-white/5',
-                                                )}
-                                            >
-                                                <span className="flex items-center gap-1.5 text-sm font-medium text-ink-900 dark:text-white">
-                                                    {modele.nom}
-                                                    {modele.defaut && (
-                                                        <span className="rounded-full bg-ink-100 px-1.5 text-[10px] font-normal text-ink-500 dark:bg-white/10 dark:text-ink-300">
-                                                            proposé
-                                                        </span>
-                                                    )}
-                                                </span>
-                                                <span className="mt-0.5 block text-xs text-ink-500 dark:text-ink-400">
-                                                    {modele.description}
-                                                </span>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </Card>
-
-                            <Card className="p-5">
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <label className="block">
                                         <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
@@ -414,6 +376,26 @@ export default function MonBadge({
                                         {demande.statutLibelle}
                                     </span>
 
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setEnvoye(false);
+                                            setAgrandi({
+                                                nomAffiche: demande.nomAffiche,
+                                                posteAffiche: demande.posteAffiche,
+                                                matricule: demande.matricule,
+                                                photoUrl: demande.photoUrl,
+                                                initiales: identite.initiales,
+                                                institut: demande.institut,
+                                                numero: demande.numero,
+                                            });
+                                        }}
+                                        className="rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700 dark:hover:bg-white/10"
+                                        aria-label={`Voir le badge ${demande.numero}`}
+                                    >
+                                        <Icon name="eye" className="h-4 w-4" />
+                                    </button>
+
                                     {demande.statut === 'en_attente' && (
                                         <Link
                                             href={routes.badges.destroy(demande.id)}
@@ -437,6 +419,39 @@ export default function MonBadge({
                     </Card>
                 )}
             </div>
+
+            {agrandi && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Aperçu du badge"
+                    className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 py-10"
+                    onClick={() => setAgrandi(null)}
+                >
+                    <div className="absolute inset-0 bg-ink-900/60 backdrop-blur-[2px]" />
+
+                    <div className="relative flex flex-col items-center gap-4" onClick={(event) => event.stopPropagation()}>
+                        {envoye && (
+                            <p className="max-w-[280px] text-center text-sm font-medium text-white">
+                                Demande envoyée. Voici le badge tel qu'il sera fabriqué.
+                            </p>
+                        )}
+
+                        <CarteBadge donnees={agrandi} echelle={1.2} validite={validite} />
+
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAgrandi(null);
+                                setEnvoye(false);
+                            }}
+                            className="rounded-xl bg-white px-5 py-2.5 text-sm font-medium text-ink-800 shadow-lg"
+                        >
+                            Fermer
+                        </button>
+                    </div>
+                </div>
+            )}
         </PortalLayout>
     );
 }

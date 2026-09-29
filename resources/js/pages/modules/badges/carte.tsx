@@ -15,7 +15,8 @@ export interface DonneesBadge {
     initiales?: string | null;
     numero?: string | null;
     institut: Institut | null;
-    modele: string;
+    /** Conservé pour les demandes déjà enregistrées ; le rendu est unique. */
+    modele?: string;
 }
 
 /** Couleur de l'institut, avec un repli neutre quand elle manque. */
@@ -129,94 +130,23 @@ export default function CarteBadge({
 
     const cadre = 'flex flex-col overflow-hidden bg-white';
 
-    // ------------------------------------------------------------ modèles
-    if (donnees.modele === 'bandeau') {
-        return (
-            <div
-                className={cn(cadre, 'shadow-lg shadow-ink-900/10 ring-1 ring-ink-900/10', className)}
-                style={{ width: L, height: H, borderRadius: px(10) }}
-            >
-                <div className="flex items-center justify-between" style={{ padding: `${px(11)}px ${px(12)}px` }}>
-                    <Logo institut={donnees.institut} taille={px(20)} fond="clair" />
-                    {donnees.numero && (
-                        <span className="font-mono text-ink-300" style={{ fontSize: px(6.5) }}>
-                            {donnees.numero}
-                        </span>
-                    )}
-                </div>
-
-                <div className="flex flex-1 items-center justify-center" style={{ paddingBottom: px(4) }}>
-                    <Photo donnees={donnees} taille={px(112)} rond={false} />
-                </div>
-
-                <div style={{ backgroundColor: couleur, padding: `${px(12)}px ${px(12)}px ${px(13)}px` }}>
-                    <p
-                        className="truncate font-semibold leading-tight text-white"
-                        style={{ fontSize: px(14), letterSpacing: '-0.01em' }}
-                    >
-                        {donnees.nomAffiche || 'Nom du porteur'}
-                    </p>
-                    {donnees.posteAffiche && (
-                        <p className="truncate text-white/80" style={{ fontSize: px(8.5), marginTop: px(2) }}>
-                            {donnees.posteAffiche}
-                        </p>
-                    )}
-                    <div
-                        className="flex items-center justify-between text-white/70"
-                        style={{ fontSize: px(7), marginTop: px(7) }}
-                    >
-                        <span className="font-mono tracking-wider">{donnees.matricule ?? ''}</span>
-                        <span>Valide {finValidite}</span>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    if (donnees.modele === 'sobre') {
-        return (
-            <div
-                className={cn(cadre, 'shadow-lg shadow-ink-900/10 ring-1 ring-ink-900/10', className)}
-                style={{ width: L, height: H, borderRadius: px(10) }}
-            >
-                <div className="flex flex-1">
-                    <div style={{ width: px(7), backgroundColor: couleur }} />
-
-                    <div className="flex flex-1 flex-col" style={{ padding: `${px(14)}px ${px(13)}px 0` }}>
-                        <div className="flex items-start justify-between">
-                            <Logo institut={donnees.institut} taille={px(19)} fond="clair" />
-                            {donnees.numero && (
-                                <span className="font-mono text-ink-300" style={{ fontSize: px(6.5) }}>
-                                    {donnees.numero}
-                                </span>
-                            )}
-                        </div>
-
-                        <div className="flex flex-1 flex-col justify-center" style={{ gap: px(12) }}>
-                            <Photo donnees={donnees} taille={px(88)} rond={false} />
-                            {identite('left')}
-                        </div>
-                    </div>
-                </div>
-
-                {pied}
-            </div>
-        );
-    }
-
-    // Classique — le modèle proposé par défaut.
+    // Le badge du groupe : logo de l'institut au centre, photo, identité.
     return (
         <div
             className={cn(cadre, 'shadow-lg shadow-ink-900/10 ring-1 ring-ink-900/10', className)}
             style={{ width: L, height: H, borderRadius: px(10) }}
         >
             <div
-                className="flex items-center justify-between"
-                style={{ backgroundColor: couleur, padding: `${px(12)}px ${px(12)}px ${px(13)}px` }}
+                className="relative flex items-center justify-center"
+                style={{ backgroundColor: couleur, padding: `${px(14)}px ${px(12)}px ${px(15)}px` }}
             >
-                <Logo institut={donnees.institut} taille={px(22)} fond="sombre" />
+                <Logo institut={donnees.institut} taille={px(30)} fond="sombre" />
+                {/* Le numéro se range à droite sans décaler le logo du centre. */}
                 {donnees.numero && (
-                    <span className="font-mono text-white/70" style={{ fontSize: px(6.5) }}>
+                    <span
+                        className="absolute font-mono text-white/70"
+                        style={{ fontSize: px(6.5), right: px(10), bottom: px(6) }}
+                    >
                         {donnees.numero}
                     </span>
                 )}

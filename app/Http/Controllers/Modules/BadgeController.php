@@ -45,7 +45,6 @@ class BadgeController extends Controller
             'demandes' => $demandes,
             'enCours' => DemandeBadge::where('user_id', $utilisateur->id)->enCours()->exists(),
             'instituts' => $this->institutsDe($utilisateur),
-            'modeles' => $this->modeles(),
             'identite' => [
                 'nom' => $utilisateur->fullName(),
                 'matricule' => $utilisateur->matricule,
@@ -75,7 +74,8 @@ class BadgeController extends Controller
         $donnees = $request->validate([
             'nom_affiche' => ['required', 'string', 'max:80'],
             'poste_affiche' => ['nullable', 'string', 'max:120'],
-            'modele' => ['required', Rule::in(array_keys(config('badges.modeles')))],
+            // Le formulaire ne propose plus de choix : un seul modele existe.
+            'modele' => ['nullable', Rule::in(array_keys(config('badges.modeles')))],
             'motif' => ['required', Rule::in(array_keys(DemandeBadge::MOTIFS))],
             'application_id' => [
                 // Obligatoire des que la personne sert au moins un institut :
@@ -94,6 +94,7 @@ class BadgeController extends Controller
         unset($donnees['photo_file']);
 
         $demande = DemandeBadge::create($donnees + [
+            'modele' => 'classique',
             'numero' => DemandeBadge::prochainNumero(),
             'user_id' => $utilisateur->id,
             'photo' => $photo,
@@ -154,7 +155,6 @@ class BadgeController extends Controller
             'statuts' => DemandeBadge::STATUTS,
             'compteurs' => DemandeBadge::selectRaw('statut, count(*) as total')
                 ->groupBy('statut')->pluck('total', 'statut')->all(),
-            'modeles' => $this->modeles(),
             'validite' => (int) config('badges.validite_annees'),
         ]);
     }
@@ -227,14 +227,6 @@ class BadgeController extends Controller
                 'logoUrl' => $a->logoUrl(),
                 'poste' => $a->pivot->poste,
             ])->all();
-    }
-
-    /** @return array<int, array<string, mixed>> */
-    private function modeles(): array
-    {
-        return collect(config('badges.modeles'))
-            ->map(fn ($modele, $cle) => ['cle' => $cle] + $modele)
-            ->values()->all();
     }
 
     /**

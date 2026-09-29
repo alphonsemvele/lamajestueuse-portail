@@ -5,12 +5,11 @@
 | Badges du personnel
 |--------------------------------------------------------------------------
 |
-| Les modeles proposes a la demande. Chacun reprend le logo et la couleur de
-| l'institut choisi : on ne dessine pas un badge par institut, on decline un
-| modele commun.
+| Le badge du groupe reprend le logo et la couleur de l'institut choisi : on
+| ne dessine pas un badge par institut, on decline un modele commun.
 |
-| 'apercu' decrit ce que l'employe voit dans le choix ; le rendu lui-meme est
-| dans resources/js/pages/modules/badges/carte.tsx.
+| Le rendu est dans resources/js/pages/modules/badges/carte.tsx ; ajouter une
+| entree ici ne suffit pas a creer un modele, il faut l'y dessiner.
 |
 */
 
@@ -19,18 +18,8 @@ return [
     'modeles' => [
         'classique' => [
             'nom' => 'Classique',
-            'description' => "Bandeau coloré en tête, photo ronde, mentions centrées.",
+            'description' => "Logo de l'institut en tête, photo ronde, mentions centrées.",
             'defaut' => true,
-        ],
-        'bandeau' => [
-            'nom' => 'Bandeau',
-            'description' => "Photo en grand, nom et fonction sur un bandeau de couleur en pied.",
-            'defaut' => false,
-        ],
-        'sobre' => [
-            'nom' => 'Sobre',
-            'description' => "Fond blanc, filet de couleur, logo discret : lisible de loin.",
-            'defaut' => false,
         ],
     ],
 

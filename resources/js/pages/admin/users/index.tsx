@@ -12,7 +12,7 @@ interface Props {
     users: Paginated<PortalUser>;
     pendingCount: number;
     institutions: { slug: string; name: string }[];
-    filters: { q: string | null; role: string | null; status: string | null; application: string | null };
+    filters: { q: string | null; role: string | null; status: string | null; application: string | null; ordre: string };
 }
 
 export default function UsersIndex({ users, pendingCount, institutions, filters }: Props) {
@@ -31,7 +31,14 @@ export default function UsersIndex({ users, pendingCount, institutions, filters 
     const go = (params: Record<string, string>) =>
         router.get(
             routes.admin.users,
-            { q, role: filters.role ?? '', status: filters.status ?? '', application: filters.application ?? '', ...params },
+            {
+                q,
+                role: filters.role ?? '',
+                status: filters.status ?? '',
+                application: filters.application ?? '',
+                ordre: filters.ordre ?? 'desc',
+                ...params,
+            },
             { preserveState: true, replace: true },
         );
 
@@ -108,6 +115,20 @@ export default function UsersIndex({ users, pendingCount, institutions, filters 
                                 <th className="px-5 py-3 font-semibold">{t('Portail')}</th>
                                 <th className="px-5 py-3 font-semibold">{t('Applications & rôles')}</th>
                                 <th className="px-5 py-3 font-semibold">{t('Statut')}</th>
+                                <th className="px-5 py-3 font-semibold">
+                                    <button
+                                        type="button"
+                                        onClick={() => go({ ordre: filters.ordre === 'asc' ? 'desc' : 'asc' })}
+                                        className="inline-flex items-center gap-1 uppercase tracking-[0.07em] transition hover:text-ink-800 dark:hover:text-white"
+                                        title={t('Trier par date d’inscription')}
+                                    >
+                                        {t('Inscrit le')}
+                                        <Icon
+                                            name={filters.ordre === 'asc' ? 'chevron-up' : 'chevron-down'}
+                                            className="h-3 w-3"
+                                        />
+                                    </button>
+                                </th>
                                 <th className="px-5 py-3" />
                             </tr>
                         </thead>
@@ -166,6 +187,12 @@ export default function UsersIndex({ users, pendingCount, institutions, filters 
                                     </td>
                                     <td className="px-5 py-3.5">
                                         <span className={cn('badge', statusTones[user.status])}>{statuses[user.status]}</span>
+                                    </td>
+                                    <td className="whitespace-nowrap px-5 py-3.5 text-[13px] tabular-nums text-ink-600 dark:text-ink-300">
+                                        {user.inscritLe ?? '—'}
+                                        {user.selfRegistered && (
+                                            <span className="block text-[11px] text-ink-400">{t('inscription en ligne')}</span>
+                                        )}
                                     </td>
                                     <td className="px-5 py-3.5">
                                         <div className="flex items-center justify-end gap-1">

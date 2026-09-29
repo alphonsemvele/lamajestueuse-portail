@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AccessLogController;
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ModuleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ApplicationLaunchController;
@@ -81,6 +82,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/gestion', [BadgeController::class, 'gestion'])->name('gestion');
         Route::get('/impression', [BadgeController::class, 'impression'])->name('impression');
+        Route::get('/photos', [BadgeController::class, 'photos'])->name('photos');
         Route::post('/{demande}/traiter', [BadgeController::class, 'traiter'])->name('traiter');
     });
 
@@ -185,6 +187,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('categories', [CategoryController::class, 'store'])->name('categories.store');
     Route::put('categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
     Route::delete('categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
+
+    /*
+     * Les modules servis par le portail : ce qui est en service, qui y a
+     * acces, et par ou on les administre.
+     */
+    Route::get('modules', [ModuleController::class, 'index'])->name('modules.index');
+    Route::post('modules/{application}/etat', [ModuleController::class, 'toggle'])->name('modules.toggle');
 
     Route::get('journal', [AccessLogController::class, 'index'])->name('logs.index');
 });

@@ -108,6 +108,9 @@ export interface PortalUser {
     status: Status;
     locale: string;
     selfRegistered: boolean;
+    /** Date de création du compte, telle qu'affichée. */
+    inscritLe: string | null;
+    inscritLeIso: string | null;
     applicationsCount: number | null;
     pivot: { roleInApp: string | null; roles: string[]; poste: string | null } | null;
     /** Applications accessibles et rôles tenus (liste du personnel). */

@@ -194,6 +194,8 @@ class User extends Authenticatable
             'status' => $this->status,
             'locale' => $this->locale,
             'selfRegistered' => (bool) $this->self_registered,
+            'inscritLe' => $this->created_at?->format('d/m/Y'),
+            'inscritLeIso' => $this->created_at?->toDateString(),
             'applicationsCount' => $this->applications_count ?? null,
             'pivot' => $this->pivot ? [
                 'roleInApp' => $this->pivot->role_in_app,

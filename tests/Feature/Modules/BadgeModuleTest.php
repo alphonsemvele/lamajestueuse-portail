@@ -417,6 +417,74 @@ class BadgeModuleTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->has('demandes', 1)->where('demandes.0.id', $a->id));
     }
 
+    // --------------------------------------------------------- les photos
+
+    public function test_les_photos_se_recuperent_en_une_archive(): void
+    {
+        Storage::fake('public');
+
+        $employe = $this->employe($this->ium);
+        $this->actingAs($employe)->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+            'photo_file' => UploadedFile::fake()->image('portrait.jpg', 400, 500),
+        ]);
+
+        $demande = DemandeBadge::firstOrFail();
+        $demande->update(['statut' => 'approuvee']);
+
+        $reponse = $this->actingAs($this->guichet())->get(route('badges.photos'));
+
+        $reponse->assertOk();
+        $reponse->assertHeader('content-type', 'application/zip');
+
+        $archive = tempnam(sys_get_temp_dir(), 'test');
+        file_put_contents($archive, $reponse->streamedContent());
+
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($archive) === true);
+
+        // Le fichier porte le matricule et le nom : retrouvable sans l'ouvrir.
+        $noms = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $noms[] = $zip->getNameIndex($i);
+        }
+        $zip->close();
+        @unlink($archive);
+
+        $this->assertCount(1, $noms);
+        $this->assertStringContainsString(mb_strtolower($employe->matricule), $noms[0]);
+        $this->assertStringContainsString('claire-nkoa', $noms[0]);
+        $this->assertStringContainsString($demande->numero, mb_strtoupper($noms[0]));
+    }
+
+    public function test_une_photo_manquante_est_signalee_dans_l_archive(): void
+    {
+        Storage::fake('public');
+
+        // Aucune photo jointe, et le compte n'en a pas non plus.
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'approuvee']);
+
+        $reponse = $this->actingAs($this->guichet())->get(route('badges.photos'));
+
+        $archive = tempnam(sys_get_temp_dir(), 'test');
+        file_put_contents($archive, $reponse->streamedContent());
+
+        $zip = new \ZipArchive;
+        $zip->open($archive);
+        $avis = $zip->getFromName('PHOTOS-MANQUANTES.txt');
+        $zip->close();
+        @unlink($archive);
+
+        $this->assertStringContainsString($demande->numero, (string) $avis);
+    }
+
+    public function test_les_photos_sont_reservees_au_guichet(): void
+    {
+        $this->actingAs($this->employe($this->ium))->get(route('badges.photos'))->assertForbidden();
+    }
+
     public function test_le_badge_porte_le_logo_de_l_institut_retenu(): void
     {
         $demande = $this->demande($this->employe($this->ium, $this->ifpm), ['application_id' => $this->ifpm->id]);

@@ -25,6 +25,7 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
         [routes.admin.dashboard, 'grid', t('Tableau de bord'), (p) => p === '/admin'],
         [routes.admin.applications, 'layers', t('Applications'), (p) => p.startsWith('/admin/applications')],
         [routes.admin.users, 'users', t('Utilisateurs'), (p) => p.startsWith('/admin/users')],
+        [routes.admin.modules, 'sliders', t('Modules'), (p) => p.startsWith('/admin/modules')],
         [routes.admin.categories, 'building', t('Catégories'), (p) => p.startsWith('/admin/categories')],
         [routes.admin.posts, 'newspaper', t('Publications'), (p) => p.startsWith('/admin/posts')],
         [routes.admin.logs, 'shield', t("Journal d'accès"), (p) => p.startsWith('/admin/journal')],

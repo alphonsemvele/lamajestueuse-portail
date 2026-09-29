@@ -20,6 +20,8 @@ class UserController extends Controller
 
     public function index(Request $request): Response
     {
+        $ordre = $request->query('ordre') === 'asc' ? 'asc' : 'desc';
+
         $users = User::withCount('applications')
             ->with(['applications' => fn ($q) => $q->orderBy('name')])
             ->when($request->query('q'), function ($q, $term) {
@@ -37,7 +39,10 @@ class UserController extends Controller
             // Les demandes en attente remontent en tete. CASE plutot que
             // FIELD() : la premiere forme fonctionne aussi sous SQLite.
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
-            ->orderBy('name')
+            // Puis par date d'inscription : les derniers arrives d'abord, ou
+            // l'ordre d'arrivee si on demande l'inverse.
+            ->orderBy('created_at', $ordre)
+            ->orderBy('id', $ordre)
             ->paginate(15)
             ->withQueryString()
             ->through(fn ($user) => $user->toUiArray());
@@ -53,6 +58,7 @@ class UserController extends Controller
                 'role' => $request->query('role'),
                 'status' => $request->query('status'),
                 'application' => $request->query('application'),
+                'ordre' => $ordre,
             ],
         ]);
     }

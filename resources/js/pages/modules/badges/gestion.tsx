@@ -104,6 +104,15 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                             <Icon name="user" className="h-4 w-4" />
                             Mon badge
                         </Link>
+                        <a
+                            href={routes.badges.photos}
+                            className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200"
+                            title="Les portraits des badges approuvés ou imprimés, en un seul fichier"
+                        >
+                            <Icon name="image" className="h-4 w-4" />
+                            Photos
+                        </a>
+
                         {aImprimer > 0 && (
                             <Link
                                 href={routes.badges.impression}

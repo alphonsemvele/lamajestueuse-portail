@@ -61,6 +61,7 @@ export const routes = {
         destroy: (id: number) => `/badges/${id}`,
         gestion: '/badges/gestion',
         impression: '/badges/impression',
+        photos: '/badges/photos',
         traiter: (id: number) => `/badges/${id}/traiter`,
     },
     personnel: {
@@ -125,6 +126,8 @@ export const routes = {
         postCreate: '/admin/posts/create',
         postEdit: (slug: string) => `/admin/posts/${slug}/edit`,
         postVisibility: (slug: string) => `/admin/posts/${slug}/visibilite`,
+        modules: '/admin/modules',
+        moduleToggle: (slug: string) => `/admin/modules/${slug}/etat`,
         logs: '/admin/journal',
     },
 };

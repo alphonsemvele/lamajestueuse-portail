@@ -12,7 +12,11 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 /**
  * Badges du personnel : chacun demande le sien, le service qui les fabrique
@@ -203,6 +207,87 @@ class BadgeController extends Controller
             'validite' => (int) config('badges.validite_annees'),
             'mention' => config('badges.mention'),
         ]);
+    }
+
+    /**
+     * Les photos des badges, en un seul fichier ZIP.
+     *
+     * Le fabricant travaille souvent hors du portail : il lui faut les
+     * portraits, nommes de facon a retrouver chaque personne sans ouvrir les
+     * fichiers un par un.
+     */
+    public function photos(Request $request): StreamedResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $choisies = array_filter(explode(',', (string) $request->query('demandes')));
+
+        $demandes = DemandeBadge::with(['user', 'institut'])
+            ->when($choisies !== [], fn ($q) => $q->whereIn('id', $choisies))
+            ->when($choisies === [], fn ($q) => $q->whereIn('statut', ['approuvee', 'imprimee']))
+            ->orderBy('numero')->get();
+
+        $archive = tempnam(sys_get_temp_dir(), 'badges');
+        $zip = new ZipArchive;
+        $zip->open($archive, ZipArchive::OVERWRITE | ZipArchive::CREATE);
+
+        $manquantes = [];
+
+        foreach ($demandes as $demande) {
+            $chemin = $this->cheminPhoto($demande);
+
+            if ($chemin === null) {
+                $manquantes[] = $demande->numero.' — '.$demande->nom_affiche;
+
+                continue;
+            }
+
+            // Un nom lisible : matricule, nom affiche, numero de demande.
+            $etiquette = trim(implode(' - ', array_filter([
+                $demande->user?->matricule,
+                Str::ascii($demande->nom_affiche),
+                $demande->numero,
+            ])));
+
+            $zip->addFile($chemin, Str::slug($etiquette).'.'.pathinfo($chemin, PATHINFO_EXTENSION));
+        }
+
+        // Ceux dont la photo manque sont signales dans l'archive elle-meme,
+        // sans quoi leur absence passerait inapercue.
+        if ($manquantes !== []) {
+            $zip->addFromString(
+                'PHOTOS-MANQUANTES.txt',
+                "Ces demandes n'ont pas de photo exploitable :\n\n".implode("\n", $manquantes)."\n"
+            );
+        }
+
+        $zip->close();
+
+        $nom = 'photos-badges-'.now()->format('Y-m-d').'.zip';
+
+        return response()->streamDownload(function () use ($archive) {
+            readfile($archive);
+            @unlink($archive);
+        }, $nom, ['Content-Type' => 'application/zip']);
+    }
+
+    /**
+     * Fichier de la photo a joindre : celle du badge, sinon celle du compte
+     * si elle a ete televersee. Une URL externe n'est pas rapatriee.
+     */
+    private function cheminPhoto(DemandeBadge $demande): ?string
+    {
+        foreach ([$demande->photo, $demande->user?->avatar] as $chemin) {
+            if (blank($chemin) || str_starts_with((string) $chemin, 'http')) {
+                continue;
+            }
+
+            if (Storage::disk('public')->exists($chemin)) {
+                return Storage::disk('public')->path($chemin);
+            }
+        }
+
+        return null;
     }
 
     // ------------------------------------------------------------ outils

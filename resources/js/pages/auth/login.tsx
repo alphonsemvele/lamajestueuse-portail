@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import HeroCarousel from '@/components/hero-carousel';
+import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
 import Label from '@/components/label';
@@ -20,7 +21,6 @@ const slides = [
 export default function Login() {
     const t = useT();
     const { flash } = usePage<SharedProps>().props;
-    const [showPassword, setShowPassword] = useState(false);
 
     const { data, setData, post, processing, errors } = useForm({
         username: '',
@@ -146,24 +146,15 @@ export default function Login() {
                                     <span className="text-xs font-medium text-brand-600 dark:text-brand-400">{t('Mot de passe oublié ?')}</span>
                                 </div>
                                 <div className="relative mt-2">
-                                    <Icon name="lock" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-                                    <input
+                                    <Icon name="lock" className="pointer-events-none absolute left-3.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                                    <ChampMotDePasse
                                         id="password"
-                                        type={showPassword ? 'text' : 'password'}
                                         autoComplete="current-password"
                                         value={data.password}
                                         onChange={(event) => setData('password', event.target.value)}
                                         placeholder={t('Votre mot de passe')}
-                                        className="field-input px-10"
+                                        className="pl-10"
                                     />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword((shown) => !shown)}
-                                        aria-label={showPassword ? t('Masquer') : t('Afficher')}
-                                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-400 transition hover:text-ink-700 dark:hover:text-white"
-                                    >
-                                        <Icon name={showPassword ? 'eye-off' : 'eye'} className="h-4 w-4" />
-                                    </button>
                                 </div>
                             </div>
 

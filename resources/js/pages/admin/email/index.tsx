@@ -1,5 +1,6 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
+import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
 import { Alert, Card, Input, Select } from '@/components/ui';
@@ -180,8 +181,7 @@ export default function ReglagesEmail({ reglages, chiffrements, active }: Props)
                                     ? t('Mot de passe — laisser vide pour garder l’actuel')
                                     : t('Mot de passe')}
                             </span>
-                            <Input
-                                type="password"
+                            <ChampMotDePasse
                                 value={formulaire.data.mot_de_passe}
                                 onChange={(event) => formulaire.setData('mot_de_passe', event.target.value)}
                                 placeholder={reglages.motDePasseEnregistre ? '•••••••• (inchangé)' : ''}

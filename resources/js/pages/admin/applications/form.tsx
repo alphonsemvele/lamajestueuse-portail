@@ -1,5 +1,6 @@
 import { Link, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
+import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
 import Label from '@/components/label';
@@ -280,9 +281,8 @@ export default function ApplicationForm({
                                 <div className="sm:col-span-2">
                                     <Label htmlFor="client_secret">{t('Secret partagé')}</Label>
                                     <div className="mt-2 flex flex-wrap items-center gap-2">
-                                        <Input
+                                        <ChampMotDePasse
                                             id="client_secret"
-                                            type="password"
                                             autoComplete="off"
                                             className="min-w-[16rem] flex-1 font-mono text-[13px]"
                                             placeholder={

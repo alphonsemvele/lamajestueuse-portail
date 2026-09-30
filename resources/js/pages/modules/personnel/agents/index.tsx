@@ -1,6 +1,7 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
+import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, ErrorSummary, Input, Select } from '@/components/ui';
@@ -547,16 +548,14 @@ export default function ListePersonnel({
                             erreur={arrivant.errors.password}
                             aide="Huit caractères au moins. À lui transmettre, il pourra le changer."
                         >
-                            <Input
-                                type="password"
+                            <ChampMotDePasse
                                 value={arrivant.data.password}
                                 onChange={(event) => arrivant.setData('password', event.target.value)}
                                 required
                             />
                         </Champ>
                         <Champ libelle="Confirmation" erreur={arrivant.errors.password_confirmation}>
-                            <Input
-                                type="password"
+                            <ChampMotDePasse
                                 value={arrivant.data.password_confirmation}
                                 onChange={(event) => arrivant.setData('password_confirmation', event.target.value)}
                                 required

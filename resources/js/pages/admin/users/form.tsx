@@ -1,5 +1,6 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
+import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
 import Label from '@/components/label';
@@ -270,15 +271,13 @@ export default function UserForm({ user, applications, assigned, postes }: Props
                             {editing ? t('Laissez vide pour conserver le mot de passe actuel.') : t('8 caractères minimum.')}
                         </p>
                         <div className="mt-4 space-y-3">
-                            <Input
-                                type="password"
+                            <ChampMotDePasse
                                 autoComplete="new-password"
                                 placeholder={t('Mot de passe')}
                                 value={data.password}
                                 onChange={(e) => setData('password', e.target.value)}
                             />
-                            <Input
-                                type="password"
+                            <ChampMotDePasse
                                 autoComplete="new-password"
                                 placeholder={t('Confirmation')}
                                 value={data.password_confirmation}

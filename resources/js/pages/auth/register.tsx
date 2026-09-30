@@ -1,5 +1,6 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
+import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
 import Label from '@/components/label';
@@ -319,9 +320,8 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         <Label htmlFor="password" required>
                                             {t('Mot de passe')}
                                         </Label>
-                                        <Input
+                                        <ChampMotDePasse
                                             id="password"
-                                            type="password"
                                             autoComplete="new-password"
                                             className="mt-2"
                                             value={data.password}
@@ -333,9 +333,8 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         <Label htmlFor="password_confirmation" required>
                                             {t('Confirmation')}
                                         </Label>
-                                        <Input
+                                        <ChampMotDePasse
                                             id="password_confirmation"
-                                            type="password"
                                             autoComplete="new-password"
                                             className="mt-2"
                                             value={data.password_confirmation}

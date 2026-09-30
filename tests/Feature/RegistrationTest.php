@@ -36,6 +36,48 @@ class RegistrationTest extends TestCase
         ], $overrides);
     }
 
+    /** Un nouvel arrivant n'a pas encore de matricule : il s'inscrit sans. */
+    public function test_l_inscription_passe_sans_matricule(): void
+    {
+        $this->post(route('register'), $this->payload(['matricule' => '']))
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $user = User::where('email', 'sandrine.abena@lamajestueuse.cm')->firstOrFail();
+        $this->assertNull($user->matricule);
+    }
+
+    /** Vide et non chaine vide : le matricule est unique en base. */
+    public function test_deux_inscriptions_sans_matricule_ne_se_gênent_pas(): void
+    {
+        $this->post(route('register'), $this->payload(['matricule' => '']))->assertSessionHasNoErrors();
+        $this->post(route('register'), $this->payload([
+            'matricule' => '',
+            'email' => 'autre.personne@lamajestueuse.cm',
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertSame(2, User::whereNull('matricule')->count());
+    }
+
+    public function test_l_inscription_passe_sans_adresse(): void
+    {
+        $this->post(route('register'), $this->payload(['email' => '']))
+            ->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertNotNull(User::where('matricule', 'LM-0500')->first());
+    }
+
+    /** Sans l'un ni l'autre, personne ne pourrait se connecter. */
+    public function test_il_faut_au_moins_un_identifiant(): void
+    {
+        $reponse = $this->post(route('register'), $this->payload(['matricule' => '', 'email' => '']));
+
+        $reponse->assertSessionHasErrors(['matricule', 'email']);
+
+        $erreurs = session('errors');
+        $this->assertStringContainsString('connecterez', $erreurs->first('matricule'));
+        $this->assertSame(0, User::where('lastname', 'ABENA')->count());
+    }
+
     public function test_les_messages_de_validation_sont_en_francais(): void
     {
         User::factory()->create(['matricule' => 'LM-0001']);

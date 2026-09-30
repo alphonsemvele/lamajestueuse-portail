@@ -190,9 +190,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                     </div>
 
                                     <div>
-                                        <Label htmlFor="matricule" required>
-                                            {t('Matricule')}
-                                        </Label>
+                                        <Label htmlFor="matricule">{t('Matricule')}</Label>
                                         <Input
                                             id="matricule"
                                             className="mt-2 font-mono text-[13px]"
@@ -201,13 +199,25 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                             onChange={(e) => setData('matricule', e.target.value)}
                                             maxLength={40}
                                         />
-                                        <Erreur message={errors.matricule} />
+                                        {errors.matricule ? (
+                                            <Erreur message={errors.matricule} />
+                                        ) : (
+                                            <p className="mt-1 text-xs text-ink-400">
+                                                {t("Si vous en avez déjà un. Sinon, il vous sera attribué à la validation de votre compte.")}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div>
                                         <Label htmlFor="email">{t('Adresse e-mail')}</Label>
                                         <Input id="email" type="email" className="mt-2" value={data.email} onChange={(e) => setData('email', e.target.value)} maxLength={150} />
-                                        <Erreur message={errors.email} />
+                                        {errors.email ? (
+                                            <Erreur message={errors.email} />
+                                        ) : (
+                                            <p className="mt-1 text-xs text-ink-400">
+                                                {t('Matricule ou adresse : il en faut au moins un, c’est avec lui que vous vous connecterez.')}
+                                            </p>
+                                        )}
                                     </div>
                                     <div>
                                         <Label htmlFor="phone" required>

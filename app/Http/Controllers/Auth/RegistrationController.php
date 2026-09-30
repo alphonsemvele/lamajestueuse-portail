@@ -43,9 +43,14 @@ class RegistrationController extends Controller
             'name' => ['required', 'string', 'max:80'],
             'lastname' => ['required', 'string', 'max:80'],
             'sexe' => ['required', Rule::in(['M', 'F'])],
-            'matricule' => ['required', 'string', 'max:40', 'unique:users,matricule'],
-            // Facultatif : tout le personnel n'a pas d'adresse professionnelle.
-            'email' => ['nullable', 'email', 'max:150', 'unique:users,email'],
+            /*
+             * Matricule et adresse sont l'un et l'autre facultatifs — un
+             * nouvel arrivant n'a pas encore de matricule, et tout le
+             * personnel n'a pas d'adresse professionnelle — mais il en faut
+             * au moins un : c'est avec lui qu'on se connecte.
+             */
+            'matricule' => ['nullable', 'required_without:email', 'string', 'max:40', 'unique:users,matricule'],
+            'email' => ['nullable', 'required_without:matricule', 'email', 'max:150', 'unique:users,email'],
             'phone' => ['required', 'string', 'max:40'],
             'password' => ['required', 'confirmed', Password::min(8)],
             // Photo de profil exigee : elle identifie l'employe dans le portail.
@@ -57,6 +62,8 @@ class RegistrationController extends Controller
         ], [
             'instituts.*.in' => __("Cet institut n'est pas disponible."),
             'photo.required' => __('Une photo de profil est obligatoire.'),
+            'matricule.required_without' => __('Indiquez votre matricule ou votre adresse professionnelle : c’est avec l’un des deux que vous vous connecterez.'),
+            'email.required_without' => __('Indiquez votre adresse professionnelle ou votre matricule : c’est avec l’un des deux que vous vous connecterez.'),
         ]);
 
         $choisis = $data['instituts'] ?? [];
@@ -79,7 +86,8 @@ class RegistrationController extends Controller
             'name' => $data['name'],
             'lastname' => $data['lastname'],
             'sexe' => $data['sexe'],
-            'matricule' => $data['matricule'],
+            // Vide plutot que chaine vide : le matricule est unique en base.
+            'matricule' => ($data['matricule'] ?? null) ?: null,
             'email' => ($data['email'] ?? null) ?: null,
             'phone' => $data['phone'],
             'password' => $data['password'],

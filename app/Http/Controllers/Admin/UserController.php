@@ -256,6 +256,9 @@ class UserController extends Controller
             'poste' => ['nullable', 'string', 'max:120'],
             'entite' => ['nullable', 'string', 'max:120'],
             'role' => ['required', Rule::in(['admin', 'manager', 'employee'])],
+            // Un administrateur technique entre dans le portail sans figurer
+            // dans les dossiers du personnel.
+            'dans_le_personnel' => ['boolean'],
             'status' => ['required', Rule::in(['active', 'suspended', 'pending'])],
             'locale' => ['required', Rule::in(['fr', 'en'])],
             'password' => [$user ? 'nullable' : 'required', 'confirmed', Password::min(8)],

@@ -108,6 +108,8 @@ export interface PortalUser {
     status: Status;
     locale: string;
     selfRegistered: boolean;
+    /** Fait partie du personnel du groupe, donc des dossiers RH. */
+    dansLePersonnel: boolean;
     /** Date de création du compte, telle qu'affichée. */
     inscritLe: string | null;
     inscritLeIso: string | null;

@@ -3,6 +3,7 @@ import { type FormEvent, useState } from 'react';
 import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
+import SwitchField from '@/components/switch-field';
 import Label from '@/components/label';
 import MultiSelect from '@/components/multi-select';
 import PhotoField from '@/components/photo-field';
@@ -27,6 +28,7 @@ interface UserFormData {
     poste: string;
     entite: string;
     role: string;
+    dans_le_personnel: boolean;
     status: string;
     locale: string;
     password: string;
@@ -51,6 +53,7 @@ export default function UserForm({ user, applications, assigned, postes }: Props
         poste: user?.poste ?? '',
         entite: user?.entite ?? '',
         role: user?.role ?? 'employee',
+        dans_le_personnel: user?.dansLePersonnel ?? true,
         status: user?.status ?? 'active',
         locale: user?.locale ?? 'fr',
         password: '',
@@ -255,6 +258,13 @@ export default function UserForm({ user, applications, assigned, postes }: Props
                                     <option value="en">{t('Anglais')}</option>
                                 </Select>
                             </div>
+
+                            <SwitchField
+                                checked={data.dans_le_personnel}
+                                onChange={(valeur) => setData('dans_le_personnel', valeur)}
+                                label={t('Fait partie du personnel')}
+                                description={t("Décochez pour un administrateur technique, un compte de service ou un prestataire : il garde son accès au portail mais ne figure ni dans les dossiers du personnel, ni dans les effectifs, ni dans la paie.")}
+                            />
                         </div>
                     </Card>
 

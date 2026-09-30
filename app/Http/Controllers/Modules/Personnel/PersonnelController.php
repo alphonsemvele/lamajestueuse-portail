@@ -61,12 +61,12 @@ class PersonnelController extends Controller
             'chiffres' => [
                 // L'effectif, c'est le personnel du portail relevant des
                 // entites suivies, dossier ouvert ou non.
-                'agents' => User::duPerimetreRh($perimetre)->count(),
-                'enAttente' => User::where('status', 'pending')->duPerimetreRh($perimetre)->count(),
+                'agents' => User::duPersonnel()->duPerimetreRh($perimetre)->count(),
+                'enAttente' => User::duPersonnel()->where('status', 'pending')->duPerimetreRh($perimetre)->count(),
                 'contratsActifs' => Contrat::where('statut', 'actif')
                     ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
                     ->count(),
-                'sansDossier' => User::duPerimetreRh($perimetre)->whereDoesntHave('agent')->count(),
+                'sansDossier' => User::duPersonnel()->duPerimetreRh($perimetre)->whereDoesntHave('agent')->count(),
                 'masse' => $paie->masseSalariale($mois, $annee, null, $perimetre),
             ],
             // Un CDD qui se termine dans les deux mois demande une decision.
@@ -102,6 +102,7 @@ class PersonnelController extends Controller
          * service RH ne verrait pas arriver ses futurs agents.
          */
         $personnel = User::query()
+            ->duPersonnel()
             ->when($request->query('compte'), fn ($q, $statut) => $q->where('status', $statut))
             ->duPerimetreRh($perimetre)
             ->with([
@@ -141,8 +142,8 @@ class PersonnelController extends Controller
             'employeurs' => Employeur::when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
                 ->orderBy('sigle')->get()->map(fn ($e) => $e->toUiArray())->all(),
             'peutGerer' => $this->peutGerer($request->user()),
-            'sansDossier' => User::duPerimetreRh($perimetre)->whereDoesntHave('agent')->count(),
-            'enAttente' => User::where('status', 'pending')->duPerimetreRh($perimetre)->count(),
+            'sansDossier' => User::duPersonnel()->duPerimetreRh($perimetre)->whereDoesntHave('agent')->count(),
+            'enAttente' => User::duPersonnel()->where('status', 'pending')->duPerimetreRh($perimetre)->count(),
         ]);
     }
 
@@ -184,7 +185,8 @@ class PersonnelController extends Controller
 
         // Un matricule de groupe ne se donne pas avant que le compte soit
         // valide : la demande peut encore etre refusee.
-        $sans = User::where('status', 'active')
+        $sans = User::duPersonnel()
+            ->where('status', 'active')
             ->duPerimetreRh($this->perimetre($request))
             ->whereNull('matricule')
             ->with('agent')
@@ -228,6 +230,7 @@ class PersonnelController extends Controller
         // On ne matricule que dans son perimetre, et jamais quelqu'un qui en
         // a deja un : un matricule ne se remplace pas.
         $autorisees = User::whereIn('id', $donnees['personnes'])
+            ->duPersonnel()
             ->where('status', 'active')
             ->duPerimetreRh($this->perimetre($request))
             ->whereNull('matricule')
@@ -261,7 +264,8 @@ class PersonnelController extends Controller
 
         $perimetre = $this->perimetre($request);
 
-        $personnel = User::duPerimetreRh($perimetre)
+        $personnel = User::duPersonnel()
+            ->duPerimetreRh($perimetre)
             ->with([
                 'applications' => fn ($q) => $q->where('applications.type', 'application'),
                 'agent.contratsActifs.employeur',
@@ -317,6 +321,7 @@ class PersonnelController extends Controller
     public function show(Request $request, User $user): Response
     {
         $this->autoriserAcces($request->user());
+        abort_unless($user->dans_le_personnel, 404);
         $this->verifierPersonne($request, $user);
 
         $perimetre = $this->perimetre($request);

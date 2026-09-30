@@ -19,7 +19,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'lastname', 'sexe', 'matricule', 'email', 'phone', 'poste', 'entite',
         'avatar', 'role', 'status', 'locale', 'password', 'last_login_at',
-        'self_registered', 'approved_at',
+        'self_registered', 'approved_at', 'dans_le_personnel',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -31,6 +31,7 @@ class User extends Authenticatable
             'last_login_at' => 'datetime',
             'approved_at' => 'datetime',
             'self_registered' => 'boolean',
+            'dans_le_personnel' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -49,6 +50,17 @@ class User extends Authenticatable
     public function employeursRh(): BelongsToMany
     {
         return $this->belongsToMany(Employeur::class)->withTimestamps();
+    }
+
+    /**
+     * Le personnel du groupe : ceux dont le service RH tient le dossier.
+     *
+     * Un administrateur technique ou un compte de service entre dans le
+     * portail sans figurer dans les effectifs.
+     */
+    public function scopeDuPersonnel(Builder $query): Builder
+    {
+        return $query->where('dans_le_personnel', true);
     }
 
     /**
@@ -194,6 +206,7 @@ class User extends Authenticatable
             'status' => $this->status,
             'locale' => $this->locale,
             'selfRegistered' => (bool) $this->self_registered,
+            'dansLePersonnel' => (bool) $this->dans_le_personnel,
             'inscritLe' => $this->created_at?->format('d/m/Y'),
             'inscritLeIso' => $this->created_at?->toDateString(),
             'applicationsCount' => $this->applications_count ?? null,

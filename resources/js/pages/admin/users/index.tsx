@@ -274,6 +274,14 @@ export default function UsersIndex({
                                                     {user.selfRegistered && (
                                                         <span className="badge ml-1 bg-brand-50 text-brand-700 dark:bg-brand-500/12 dark:text-brand-300">{t('auto-inscrit')}</span>
                                                     )}
+                                                    {!user.dansLePersonnel && (
+                                                        <span
+                                                            title={t('Ce compte ne figure pas dans les dossiers du personnel')}
+                                                            className="badge ml-1 bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300"
+                                                        >
+                                                            {t('hors personnel')}
+                                                        </span>
+                                                    )}
                                                 </p>
                                                 <p className="text-xs text-ink-400">
                                                     {user.matricule ? (

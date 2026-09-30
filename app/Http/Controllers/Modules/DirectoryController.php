@@ -41,6 +41,7 @@ class DirectoryController extends Controller
         $filtre = $recherche !== '' || $institut || $poste !== '';
 
         $personnel = User::query()
+            ->duPersonnel()
             ->with(['applications' => fn ($q) => $q->where('applications.type', 'application')])
             ->where('status', 'active')
             ->when($recherche !== '', fn ($q) => $q->where(fn ($sub) => $sub
@@ -74,9 +75,9 @@ class DirectoryController extends Controller
                 ->map(fn ($a) => ['slug' => $a->slug, 'name' => $a->name, 'color' => $a->color])
                 ->all(),
             // Pour l'autocompletion du champ poste.
-            'postes' => User::where('status', 'active')->whereNotNull('poste')
+            'postes' => User::duPersonnel()->where('status', 'active')->whereNotNull('poste')
                 ->distinct()->orderBy('poste')->pluck('poste')->all(),
-            'total' => User::where('status', 'active')->count(),
+            'total' => User::duPersonnel()->where('status', 'active')->count(),
         ]);
     }
 

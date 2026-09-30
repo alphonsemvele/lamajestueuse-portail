@@ -39,6 +39,41 @@ class DirectoryModuleTest extends TestCase
         ], $overrides));
     }
 
+    /** Un compte technique n'a pas sa place dans le répertoire du personnel. */
+    public function test_un_compte_hors_personnel_n_apparait_pas(): void
+    {
+        $lecteur = $this->lecteur();
+        $this->personnel(['lastname' => 'NGONO']);
+        $this->personnel([
+            'lastname' => 'TECHNIQUE',
+            'matricule' => 'LM-9999',
+            'email' => 'technique@lamajestueuse.cm',
+            'dans_le_personnel' => false,
+        ]);
+
+        $this->actingAs($lecteur)->get(route('annuaire.index', ['q' => 'a']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('personnel.data', fn ($liste) => ! collect($liste)
+                    ->contains(fn ($fiche) => str_contains((string) $fiche['fullName'], 'TECHNIQUE'))));
+    }
+
+    public function test_il_ne_compte_pas_dans_l_effectif_annonce(): void
+    {
+        $lecteur = $this->lecteur();
+        $this->personnel(['lastname' => 'NGONO']);
+        $this->personnel([
+            'lastname' => 'TECHNIQUE',
+            'matricule' => 'LM-9999',
+            'email' => 'technique@lamajestueuse.cm',
+            'dans_le_personnel' => false,
+        ]);
+
+        // Le lecteur et NGONO : le compte technique est mis de côté.
+        $this->actingAs($lecteur)->get(route('annuaire.index'))
+            ->assertInertia(fn (Assert $page) => $page->where('total', 2));
+    }
+
     public function test_le_module_est_inaccessible_sans_la_tuile(): void
     {
         $this->module();

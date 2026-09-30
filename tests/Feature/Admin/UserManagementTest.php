@@ -12,6 +12,24 @@ class UserManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Modifier un compte laisse sur sa fiche : on y corrige souvent plusieurs champs. */
+    public function test_la_modification_reste_sur_la_fiche(): void
+    {
+        $compte = User::factory()->create();
+        $fiche = route('admin.users.edit', $compte);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->from($fiche)
+            ->put(route('admin.users.update', $compte), [
+                'name' => 'Claire',
+                'role' => 'employee',
+                'status' => 'active',
+                'locale' => 'fr',
+            ])
+            ->assertRedirect($fiche)
+            ->assertSessionHas('status');
+    }
+
     public function test_creation_dun_employe_avec_ses_acces(): void
     {
         $admin = User::factory()->admin()->create();
@@ -84,7 +102,7 @@ class UserManagementTest extends TestCase
             'role' => 'employee',
             'status' => 'suspended',
             'locale' => 'fr',
-        ])->assertRedirect(route('admin.users.index'));
+        ])->assertRedirect();
 
         $user->refresh();
         $this->assertSame($ancien, $user->password);

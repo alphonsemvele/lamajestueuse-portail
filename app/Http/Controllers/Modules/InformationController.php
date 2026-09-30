@@ -87,7 +87,7 @@ class InformationController extends Controller
 
         $post->update($this->validated($request, $post));
 
-        return redirect()->route('informations.index')
+        return back()
             ->with('status', __('« :titre » a été mise à jour.', ['titre' => $post->title]));
     }
 

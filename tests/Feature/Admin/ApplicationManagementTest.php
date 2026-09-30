@@ -131,7 +131,7 @@ class ApplicationManagementTest extends TestCase
             'url' => 'https://nouveau.lamajestueuse.cm',
             'type' => 'application',
             'is_active' => '1',
-        ])->assertRedirect(route('admin.applications.index'));
+        ])->assertRedirect();
 
         $this->assertSame('https://nouveau.lamajestueuse.cm', $app->fresh()->url);
     }

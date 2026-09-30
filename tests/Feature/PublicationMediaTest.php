@@ -86,7 +86,7 @@ class PublicationMediaTest extends TestCase
 
         $this->actingAs($admin)->put(route('admin.posts.update', $post), $this->payload([
             'image_file' => UploadedFile::fake()->image('nouvelle.jpg'),
-        ]))->assertRedirect(route('admin.posts.index'));
+        ]))->assertRedirect();
 
         $post->refresh();
 
@@ -106,7 +106,7 @@ class PublicationMediaTest extends TestCase
 
         $this->actingAs($admin)->put(route('admin.posts.update', $post), $this->payload([
             'remove_image' => '1',
-        ]))->assertRedirect(route('admin.posts.index'));
+        ]))->assertRedirect();
 
         $this->assertNull($post->fresh()->image);
         Storage::disk('public')->assertMissing($chemin);

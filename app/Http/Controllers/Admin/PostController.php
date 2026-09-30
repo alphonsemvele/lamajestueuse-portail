@@ -45,7 +45,8 @@ class PostController extends Controller
     {
         $post->update($this->validated($request, $post));
 
-        return redirect()->route('admin.posts.index')->with('status', "« {$post->title} » a été mise à jour.");
+        return back()
+            ->with('status', "« {$post->title} » a été mise à jour.");
     }
 
     public function destroy(Post $post): RedirectResponse

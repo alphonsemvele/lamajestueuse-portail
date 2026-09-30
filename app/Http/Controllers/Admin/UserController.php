@@ -119,7 +119,7 @@ class UserController extends Controller
         $user->update($data);
         $user->applications()->sync($acces);
 
-        return redirect()->route('admin.users.index')
+        return back()
             ->with('status', "Le compte de {$user->fullName()} a été mis à jour.");
     }
 

@@ -71,7 +71,7 @@ class ApplicationController extends Controller
     {
         $application->update($this->validated($request, $application));
 
-        return redirect()->route('admin.applications.index')
+        return back()
             ->with('status', "L'application « {$application->name} » a été mise à jour.");
     }
 

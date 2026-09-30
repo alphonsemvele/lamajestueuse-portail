@@ -12,7 +12,9 @@ use App\Models\Employeur;
 use App\Models\EvenementCarriere;
 use App\Models\ProfilSalaire;
 use App\Models\User;
+use App\Mail\Compte\CompteCree;
 use App\Services\AttributionMatricules;
+use App\Services\CourrielsPortail;
 use App\Services\PaieService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -427,6 +429,15 @@ class PersonnelController extends Controller
         ]);
 
         $user->applications()->attach($employeur->application_id, ['poste' => $identite['poste'] ?? null]);
+
+        // Le mot de passe provisoire ne part pas par courriel : le message le
+        // dit, et le service le remet de la main a la main.
+        app(CourrielsPortail::class)->envoyerA($user, new CompteCree(
+            $user->fullName(),
+            $user->email ?: $user->matricule ?: '—',
+            $user->matricule,
+            $employeur->sigle,
+        ));
 
         return redirect()->route('personnel.agents.show', $user)
             ->with('status', __('Fiche créée pour :nom.', ['nom' => $user->fullName()]));

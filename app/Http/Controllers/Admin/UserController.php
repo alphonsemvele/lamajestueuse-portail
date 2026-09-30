@@ -6,7 +6,10 @@ use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\User;
+use App\Mail\Compte\CompteValide;
+use App\Mail\Compte\DemandeRefusee;
 use App\Services\AttributionMatricules;
+use App\Services\CourrielsPortail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -145,6 +148,12 @@ class UserController extends Controller
 
         $user->approve();
 
+        app(CourrielsPortail::class)->envoyerA($user, new CompteValide(
+            $user->fullName(),
+            $user->matricule,
+            $user->applications()->pluck('name')->all(),
+        ));
+
         return back()->with('status', __('Le compte de :nom a été validé.', ['nom' => $user->fullName()]));
     }
 
@@ -160,6 +169,8 @@ class UserController extends Controller
 
         $user->forceFill(['status' => 'suspended'])->save();
         $user->applications()->detach();
+
+        app(CourrielsPortail::class)->envoyerA($user, new DemandeRefusee($user->fullName()));
 
         return back()->with('status', __('La demande de :nom a été refusée.', ['nom' => $user->fullName()]));
     }

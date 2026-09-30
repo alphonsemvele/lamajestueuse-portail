@@ -5,6 +5,10 @@ namespace App\Http\Controllers\Modules;
 use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Http\Controllers\Concerns\ServesModule;
 use App\Http\Controllers\Controller;
+use App\Mail\Badge\BadgePret;
+use App\Mail\Badge\BadgeRefuse;
+use App\Mail\Badge\DemandeEnregistree;
+use App\Services\CourrielsPortail;
 use App\Models\Application;
 use App\Models\DemandeBadge;
 use App\Models\User;
@@ -105,6 +109,13 @@ class BadgeController extends Controller
             'statut' => 'en_attente',
         ]);
 
+        app(CourrielsPortail::class)->envoyerA($utilisateur, new DemandeEnregistree(
+            $utilisateur->fullName(),
+            $demande->numero,
+            $demande->nom_affiche,
+            $demande->institut?->name,
+        ));
+
         return back()->with('status', __('Demande :numero enregistrée.', ['numero' => $demande->numero]));
     }
 
@@ -183,10 +194,31 @@ class BadgeController extends Controller
             'traite_le' => now(),
         ]);
 
+        $this->prevenirLeDemandeur($demande);
+
         return back()->with('status', __('Demande :numero : :statut.', [
             'numero' => $demande->numero,
             'statut' => mb_strtolower(DemandeBadge::STATUTS[$demande->statut]),
         ]));
+    }
+
+    /**
+     * Previent le demandeur quand son badge l'attend, ou quand sa demande
+     * est refusee. Les etapes intermediaires ne le concernent pas.
+     */
+    private function prevenirLeDemandeur(DemandeBadge $demande): void
+    {
+        $courriels = app(CourrielsPortail::class);
+        $demande->loadMissing(['user', 'institut']);
+        $nom = $demande->user?->fullName() ?? $demande->nom_affiche;
+
+        if ($demande->statut === 'imprimee') {
+            $courriels->envoyerA($demande->user, new BadgePret($nom, $demande->numero, $demande->institut?->name));
+        }
+
+        if ($demande->statut === 'refusee') {
+            $courriels->envoyerA($demande->user, new BadgeRefuse($nom, $demande->numero, $demande->motif_refus));
+        }
     }
 
     /** Planche d'impression : les badges approuvés, prêts à être tirés. */

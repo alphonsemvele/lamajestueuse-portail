@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Concerns\HandlesMediaUploads;
+use App\Mail\Compte\InscriptionRecue;
+use App\Services\CourrielsPortail;
 use App\Http\Controllers\Controller;
 use App\Models\AccessLog;
 use App\Models\Application;
@@ -105,6 +107,13 @@ class RegistrationController extends Controller
         ]);
 
         // On renvoie l'identifiant avec lequel l'employe pourra se connecter.
+        // L'accuse part au mieux : un relais muet ne doit pas faire echouer
+        // l'inscription elle-meme.
+        app(CourrielsPortail::class)->envoyerA($user, new InscriptionRecue(
+            $user->fullName(),
+            $user->applications()->pluck('name')->all(),
+        ));
+
         return redirect()->route('register')->with('registered', $user->email ?: $user->matricule);
     }
 

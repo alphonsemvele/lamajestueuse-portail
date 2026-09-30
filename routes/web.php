@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ModuleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
+use App\Http\Controllers\Admin\ModeleEmailController;
 use App\Http\Controllers\Admin\ReglageEmailController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ApplicationLaunchController;
@@ -205,6 +206,11 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::get('email', [ReglageEmailController::class, 'index'])->name('email.index');
     Route::put('email', [ReglageEmailController::class, 'update'])->name('email.update');
     Route::post('email/essai', [ReglageEmailController::class, 'tester'])->name('email.test');
+
+    // Modeles : relire et essayer chaque courriel de la plateforme.
+    Route::get('email/modeles', [ModeleEmailController::class, 'index'])->name('email.modeles');
+    Route::get('email/modeles/{cle}/apercu', [ModeleEmailController::class, 'apercu'])->name('email.apercu');
+    Route::post('email/modeles/{cle}/envoyer', [ModeleEmailController::class, 'envoyer'])->name('email.envoyer');
 
     Route::get('journal', [AccessLogController::class, 'index'])->name('logs.index');
 });

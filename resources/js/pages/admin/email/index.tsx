@@ -1,4 +1,4 @@
-import { useForm, usePage } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
@@ -93,6 +93,15 @@ export default function ReglagesEmail({ reglages, chiffrements, active }: Props)
             subheading={t("Le relais par lequel le portail envoie ses messages, et de quoi l'essayer.")}
         >
             <div className="mx-auto max-w-3xl space-y-5">
+                <div className="flex justify-end">
+                    <Link
+                        href={routes.admin.emailModeles}
+                        className="inline-flex items-center gap-2 rounded-xl border border-ink-200 px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:text-ink-200 dark:hover:bg-white/5"
+                    >
+                        <Icon name="document" className="h-4 w-4" />
+                        {t("Modèles d'e-mail")}
+                    </Link>
+                </div>
                 <Alert tone="info" icon="mail">
                     {t('Configuration active')} — {t('transport')} : <strong>{active.transport}</strong> ·{' '}
                     {t('expéditeur')} : <strong>{active.expediteur ?? '—'}</strong>

@@ -132,6 +132,9 @@ export const routes = {
         moduleToggle: (slug: string) => `/admin/modules/${slug}/etat`,
         email: '/admin/email',
         emailTest: '/admin/email/essai',
+        emailModeles: '/admin/email/modeles',
+        emailApercu: (cle: string) => `/admin/email/modeles/${cle}/apercu`,
+        emailEnvoyer: (cle: string) => `/admin/email/modeles/${cle}/envoyer`,
         logs: '/admin/journal',
     },
 };

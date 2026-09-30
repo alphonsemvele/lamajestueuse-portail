@@ -5,6 +5,7 @@ import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
+import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes } from '@/lib/utils';
 import type { Paginated } from '@/types';
 import CarteBadge, { type Institut } from './carte';
@@ -56,7 +57,8 @@ const SUITE: Record<string, { statut: string; libelle: string; icon: string } | 
 export default function GestionBadges({ demandes, filtres, instituts, statuts, compteurs, validite }: Props) {
     const [apercu, setApercu] = useState<Demande | null>(null);
     const [refus, setRefus] = useState<Demande | null>(null);
-    const [q, setQ] = useState(filtres.q);
+    // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
+    const [q, setQ] = useRechercheInstantanee(filtres.q, (terme) => filtrer({ q: terme }));
 
     const filtrer = (params: Record<string, string>) =>
         router.get(

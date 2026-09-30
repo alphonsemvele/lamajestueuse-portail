@@ -1,9 +1,10 @@
 import { Link, router } from '@inertiajs/react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent } from 'react';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card } from '@/components/ui';
 import AdminLayout from '@/layouts/admin-layout';
+import { useRechercheInstantanee } from '@/lib/recherche';
 import { routes, useT } from '@/lib/utils';
 import type { Application, Paginated } from '@/types';
 
@@ -14,7 +15,14 @@ interface Props {
 
 export default function ApplicationsIndex({ applications, filters }: Props) {
     const t = useT();
-    const [q, setQ] = useState(filters.q ?? '');
+    // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
+    const [q, setQ] = useRechercheInstantanee(filters.q ?? '', (terme) =>
+        router.get(
+            routes.admin.applications,
+            { q: terme, type: filters.type ?? '' },
+            { preserveState: true, replace: true },
+        ),
+    );
 
     const search = (event: FormEvent) => {
         event.preventDefault();

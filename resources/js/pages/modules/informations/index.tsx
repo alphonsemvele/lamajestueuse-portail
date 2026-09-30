@@ -1,10 +1,11 @@
 import { Link, router } from '@inertiajs/react';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent } from 'react';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import StatusToggle from '@/components/status-toggle';
 import { Card } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
+import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes, useT } from '@/lib/utils';
 import type { Paginated, Post, PostType } from '@/types';
 
@@ -17,7 +18,14 @@ interface Props {
 
 export default function Informations({ posts, filters, canManage, counts }: Props) {
     const t = useT();
-    const [q, setQ] = useState(filters.q ?? '');
+    // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
+    const [q, setQ] = useRechercheInstantanee(filters.q ?? '', (terme) =>
+        router.get(
+            routes.informations.index,
+            { q: terme, type: filters.type ?? '' },
+            { preserveState: true, replace: true },
+        ),
+    );
 
     const rubriques: [PostType | '', string, string][] = [
         ['', 'layers', t('Tout')],

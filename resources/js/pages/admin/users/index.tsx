@@ -5,6 +5,7 @@ import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card } from '@/components/ui';
 import AdminLayout from '@/layouts/admin-layout';
+import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes, useChoice, useT } from '@/lib/utils';
 import type { Paginated, PortalUser } from '@/types';
 
@@ -34,7 +35,7 @@ export default function UsersIndex({
 }: Props) {
     const t = useT();
     const choice = useChoice();
-    const [q, setQ] = useState(filters.q ?? '');
+
 
     // Attribution des matricules : la sélection porte sur la page affichée.
     const [coches, setCoches] = useState<number[]>([]);
@@ -95,6 +96,9 @@ export default function UsersIndex({
             },
             { preserveState: true, replace: true },
         );
+
+    // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
+    const [q, setQ] = useRechercheInstantanee(filters.q ?? '', (terme) => go({ q: terme }));
 
     const search = (event: FormEvent) => {
         event.preventDefault();

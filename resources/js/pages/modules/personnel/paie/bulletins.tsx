@@ -1,9 +1,10 @@
 import { Link, router } from '@inertiajs/react';
-import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { type FormEvent } from 'react';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
+import { useRechercheInstantanee } from '@/lib/recherche';
 import { routes } from '@/lib/utils';
 import type { Paginated } from '@/types';
 import { Champ, Entete, fcfa, Statut, Tableau, Vide } from '../parts';
@@ -35,7 +36,8 @@ interface Props {
  * bulletin ancien par agent, par employeur ou par année.
  */
 export default function RegistreBulletins({ bulletins, filtres, employeurs, annees, peutGerer }: Props) {
-    const [q, setQ] = useState(filtres.q);
+    // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
+    const [q, setQ] = useRechercheInstantanee(filtres.q, (terme) => chercher({ q: terme }));
 
     const chercher = (params: Record<string, string> = {}) =>
         router.get(
@@ -49,23 +51,6 @@ export default function RegistreBulletins({ bulletins, filtres, employeurs, anne
             },
             { preserveState: true, preserveScroll: true, replace: true, only: ['bulletins', 'filtres'] },
         );
-
-    // Recherche au fil de la frappe, sans une requête par lettre.
-    const premierRendu = useRef(true);
-
-    useEffect(() => {
-        if (premierRendu.current) {
-            premierRendu.current = false;
-            return;
-        }
-
-        if (q === filtres.q) return;
-
-        const minuteur = setTimeout(() => chercher(), 250);
-
-        return () => clearTimeout(minuteur);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [q]);
 
     const soumettre = (event: FormEvent) => {
         event.preventDefault();

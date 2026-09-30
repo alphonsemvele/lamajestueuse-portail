@@ -5,7 +5,7 @@ import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, ErrorSummary, Input, Select } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
-import { routes } from '@/lib/utils';
+import { cn, routes } from '@/lib/utils';
 import type { Paginated } from '@/types';
 import { Bouton, Champ, Entete, fcfa, Modale, Vide } from '../parts';
 
@@ -28,6 +28,7 @@ interface Membre {
     email: string | null;
     poste: string | null;
     entite: string | null;
+    statutCompte: string;
     photoUrl: string | null;
     initiales: string;
     anciennete: number | null;
@@ -36,12 +37,22 @@ interface Membre {
 
 interface Props {
     agents: Paginated<Membre>;
-    filtres: { q: string; employeur: string | null; statut: string | null };
+    filtres: { q: string; employeur: string | null; statut: string | null; compte: string | null };
+    statutsCompte: Record<string, string>;
     employeurs: { id: number; sigle: string; nom: string }[];
     peutGerer: boolean;
     /** Combien de personnes n'ont pas encore de dossier renseigné. */
     sansDossier: number;
+    /** Comptes dont l'inscription attend encore une validation. */
+    enAttente: number;
 }
+
+/** L'état du compte au portail, distinct de la situation contractuelle. */
+const TONS_COMPTE: Record<string, string> = {
+    active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200',
+    pending: 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200',
+    suspended: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+};
 
 interface APourvoir {
     id: number;
@@ -54,7 +65,15 @@ interface APourvoir {
     matricule: string;
 }
 
-export default function ListePersonnel({ agents, filtres, employeurs, peutGerer, sansDossier }: Props) {
+export default function ListePersonnel({
+    agents,
+    filtres,
+    statutsCompte,
+    employeurs,
+    peutGerer,
+    sansDossier,
+    enAttente,
+}: Props) {
     const [q, setQ] = useState(filtres.q);
     const [nouvelle, setNouvelle] = useState(false);
 
@@ -140,7 +159,13 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
     const chercher = (params: Record<string, string> = {}) =>
         router.get(
             routes.personnel.agents,
-            { q, employeur: filtres.employeur ?? '', statut: filtres.statut ?? '', ...params },
+            {
+                q,
+                employeur: filtres.employeur ?? '',
+                statut: filtres.statut ?? '',
+                compte: filtres.compte ?? '',
+                ...params,
+            },
             { preserveState: true, preserveScroll: true, replace: true, only: ['agents', 'filtres'] },
         );
 
@@ -173,7 +198,13 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
             entete={
                 <Entete
                     titre="Personnel"
-                    sous={`${agents.total} personne(s)${sansDossier > 0 ? ` · ${sansDossier} dossier(s) à renseigner` : ''}`}
+                    sous={[
+                        `${agents.total} personne(s)`,
+                        sansDossier > 0 ? `${sansDossier} dossier(s) à renseigner` : null,
+                        enAttente > 0 ? `${enAttente} compte(s) en attente de validation` : null,
+                    ]
+                        .filter(Boolean)
+                        .join(' · ')}
                 />
             }
         >
@@ -213,6 +244,21 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                             <option value="sans_dossier">Dossier non renseigné</option>
                             <option value="sans_contrat">Sans contrat actif</option>
                             <option value="plusieurs">Plusieurs employeurs</option>
+                        </Select>
+                    </Champ>
+
+                    <Champ libelle="Compte">
+                        <Select
+                            value={filtres.compte ?? ''}
+                            onChange={(event) => chercher({ compte: event.target.value })}
+                            className="w-auto"
+                        >
+                            <option value="">Tous</option>
+                            {Object.entries(statutsCompte).map(([cle, libelle]) => (
+                                <option key={cle} value={cle}>
+                                    {libelle}
+                                </option>
+                            ))}
                         </Select>
                     </Champ>
 
@@ -270,11 +316,23 @@ export default function ListePersonnel({ agents, filtres, employeurs, peutGerer,
                                         {membre.poste && ` · ${membre.poste}`}
                                     </p>
                                 </div>
-                                {!membre.dossierOuvert && (
-                                    <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:bg-amber-500/15 dark:text-amber-200">
-                                        à renseigner
-                                    </span>
-                                )}
+                                <div className="flex shrink-0 flex-col items-end gap-1">
+                                    {membre.statutCompte !== 'active' && (
+                                        <span
+                                            className={cn(
+                                                'rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                                                TONS_COMPTE[membre.statutCompte] ?? TONS_COMPTE.pending,
+                                            )}
+                                        >
+                                            {statutsCompte[membre.statutCompte] ?? membre.statutCompte}
+                                        </span>
+                                    )}
+                                    {!membre.dossierOuvert && (
+                                        <span className="rounded-full bg-ink-100 px-2 py-0.5 text-[10px] font-semibold text-ink-600 dark:bg-white/10 dark:text-ink-300">
+                                            à renseigner
+                                        </span>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="mt-4 space-y-2">

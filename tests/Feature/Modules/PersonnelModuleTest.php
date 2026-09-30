@@ -216,6 +216,47 @@ class PersonnelModuleTest extends TestCase
         $this->assertSame(1, Agent::where('user_id', $compte->id)->count());
     }
 
+    /** Un compte en attente de validation figure aussi dans la liste. */
+    public function test_la_liste_montre_les_comptes_non_encore_valides(): void
+    {
+        $enAttente = $this->membre('NOUVEAU');
+        $enAttente->update(['status' => 'pending']);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('agents.data', fn ($liste) => collect($liste)
+                    ->contains(fn ($m) => $m['statutCompte'] === 'pending'))
+                ->where('enAttente', 1));
+    }
+
+    public function test_le_filtre_par_etat_de_compte(): void
+    {
+        $this->membre('ACTIF');
+        $this->membre('ATTENTE')->update(['status' => 'pending']);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents', ['compte' => 'pending']))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
+    }
+
+    /** Un matricule ne se donne pas avant la validation du compte. */
+    public function test_un_compte_en_attente_ne_recoit_pas_de_matricule(): void
+    {
+        $enAttente = $this->membre('NOUVEAU');
+        // La fabrique donne un matricule : on le retire pour poser le cas.
+        $enAttente->update(['status' => 'pending', 'matricule' => null]);
+
+        $this->actingAs($this->gestionnaire())->getJson(route('personnel.matricules.apourvoir'))
+            ->assertOk()
+            ->assertJsonMissing(['id' => $enAttente->id]);
+
+        $this->actingAs($this->gestionnaire())
+            ->post(route('personnel.matricules.attribuer'), ['personnes' => [$enAttente->id]])
+            ->assertSessionHasErrors('matricules');
+
+        $this->assertNull($enAttente->refresh()->matricule);
+    }
+
     public function test_la_liste_montre_le_personnel_du_portail_dossier_ou_non(): void
     {
         $this->agent();                  // dossier deja ouvert

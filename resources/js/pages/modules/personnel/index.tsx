@@ -25,7 +25,7 @@ interface EmployeurLigne {
 interface Props {
     periode: { mois: number; annee: number };
     employeurs: EmployeurLigne[];
-    chiffres: { agents: number; contratsActifs: number; sansDossier: number; masse: Masse };
+    chiffres: { agents: number; enAttente: number; contratsActifs: number; sansDossier: number; masse: Masse };
     echeances: {
         id: number;
         agent: string | null;

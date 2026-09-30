@@ -61,12 +61,12 @@ class PersonnelController extends Controller
             'chiffres' => [
                 // L'effectif, c'est le personnel du portail relevant des
                 // entites suivies, dossier ouvert ou non.
-                'agents' => User::where('status', 'active')->duPerimetreRh($perimetre)->count(),
+                'agents' => User::duPerimetreRh($perimetre)->count(),
+                'enAttente' => User::where('status', 'pending')->duPerimetreRh($perimetre)->count(),
                 'contratsActifs' => Contrat::where('statut', 'actif')
                     ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
                     ->count(),
-                'sansDossier' => User::where('status', 'active')->duPerimetreRh($perimetre)
-                    ->whereDoesntHave('agent')->count(),
+                'sansDossier' => User::duPerimetreRh($perimetre)->whereDoesntHave('agent')->count(),
                 'masse' => $paie->masseSalariale($mois, $annee, null, $perimetre),
             ],
             // Un CDD qui se termine dans les deux mois demande une decision.
@@ -97,10 +97,12 @@ class PersonnelController extends Controller
         /*
          * On liste le personnel du portail, pas les dossiers deja ouverts :
          * quelqu'un qui vient d'etre rattache a un institut doit apparaitre
-         * tout de suite, meme si personne n'a encore rempli sa fiche.
+         * tout de suite, meme si personne n'a encore rempli sa fiche — et
+         * meme si son compte attend encore sa validation, sans quoi le
+         * service RH ne verrait pas arriver ses futurs agents.
          */
         $personnel = User::query()
-            ->where('status', 'active')
+            ->when($request->query('compte'), fn ($q, $statut) => $q->where('status', $statut))
             ->duPerimetreRh($perimetre)
             ->with([
                 'agent',
@@ -129,12 +131,18 @@ class PersonnelController extends Controller
 
         return Inertia::render('modules/personnel/agents/index', [
             'agents' => $personnel,
-            'filtres' => ['q' => $recherche, 'employeur' => $employeur, 'statut' => $statut],
+            'filtres' => [
+                'q' => $recherche,
+                'employeur' => $employeur,
+                'statut' => $statut,
+                'compte' => $request->query('compte'),
+            ],
+            'statutsCompte' => ['active' => 'Actif', 'pending' => 'En attente', 'suspended' => 'Suspendu'],
             'employeurs' => Employeur::when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
                 ->orderBy('sigle')->get()->map(fn ($e) => $e->toUiArray())->all(),
             'peutGerer' => $this->peutGerer($request->user()),
-            'sansDossier' => User::where('status', 'active')->duPerimetreRh($perimetre)
-                ->whereDoesntHave('agent')->count(),
+            'sansDossier' => User::duPerimetreRh($perimetre)->whereDoesntHave('agent')->count(),
+            'enAttente' => User::where('status', 'pending')->duPerimetreRh($perimetre)->count(),
         ]);
     }
 
@@ -158,6 +166,7 @@ class PersonnelController extends Controller
             'telephone' => $membre->phone,
             'poste' => $membre->poste,
             'entite' => $membre->entite,
+            'statutCompte' => $membre->status,
             'photoUrl' => $membre->avatarUrl(),
             'initiales' => $membre->initials(),
             'anciennete' => $agent?->anciennete(),
@@ -173,6 +182,8 @@ class PersonnelController extends Controller
     {
         $this->autoriserGestion($request->user());
 
+        // Un matricule de groupe ne se donne pas avant que le compte soit
+        // valide : la demande peut encore etre refusee.
         $sans = User::where('status', 'active')
             ->duPerimetreRh($this->perimetre($request))
             ->whereNull('matricule')
@@ -250,8 +261,7 @@ class PersonnelController extends Controller
 
         $perimetre = $this->perimetre($request);
 
-        $personnel = User::where('status', 'active')
-            ->duPerimetreRh($perimetre)
+        $personnel = User::duPerimetreRh($perimetre)
             ->with([
                 'applications' => fn ($q) => $q->where('applications.type', 'application'),
                 'agent.contratsActifs.employeur',
@@ -274,7 +284,7 @@ class PersonnelController extends Controller
             fputcsv($sortie, [
                 'Matricule', 'Nom', 'Prénom', 'E-mail', 'Téléphone', 'Poste',
                 'Entité déclarée', 'Instituts', 'Employeurs', 'Contrats actifs',
-                'Dossier RH', 'Compte créé le',
+                'Dossier RH', 'État du compte', 'Compte créé le',
             ], ';');
 
             foreach ($personnel as $personne) {
@@ -292,6 +302,8 @@ class PersonnelController extends Controller
                     $contrats->map(fn ($c) => $c->employeur?->sigle)->filter()->unique()->implode(', '),
                     $contrats->map(fn ($c) => $c->poste)->implode(' / '),
                     $personne->agent ? 'oui' : 'non',
+                    ['active' => 'actif', 'pending' => 'en attente', 'suspended' => 'suspendu'][$personne->status]
+                        ?? $personne->status,
                     $personne->created_at?->format('d/m/Y') ?? '',
                 ], ';');
             }

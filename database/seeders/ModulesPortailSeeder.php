@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Application;
 use App\Models\Category;
 use App\Models\Employeur;
+use App\Models\ReglageEmail;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -24,6 +25,8 @@ class ModulesPortailSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->expediteurParDefaut();
+
         $existante = Application::where('module_key', 'personnel')->exists();
 
         $module = $this->tuile();
@@ -41,6 +44,26 @@ class ModulesPortailSeeder extends Seeder
                 $module->id => ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])],
             ]);
         }
+    }
+
+    /**
+     * L'adresse d'envoi du groupe, posee une fois. Les reglages du relais se
+     * saisissent ensuite dans /admin/email ; on ne touche a rien s'ils
+     * existent deja.
+     */
+    private function expediteurParDefaut(): void
+    {
+        if (ReglageEmail::exists()) {
+            return;
+        }
+
+        ReglageEmail::create([
+            'actif' => false,
+            'port' => 587,
+            'chiffrement' => 'tls',
+            'expediteur' => 'info@lamajestueuse.com',
+            'nom_expediteur' => 'La Majestueuse',
+        ]);
     }
 
     private function tuile(): Application

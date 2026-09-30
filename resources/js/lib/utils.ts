@@ -130,6 +130,8 @@ export const routes = {
         postVisibility: (slug: string) => `/admin/posts/${slug}/visibilite`,
         modules: '/admin/modules',
         moduleToggle: (slug: string) => `/admin/modules/${slug}/etat`,
+        email: '/admin/email',
+        emailTest: '/admin/email/essai',
         logs: '/admin/journal',
     },
 };

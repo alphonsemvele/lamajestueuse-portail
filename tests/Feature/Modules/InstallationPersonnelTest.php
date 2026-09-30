@@ -51,6 +51,32 @@ class InstallationPersonnelTest extends TestCase
         $this->assertTrue($badges->estOuvertATous());
     }
 
+    public function test_l_installation_pose_l_adresse_d_envoi_du_groupe(): void
+    {
+        $this->installer();
+
+        $reglages = \App\Models\ReglageEmail::firstOrFail();
+        $this->assertSame('info@lamajestueuse.com', $reglages->expediteur);
+        // Inactifs : le relais se renseigne dans /admin/email.
+        $this->assertFalse($reglages->actif);
+    }
+
+    public function test_l_installation_n_ecrase_pas_des_reglages_saisis(): void
+    {
+        $this->installer();
+
+        \App\Models\ReglageEmail::firstOrFail()->update([
+            'actif' => true, 'hote' => 'smtp-relay.brevo.com', 'expediteur' => 'contact@lamajestueuse.com',
+        ]);
+
+        $this->installer();
+
+        $reglages = \App\Models\ReglageEmail::firstOrFail();
+        $this->assertSame('contact@lamajestueuse.com', $reglages->expediteur);
+        $this->assertTrue($reglages->actif);
+        $this->assertSame(1, \App\Models\ReglageEmail::count());
+    }
+
     public function test_rejouer_l_installation_ne_duplique_rien(): void
     {
         $this->installer();

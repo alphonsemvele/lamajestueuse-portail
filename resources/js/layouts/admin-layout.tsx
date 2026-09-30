@@ -28,6 +28,7 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
         [routes.admin.modules, 'sliders', t('Modules'), (p) => p.startsWith('/admin/modules')],
         [routes.admin.categories, 'building', t('Catégories'), (p) => p.startsWith('/admin/categories')],
         [routes.admin.posts, 'newspaper', t('Publications'), (p) => p.startsWith('/admin/posts')],
+        [routes.admin.email, 'mail', t('Réglages e-mail'), (p) => p.startsWith('/admin/email')],
         [routes.admin.logs, 'shield', t("Journal d'accès"), (p) => p.startsWith('/admin/journal')],
     ];
 

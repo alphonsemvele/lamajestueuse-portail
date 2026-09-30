@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\ModuleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
+use App\Http\Controllers\Admin\ReglageEmailController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ApplicationLaunchController;
 use App\Http\Controllers\Auth\LoginController;
@@ -197,6 +198,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
      */
     Route::get('modules', [ModuleController::class, 'index'])->name('modules.index');
     Route::post('modules/{application}/etat', [ModuleController::class, 'toggle'])->name('modules.toggle');
+
+    /*
+     * Envoi des courriels : reglages du relais et essai.
+     */
+    Route::get('email', [ReglageEmailController::class, 'index'])->name('email.index');
+    Route::put('email', [ReglageEmailController::class, 'update'])->name('email.update');
+    Route::post('email/essai', [ReglageEmailController::class, 'tester'])->name('email.test');
 
     Route::get('journal', [AccessLogController::class, 'index'])->name('logs.index');
 });

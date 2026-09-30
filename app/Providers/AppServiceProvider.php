@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\ReglageEmail;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +20,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Les reglages d'envoi saisis dans l'administration remplacent ceux
+        // du serveur. Sans reglages, ou avant les migrations, rien ne change.
+        ReglageEmail::appliquer();
     }
 }

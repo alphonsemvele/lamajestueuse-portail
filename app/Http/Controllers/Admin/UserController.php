@@ -222,6 +222,29 @@ class UserController extends Controller
         return back()->with('status', $message);
     }
 
+    /**
+     * Renvoie a la personne le message qui correspond a l'etat de son
+     * compte. Utile quand une adresse etait fausse, ou le relais en panne.
+     */
+    public function renvoyerCourriel(User $user, CourrielsPortail $courriels): RedirectResponse
+    {
+        if (blank($user->email)) {
+            return back()->withErrors([
+                'courriel' => __(':nom n’a pas d’adresse e-mail.', ['nom' => $user->fullName()]),
+            ]);
+        }
+
+        $courriel = $courriels->pourCompte($user);
+
+        if (! $courriel || ! $courriels->envoyerA($user, $courriel)) {
+            return back()->withErrors([
+                'courriel' => __('L’envoi a échoué. Vérifiez les réglages e-mail.'),
+            ]);
+        }
+
+        return back()->with('status', __('Message renvoyé à :adresse.', ['adresse' => $user->email]));
+    }
+
     private function validated(Request $request, ?User $user = null): array
     {
         $data = $request->validate([

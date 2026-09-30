@@ -119,14 +119,38 @@ class InstallationPersonnelTest extends TestCase
         $this->assertFalse($admin->applications()->where('applications.id', $module->id)->exists());
     }
 
-    public function test_l_installation_n_invente_aucune_grille_salariale(): void
+    /** La grille reprise d'IUM, telle qu'elle y était configurée. */
+    public function test_l_installation_reprend_la_grille_d_ium(): void
     {
         $this->installer();
 
-        // Les montants réels se saisissent dans l'interface : rien n'est
-        // supposé à la place du service RH.
-        $this->assertSame(0, CategorieRh::count());
-        $this->assertSame(0, Echelon::count());
+        $this->assertSame(8, CategorieRh::count());
+        $this->assertSame(11, Echelon::count());
+        $this->assertSame(11, ProfilSalaire::count());
+        $this->assertSame(5, \App\Models\Indemnite::count());
+
+        // IUM n'avait aucune retenue : le net s'y calcule base + indemnités.
+        $this->assertSame(0, \App\Models\Retenue::count());
+
+        $coordonnateur = ProfilSalaire::where('nom', 'Coordonnateur de filière')->firstOrFail();
+        $this->assertSame(20000.0, (float) $coordonnateur->echelon->salaire);
+        $this->assertCount(4, $coordonnateur->indemnites);
+
+        $transport = $coordonnateur->indemnites->firstWhere('libelle', 'Indemnité de transport');
+        $this->assertSame('fixe', $transport->pivot->type_calcul);
+        $this->assertSame(183198.0, (float) $transport->pivot->valeur);
+    }
+
+    /** Une grille déjà saisie n'est jamais remplacée. */
+    public function test_l_installation_ne_touche_pas_a_une_grille_existante(): void
+    {
+        $categorie = CategorieRh::create(['libelle' => 'Grille maison']);
+        Echelon::create(['categorie_rh_id' => $categorie->id, 'numero' => 1, 'salaire' => 123456]);
+
+        $this->installer();
+
+        $this->assertSame(1, CategorieRh::count());
+        $this->assertSame(123456.0, (float) Echelon::firstOrFail()->salaire);
         $this->assertSame(0, ProfilSalaire::count());
     }
 }

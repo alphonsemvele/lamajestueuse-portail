@@ -86,6 +86,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/impression', [BadgeController::class, 'impression'])->name('impression');
         Route::get('/photos', [BadgeController::class, 'photos'])->name('photos');
         Route::post('/{demande}/traiter', [BadgeController::class, 'traiter'])->name('traiter');
+        Route::post('/{demande}/renvoyer', [BadgeController::class, 'renvoyerCourriel'])->name('renvoyer');
     });
 
     /*
@@ -184,6 +185,7 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('users/matricules', [UserController::class, 'attribuerMatricules'])->name('users.matricules');
     Route::post('users/{user}/valider', [UserController::class, 'approve'])->name('users.approve');
     Route::post('users/{user}/refuser', [UserController::class, 'reject'])->name('users.reject');
+    Route::post('users/{user}/renvoyer', [UserController::class, 'renvoyerCourriel'])->name('users.renvoyer');
     Route::resource('users', UserController::class)->except('show');
     Route::post('posts/{post}/visibilite', [AdminPostController::class, 'toggleVisibility'])->name('posts.visibility');
     Route::resource('posts', AdminPostController::class)->except('show');

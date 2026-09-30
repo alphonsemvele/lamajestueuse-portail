@@ -18,8 +18,8 @@ use Illuminate\Database\Seeder;
  * qu'a sa creation — si l'un d'eux s'en detache ensuite, le deploiement
  * suivant ne la lui remet pas.
  *
- * La grille salariale de demonstration vit dans son propre semeur
- * (GrilleRhExempleSeeder) : les montants reels se saisissent dans l'interface.
+ * La grille de paie reprise d'IUM est installee la premiere fois par
+ * GrilleIumSeeder, qui ne fait rien si une grille existe deja.
  */
 class ModulesPortailSeeder extends Seeder
 {
@@ -31,6 +31,7 @@ class ModulesPortailSeeder extends Seeder
 
         $module = $this->tuile();
         $this->employeurs();
+        $this->call(GrilleIumSeeder::class);
 
         if ($existante) {
             return;

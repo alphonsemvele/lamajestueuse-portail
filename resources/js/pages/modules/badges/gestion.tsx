@@ -241,6 +241,18 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                                         </button>
                                     )}
 
+                                    <button
+                                        type="button"
+                                        title="Renvoyer le message correspondant à l'état de cette demande"
+                                        onClick={() =>
+                                            router.post(routes.badges.renvoyer(demande.id), {}, { preserveScroll: true })
+                                        }
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
+                                    >
+                                        <Icon name="mail" className="h-3.5 w-3.5" />
+                                        Renvoyer
+                                    </button>
+
                                     {demande.statut === 'en_attente' && (
                                         <button
                                             type="button"

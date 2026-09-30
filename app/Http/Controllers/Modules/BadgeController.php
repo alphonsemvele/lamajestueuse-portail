@@ -221,6 +221,30 @@ class BadgeController extends Controller
         }
     }
 
+    /** Renvoie au demandeur le message correspondant a l'etat de sa demande. */
+    public function renvoyerCourriel(Request $request, DemandeBadge $demande, CourrielsPortail $courriels): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $demande->loadMissing('user');
+
+        if (blank($demande->user?->email)) {
+            return back()->withErrors([
+                'courriel' => __('Ce demandeur n’a pas d’adresse e-mail.'),
+            ]);
+        }
+
+        $courriel = $courriels->pourBadge($demande);
+
+        if (! $courriel || ! $courriels->envoyerA($demande->user, $courriel)) {
+            return back()->withErrors([
+                'courriel' => __('L’envoi a échoué. Vérifiez les réglages e-mail.'),
+            ]);
+        }
+
+        return back()->with('status', __('Message renvoyé à :adresse.', ['adresse' => $demande->user->email]));
+    }
+
     /** Planche d'impression : les badges approuvés, prêts à être tirés. */
     public function impression(Request $request): Response
     {

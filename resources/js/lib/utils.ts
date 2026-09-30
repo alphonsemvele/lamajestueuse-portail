@@ -63,6 +63,7 @@ export const routes = {
         impression: '/badges/impression',
         photos: '/badges/photos',
         traiter: (id: number) => `/badges/${id}/traiter`,
+        renvoyer: (id: number) => `/badges/${id}/renvoyer`,
     },
     personnel: {
         index: '/personnel',
@@ -121,6 +122,7 @@ export const routes = {
         userEdit: (id: number) => `/admin/users/${id}/edit`,
         userApprove: (id: number) => `/admin/users/${id}/valider`,
         userReject: (id: number) => `/admin/users/${id}/refuser`,
+        userRenvoyer: (id: number) => `/admin/users/${id}/renvoyer`,
         categories: '/admin/categories',
         category: (id: number) => `/admin/categories/${id}`,
         posts: '/admin/posts',

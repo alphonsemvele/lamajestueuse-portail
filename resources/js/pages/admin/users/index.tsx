@@ -329,6 +329,22 @@ export default function UsersIndex({
                                     </td>
                                     <td className="px-5 py-3.5">
                                         <div className="flex items-center justify-end gap-1">
+                                            {user.email && (
+                                                <button
+                                                    type="button"
+                                                    title={t('Renvoyer le message correspondant à l’état de ce compte')}
+                                                    onClick={() =>
+                                                        router.post(
+                                                            routes.admin.userRenvoyer(user.id),
+                                                            {},
+                                                            { preserveScroll: true },
+                                                        )
+                                                    }
+                                                    className="rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700 dark:hover:bg-white/10"
+                                                >
+                                                    <Icon name="mail" className="h-4 w-4" />
+                                                </button>
+                                            )}
                                             {user.status === 'pending' && (
                                                 <>
                                                     <button

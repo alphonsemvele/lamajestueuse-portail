@@ -120,6 +120,92 @@ class CourrielsDesProceduresTest extends TestCase
         Mail::assertSent(BadgeRefuse::class, fn ($mail) => $mail->motif === 'Photo trop sombre.');
     }
 
+    // ----------------------------------------------------------- renvoi
+
+    /** Le renvoi réexpédie le message qui correspond à l'état du compte. */
+    public function test_le_renvoi_suit_l_etat_du_compte(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->admin()->create();
+
+        $enAttente = User::factory()->create(['status' => 'pending', 'email' => 'a@lamajestueuse.cm']);
+        $this->actingAs($admin)->post(route('admin.users.renvoyer', $enAttente))->assertRedirect();
+        Mail::assertSent(\App\Mail\Compte\InscriptionRecue::class);
+
+        $valide = User::factory()->create([
+            'status' => 'active', 'email' => 'b@lamajestueuse.cm', 'self_registered' => true,
+        ]);
+        $this->actingAs($admin)->post(route('admin.users.renvoyer', $valide));
+        Mail::assertSent(CompteValide::class);
+
+        $refuse = User::factory()->create(['status' => 'suspended', 'email' => 'c@lamajestueuse.cm']);
+        $this->actingAs($admin)->post(route('admin.users.renvoyer', $refuse));
+        Mail::assertSent(DemandeRefusee::class);
+    }
+
+    /** Un compte ouvert par les RH n'a pas été demandé par son titulaire. */
+    public function test_le_renvoi_distingue_un_compte_ouvert_par_les_rh(): void
+    {
+        Mail::fake();
+
+        $cree = User::factory()->create([
+            'status' => 'active', 'email' => 'd@lamajestueuse.cm', 'self_registered' => false,
+        ]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('admin.users.renvoyer', $cree))->assertRedirect();
+
+        Mail::assertSent(\App\Mail\Compte\CompteCree::class);
+        Mail::assertNotSent(CompteValide::class);
+    }
+
+    public function test_on_ne_renvoie_rien_a_un_compte_sans_adresse(): void
+    {
+        Mail::fake();
+
+        $sansAdresse = User::factory()->create(['status' => 'active', 'email' => null]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('admin.users.renvoyer', $sansAdresse))
+            ->assertSessionHasErrors('courriel');
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_le_renvoi_d_un_badge_suit_son_etat(): void
+    {
+        Mail::fake();
+
+        $module = Application::factory()->module('badges')->create(['name' => 'Badges']);
+        $guichet = User::factory()->create();
+        $guichet->applications()->attach($module, ['role_in_app' => 'accueil', 'roles' => json_encode(['accueil'])]);
+
+        $employe = User::factory()->create(['email' => 'claire@lamajestueuse.cm']);
+        $demande = DemandeBadge::create([
+            'numero' => 'BDG-000001', 'user_id' => $employe->id, 'nom_affiche' => 'Claire NKOA',
+            'modele' => 'classique', 'motif' => 'premiere', 'statut' => 'remise',
+        ]);
+
+        $this->actingAs($guichet)->post(route('badges.renvoyer', $demande))->assertRedirect();
+
+        Mail::assertSent(BadgePret::class, fn ($mail) => $mail->hasTo('claire@lamajestueuse.cm'));
+    }
+
+    public function test_un_employe_ne_renvoie_pas_les_messages_des_autres(): void
+    {
+        Mail::fake();
+
+        Application::factory()->module('badges')->create(['name' => 'Badges']);
+        $demande = DemandeBadge::create([
+            'numero' => 'BDG-000001', 'user_id' => User::factory()->create()->id, 'nom_affiche' => 'Claire NKOA',
+            'modele' => 'classique', 'motif' => 'premiere', 'statut' => 'remise',
+        ]);
+
+        $this->actingAs(User::factory()->create())->post(route('badges.renvoyer', $demande))->assertForbidden();
+
+        Mail::assertNothingSent();
+    }
+
     /** Une etape intermediaire ne derange personne. */
     public function test_l_approbation_d_un_badge_n_envoie_rien(): void
     {

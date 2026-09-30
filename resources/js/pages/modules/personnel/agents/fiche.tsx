@@ -395,7 +395,7 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
                                     onChange={(event) => formulaire.setData('matricule', event.target.value)}
                                     maxLength={40}
                                     className="font-mono text-[13px]"
-                                    placeholder="LM-00147"
+                                    placeholder="LM-260147"
                                 />
                                 <Bouton
                                     type="button"

@@ -196,7 +196,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         <Input
                                             id="matricule"
                                             className="mt-2 font-mono text-[13px]"
-                                            placeholder="LM-0000"
+                                            placeholder="LM-260147"
                                             value={data.matricule}
                                             onChange={(e) => setData('matricule', e.target.value)}
                                             maxLength={40}

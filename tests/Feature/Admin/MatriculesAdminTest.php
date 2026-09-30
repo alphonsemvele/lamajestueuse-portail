@@ -17,7 +17,7 @@ class MatriculesAdminTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->admin()->create(['matricule' => 'LM-26-0001']);
+        return User::factory()->admin()->create(['matricule' => 'LM-260001']);
     }
 
     private function compte(string $nom, ?string $matricule = null): User
@@ -29,19 +29,19 @@ class MatriculesAdminTest extends TestCase
     {
         $this->compte('NKOA');
         $this->compte('ATANGANA');
-        $this->compte('DEJA', 'LM-26-0004');
+        $this->compte('DEJA', 'LM-260004');
 
         $this->actingAs($this->admin())->get(route('admin.users.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('sansMatriculeCount', 2)
-                ->where('prochainMatricule', 'LM-26-0005'));
+                ->where('prochainMatricule', 'LM-260005'));
     }
 
     public function test_le_filtre_isole_les_comptes_sans_matricule(): void
     {
         $this->compte('NKOA');
-        $this->compte('DEJA', 'LM-26-0004');
+        $this->compte('DEJA', 'LM-260004');
 
         $this->actingAs($this->admin())->get(route('admin.users.index', ['sans_matricule' => 1]))
             ->assertInertia(fn (Assert $page) => $page
@@ -60,27 +60,27 @@ class MatriculesAdminTest extends TestCase
         ])->assertRedirect()->assertSessionHas('status');
 
         // Ordre alphabetique, a la suite du plus haut numero existant.
-        $this->assertSame('LM-26-0002', $atangana->refresh()->matricule);
-        $this->assertSame('LM-26-0003', $mvele->refresh()->matricule);
-        $this->assertSame('LM-26-0004', $nkoa->refresh()->matricule);
+        $this->assertSame('LM-260002', $atangana->refresh()->matricule);
+        $this->assertSame('LM-260003', $mvele->refresh()->matricule);
+        $this->assertSame('LM-260004', $nkoa->refresh()->matricule);
     }
 
     public function test_un_compte_deja_matricule_est_laisse_tel_quel(): void
     {
-        $deja = $this->compte('DEJA', 'LM-26-0009');
+        $deja = $this->compte('DEJA', 'LM-260009');
         $sans = $this->compte('SANS');
 
         $this->actingAs($this->admin())->post(route('admin.users.matricules'), [
             'users' => [$deja->id, $sans->id],
         ])->assertRedirect();
 
-        $this->assertSame('LM-26-0009', $deja->refresh()->matricule);
-        $this->assertSame('LM-26-0010', $sans->refresh()->matricule);
+        $this->assertSame('LM-260009', $deja->refresh()->matricule);
+        $this->assertSame('LM-260010', $sans->refresh()->matricule);
     }
 
     public function test_un_matricule_se_remplace_quand_on_le_demande(): void
     {
-        $deja = $this->compte('DEJA', 'LM-26-0009');
+        $deja = $this->compte('DEJA', 'LM-260009');
         $sans = $this->compte('SANS');
 
         $this->actingAs($this->admin())->post(route('admin.users.matricules'), [
@@ -89,14 +89,14 @@ class MatriculesAdminTest extends TestCase
         ])->assertRedirect();
 
         // Les nouveaux numeros prennent la suite du plus haut attribue.
-        $this->assertSame('LM-26-0010', $deja->refresh()->matricule);
-        $this->assertSame('LM-26-0011', $sans->refresh()->matricule);
+        $this->assertSame('LM-260010', $deja->refresh()->matricule);
+        $this->assertSame('LM-260011', $sans->refresh()->matricule);
     }
 
     /** Un numero remplace est brule : il ne revient a personne. */
     public function test_l_ancien_numero_n_est_pas_recycle(): void
     {
-        $deja = $this->compte('DEJA', 'LM-26-0009');
+        $deja = $this->compte('DEJA', 'LM-260009');
         $admin = $this->admin();
 
         $this->actingAs($admin)->post(route('admin.users.matricules'), [
@@ -107,14 +107,14 @@ class MatriculesAdminTest extends TestCase
         $suivant = $this->compte('SUIVANT');
         $this->actingAs($admin)->post(route('admin.users.matricules'), ['users' => [$suivant->id]]);
 
-        $this->assertSame('LM-26-0010', $deja->refresh()->matricule);
-        // LM-26-0009 est libre mais n'est pas repris.
-        $this->assertSame('LM-26-0011', $suivant->refresh()->matricule);
+        $this->assertSame('LM-260010', $deja->refresh()->matricule);
+        // LM-260009 est libre mais n'est pas repris.
+        $this->assertSame('LM-260011', $suivant->refresh()->matricule);
     }
 
     public function test_le_message_signale_les_remplacements(): void
     {
-        $deja = $this->compte('DEJA', 'LM-26-0009');
+        $deja = $this->compte('DEJA', 'LM-260009');
 
         $this->actingAs($this->admin())->post(route('admin.users.matricules'), [
             'users' => [$deja->id],
@@ -124,19 +124,19 @@ class MatriculesAdminTest extends TestCase
 
     public function test_sans_le_drapeau_rien_n_est_remplace(): void
     {
-        $deja = $this->compte('DEJA', 'LM-26-0009');
+        $deja = $this->compte('DEJA', 'LM-260009');
 
         $this->actingAs($this->admin())->post(route('admin.users.matricules'), [
             'users' => [$deja->id],
             'remplacer' => false,
         ])->assertSessionHasErrors('matricules');
 
-        $this->assertSame('LM-26-0009', $deja->refresh()->matricule);
+        $this->assertSame('LM-260009', $deja->refresh()->matricule);
     }
 
     public function test_une_selection_sans_rien_a_faire_le_dit(): void
     {
-        $deja = $this->compte('DEJA', 'LM-26-0009');
+        $deja = $this->compte('DEJA', 'LM-260009');
 
         $this->actingAs($this->admin())->post(route('admin.users.matricules'), ['users' => [$deja->id]])
             ->assertSessionHasErrors('matricules');

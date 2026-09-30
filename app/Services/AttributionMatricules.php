@@ -9,8 +9,9 @@ use Illuminate\Support\Facades\DB;
 /**
  * Attribution des matricules du personnel.
  *
- * Format : LM-26-0147 — prefixe du groupe, annee de recrutement sur deux
- * chiffres, sequence de quatre chiffres repartant a chaque annee.
+ * Format : LM-260147 — prefixe du groupe, annee de recrutement sur deux
+ * chiffres, sequence de quatre chiffres repartant a chaque annee, le tout
+ * sans separateur interne.
  *
  * L'annee vient du premier contrat de la personne quand il est connu, sinon
  * de la date de creation de son compte : c'est ce que le portail sait de plus
@@ -28,11 +29,18 @@ class AttributionMatricules
     public const LONGUEUR = 4;
 
     /**
+     * Ce qui fait un matricule du groupe : LM-, deux chiffres d'annee, quatre
+     * de sequence. Un numero plus court ou plus long vient d'un autre systeme
+     * et ne compte pas dans la numerotation.
+     */
+    public const GABARIT = '/^LM-(\d{2})(\d{4})$/';
+
+    /**
      * Le plus haut numero deja attribue pour cette annee, 0 si aucun.
      */
     public function dernierNumero(int $annee): int
     {
-        $debut = self::PREFIXE.$this->deuxChiffres($annee).'-';
+        $debut = self::PREFIXE.$this->deuxChiffres($annee);
 
         return User::whereNotNull('matricule')
             ->where('matricule', 'like', $debut.'%')
@@ -49,7 +57,7 @@ class AttributionMatricules
      */
     public function sequenceDe(?string $matricule): int
     {
-        if (! $matricule || ! preg_match('/^LM-(\d{2})-(\d+)$/', $matricule, $trouve)) {
+        if (! $matricule || ! preg_match(self::GABARIT, $matricule, $trouve)) {
             return 0;
         }
 
@@ -59,7 +67,7 @@ class AttributionMatricules
     /** Annee portee par un matricule, null s'il n'en porte pas. */
     public function anneeDe(?string $matricule): ?int
     {
-        if (! $matricule || ! preg_match('/^LM-(\d{2})-\d+$/', $matricule, $trouve)) {
+        if (! $matricule || ! preg_match(self::GABARIT, $matricule, $trouve)) {
             return null;
         }
 
@@ -68,7 +76,7 @@ class AttributionMatricules
 
     public function formater(int $annee, int $sequence): string
     {
-        return self::PREFIXE.$this->deuxChiffres($annee).'-'
+        return self::PREFIXE.$this->deuxChiffres($annee)
             .str_pad((string) $sequence, self::LONGUEUR, '0', STR_PAD_LEFT);
     }
 

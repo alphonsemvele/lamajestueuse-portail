@@ -71,6 +71,23 @@ class ModulesPortailSeeder extends Seeder
     {
         $categorie = Category::firstWhere('slug', 'ressources-humaines');
 
+        // Mes bulletins de paie : chacun consulte les siens.
+        Application::updateOrCreate(
+            ['module_key' => 'bulletins'],
+            [
+                'name' => 'Mon bulletin de paie',
+                'slug' => 'mes-bulletins',
+                'description' => "Consulter et télécharger ses bulletins de paie.",
+                'type' => 'module',
+                'url' => null,
+                'category_id' => $categorie?->id,
+                'icon' => 'wallet',
+                'color' => '#0f766e',
+                'is_active' => true,
+                'sort_order' => 9,
+            ],
+        );
+
         // Badges : ouvert a tout le personnel, il se pose de lui-meme sur les
         // tableaux de bord ; la tuile suffit a l'existence du module.
         Application::updateOrCreate(

@@ -16,6 +16,7 @@ use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Modules\BadgeController;
 use App\Http\Controllers\Modules\DirectoryController;
+use App\Http\Controllers\Modules\MesBulletinsController;
 use App\Http\Controllers\Modules\InformationController;
 use App\Http\Controllers\Modules\Personnel\PaieController;
 use App\Http\Controllers\Modules\Personnel\PersonnelController;
@@ -71,6 +72,15 @@ Route::middleware('auth')->group(function () {
         Route::put('/{post}', [InformationController::class, 'update'])->name('update');
         Route::delete('/{post}', [InformationController::class, 'destroy'])->name('destroy');
         Route::post('/{post}/visibilite', [InformationController::class, 'toggleVisibility'])->name('visibility');
+    });
+
+    /*
+     * Mes bulletins de paie : chacun consulte et telecharge les siens, une
+     * fois qu'ils ont ete valides par le service des ressources humaines.
+     */
+    Route::prefix('mes-bulletins')->name('mes-bulletins.')->group(function () {
+        Route::get('/', [MesBulletinsController::class, 'index'])->name('index');
+        Route::get('/{bulletin}/pdf', [MesBulletinsController::class, 'telecharger'])->name('pdf');
     });
 
     /*

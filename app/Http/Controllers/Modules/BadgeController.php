@@ -370,16 +370,4 @@ class BadgeController extends Controller
             ])->all();
     }
 
-    /**
-     * La demande est ouverte a tout le personnel : on verifie seulement que le
-     * module est en service.
-     */
-    protected function autoriserAcces(User $utilisateur): Application
-    {
-        $module = $this->module();
-
-        abort_if($module === null, 404);
-
-        return $module;
-    }
 }

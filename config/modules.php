@@ -48,6 +48,19 @@ return [
         'manage_roles' => ['admin', 'drh', 'rh', 'accueil'],
     ],
 
+    'bulletins' => [
+        'name' => 'Mon bulletin de paie',
+        'description' => "Consulter et télécharger ses bulletins de paie.",
+        'route' => 'mes-bulletins.index',
+        // Chacun consulte les siens : la tuile se pose d'elle-meme.
+        'ouvert_a_tous' => true,
+        'admin_route' => 'personnel.paie.index',
+        'icon' => 'wallet',
+        'color' => '#0f766e',
+        // Rien a administrer ici : la paie se gere dans Personnel & paie.
+        'manage_roles' => [],
+    ],
+
     'personnel' => [
         'name' => 'Personnel & paie',
         'description' => "Dossiers du personnel, carrière, contrats et paie mensuelle du groupe.",

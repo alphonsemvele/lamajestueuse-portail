@@ -77,6 +77,15 @@ class InstallationPersonnelTest extends TestCase
         $this->assertSame(1, \App\Models\ReglageEmail::count());
     }
 
+    public function test_l_installation_pose_le_module_des_bulletins(): void
+    {
+        $this->installer();
+
+        $bulletins = Application::where('module_key', 'bulletins')->first();
+        $this->assertNotNull($bulletins);
+        $this->assertTrue($bulletins->estOuvertATous());
+    }
+
     public function test_rejouer_l_installation_ne_duplique_rien(): void
     {
         $this->installer();
@@ -85,6 +94,7 @@ class InstallationPersonnelTest extends TestCase
 
         $this->assertSame(1, Application::where('module_key', 'personnel')->count());
         $this->assertSame(1, Application::where('module_key', 'badges')->count());
+        $this->assertSame(1, Application::where('module_key', 'bulletins')->count());
         $this->assertSame(3, Employeur::count());
     }
 

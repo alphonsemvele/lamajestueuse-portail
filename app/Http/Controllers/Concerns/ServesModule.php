@@ -25,6 +25,12 @@ trait ServesModule
 
         abort_if($module === null, 404);
 
+        // Un module ouvert a tous se passe de tuile : demander son badge ou
+        // relire son bulletin ne s'attribue pas, cela concerne chacun.
+        if ($module->estOuvertATous()) {
+            return $module;
+        }
+
         abort_unless(
             $utilisateur->isAdmin()
                 || $utilisateur->applications()->where('applications.id', $module->id)->exists(),

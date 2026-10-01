@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Agent;
 use App\Models\Contrat;
 use App\Models\Diplome;
+use App\Models\DocumentAgent;
 use App\Models\Employeur;
 use App\Models\EvenementCarriere;
 use App\Models\ProfilSalaire;
@@ -22,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -330,6 +332,7 @@ class PersonnelController extends Controller
         // Le dossier n'existe pas tant que personne n'y a rien saisi : la
         // fiche s'ouvre quand meme, vide, prete a etre remplie.
         $agent = $user->agent;
+        $user->loadMissing('applications');
 
         return Inertia::render('modules/personnel/agents/fiche', [
             'agent' => $this->ficheAdministrative($user, $agent),
@@ -347,6 +350,10 @@ class PersonnelController extends Controller
                         ->orWhereHas('contrat', fn ($c) => $c->whereIn('employeur_id', $perimetre))))
                     ->get()->map(fn (EvenementCarriere $e) => $e->toUiArray())->all()
                 : [],
+            'documents' => $agent
+                ? $agent->documents()->with('deposePar')->get()
+                    ->map(fn (DocumentAgent $d) => $d->toUiArray())->all()
+                : [],
             'bulletins' => $agent
                 ? $agent->bulletins()->with('employeur')->tap($dansPerimetre)
                     ->orderByDesc('annee')->orderByDesc('mois')->limit(12)->get()
@@ -356,12 +363,18 @@ class PersonnelController extends Controller
                 'employeurs' => Employeur::where('actif', true)
                     ->when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
                     ->orderBy('sigle')->get()
-                    ->map(fn ($e) => $e->toUiArray())->all(),
+                    ->map(fn (Employeur $e) => $e->toUiArray() + [
+                        // Le poste declare a l'inscription, pour cet institut
+                        // si la personne l'y a precise : le contrat le reprend
+                        // d'office, et le service RH le corrige au besoin.
+                        'posteDeclare' => $this->posteDeclare($user, $e),
+                    ])->all(),
                 'profils' => ProfilSalaire::where('actif', true)->with('echelon')->orderBy('nom')->get()
                     ->map(fn ($p) => $p->toUiArray())->all(),
                 'types' => Contrat::TYPES,
                 'evenements' => EvenementCarriere::TYPES,
                 'niveaux' => Diplome::NIVEAUX,
+                'documents' => DocumentAgent::TYPES,
             ],
             'peutGerer' => $this->peutGerer($request->user()),
         ]);
@@ -397,6 +410,19 @@ class PersonnelController extends Controller
             'photoUrl' => $user->avatarUrl(),
             'initiales' => $user->initials(),
         ];
+    }
+
+    /**
+     * Ce que la personne a declare comme poste : celui indique pour cet
+     * institut a l'inscription, a defaut celui de son compte.
+     */
+    private function posteDeclare(User $user, Employeur $employeur): ?string
+    {
+        $pivot = $employeur->application_id
+            ? $user->applications->firstWhere('id', $employeur->application_id)?->pivot?->poste
+            : null;
+
+        return $pivot ?: $user->poste;
     }
 
     /** Le dossier nait a la premiere saisie, pas avant. */
@@ -551,6 +577,70 @@ class PersonnelController extends Controller
             'annee_obtention' => ['nullable', 'integer', 'min:1950', 'max:'.(date('Y') + 1)],
             'piece_fournie' => ['boolean'],
         ]);
+    }
+
+    // ----------------------------------------------------------- documents
+
+    /**
+     * Depose une piece au dossier : CV, contrat signe, diplome, et le reste.
+     *
+     * Le fichier part sur le disque prive sous un nom tire au hasard : le nom
+     * d'origine est conserve a part, et sert au telechargement.
+     */
+    public function storeDocument(Request $request, User $user): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+        $this->verifierPersonne($request, $user);
+
+        $donnees = $request->validate([
+            'type' => ['required', Rule::in(array_keys(DocumentAgent::TYPES))],
+            'libelle' => ['nullable', 'string', 'max:255'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'fichier' => [
+                'required', 'file', 'max:10240',
+                'mimes:pdf,jpg,jpeg,png,webp,doc,docx,xls,xlsx',
+            ],
+        ], [
+            'fichier.max' => __('Le fichier ne doit pas dépasser 10 Mo.'),
+            'fichier.mimes' => __('Formats acceptés : PDF, image, Word ou Excel.'),
+        ]);
+
+        $fichier = $request->file('fichier');
+
+        $this->dossierDe($user)->documents()->create([
+            'type' => $donnees['type'],
+            'libelle' => ($donnees['libelle'] ?? null) ?: DocumentAgent::TYPES[$donnees['type']],
+            'fichier' => $fichier->store('personnel/documents', DocumentAgent::DISQUE),
+            'nom_origine' => $fichier->getClientOriginalName(),
+            'type_mime' => $fichier->getClientMimeType(),
+            'taille' => $fichier->getSize(),
+            'note' => $donnees['note'] ?? null,
+            'depose_par' => $request->user()->id,
+        ]);
+
+        return back()->with('status', __('Pièce ajoutée au dossier.'));
+    }
+
+    /** Sert le fichier, sous son nom d'origine, apres controle du perimetre. */
+    public function telechargerDocument(Request $request, DocumentAgent $document): StreamedResponse
+    {
+        $this->autoriserAcces($request->user());
+        $this->verifierAgent($request, $document->agent);
+
+        abort_unless($document->existe(), 404);
+
+        return Storage::disk(DocumentAgent::DISQUE)->download($document->fichier, $document->nom_origine);
+    }
+
+    public function destroyDocument(Request $request, DocumentAgent $document): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+        $this->verifierAgent($request, $document->agent);
+
+        Storage::disk(DocumentAgent::DISQUE)->delete($document->fichier);
+        $document->delete();
+
+        return back()->with('status', __('Pièce retirée du dossier.'));
     }
 
     // ------------------------------------------------------------ contrats

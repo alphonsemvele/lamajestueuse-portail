@@ -513,6 +513,29 @@ class PersonnelModuleTest extends TestCase
 
     // ---------------------------------------------------------- contrats
 
+    /** Le contrat part du poste déclaré à l'inscription, pour cet institut. */
+    public function test_la_fiche_propose_le_poste_declare(): void
+    {
+        $membre = User::factory()->create(['lastname' => 'NKOA', 'poste' => 'Agent polyvalent']);
+        $membre->applications()->attach($this->institut, ['poste' => 'Chargée de scolarité']);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $membre))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('referentiels.employeurs.0.posteDeclare', 'Chargée de scolarité'));
+    }
+
+    public function test_a_defaut_c_est_le_poste_du_compte(): void
+    {
+        $membre = User::factory()->create(['lastname' => 'NKOA', 'poste' => 'Agent polyvalent']);
+        // Rattaché sans poste précisé pour cet institut.
+        $membre->applications()->attach($this->institut);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $membre))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('referentiels.employeurs.0.posteDeclare', 'Agent polyvalent'));
+    }
+
     public function test_la_creation_d_un_contrat_inscrit_le_recrutement_dans_la_carriere(): void
     {
         $agent = $this->agent();

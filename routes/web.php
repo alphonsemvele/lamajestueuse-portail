@@ -131,6 +131,10 @@ Route::middleware('auth')->group(function () {
         Route::put('/contrats/{contrat}', [PersonnelController::class, 'updateContrat'])->name('contrats.update');
         Route::delete('/contrats/{contrat}', [PersonnelController::class, 'destroyContrat'])->name('contrats.destroy');
 
+        Route::post('/dossier/{user}/documents', [PersonnelController::class, 'storeDocument'])->name('documents.store');
+        Route::get('/documents/{document}', [PersonnelController::class, 'telechargerDocument'])->name('documents.telecharger');
+        Route::delete('/documents/{document}', [PersonnelController::class, 'destroyDocument'])->name('documents.destroy');
+
         Route::post('/dossier/{user}/carriere', [PersonnelController::class, 'storeEvenement'])->name('evenements.store');
         Route::delete('/carriere/{evenement}', [PersonnelController::class, 'destroyEvenement'])->name('evenements.destroy');
 

@@ -30,6 +30,11 @@ class Agent extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(DocumentAgent::class)->latest();
+    }
+
     public function diplomes(): HasMany
     {
         return $this->hasMany(Diplome::class)->orderByDesc('annee_obtention');

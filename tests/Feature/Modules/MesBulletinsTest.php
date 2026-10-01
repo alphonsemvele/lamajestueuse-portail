@@ -68,7 +68,7 @@ class MesBulletinsTest extends TestCase
     }
 
     /** Un salarié, rattaché aux instituts donnés, avec son contrat à l'IUM. */
-    private function salarie(array $instituts = null, bool $avecContrat = true): User
+    private function salarie(?array $instituts = null, bool $avecContrat = true): User
     {
         $user = User::factory()->create(['name' => 'Claire', 'lastname' => 'NKOA', 'matricule' => 'LM-260147']);
 

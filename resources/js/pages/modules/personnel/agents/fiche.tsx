@@ -80,6 +80,21 @@ interface Evenement {
     contratId: number | null;
 }
 
+interface Document {
+    id: number;
+    type: string;
+    typeLibelle: string;
+    libelle: string;
+    nomOrigine: string;
+    extension: string;
+    poids: string;
+    note: string | null;
+    deposePar: string | null;
+    deposeLe: string | null;
+    /** Le fichier a disparu du disque : la ligne reste, le lien non. */
+    manquant: boolean;
+}
+
 interface BulletinLigne {
     id: number;
     periode: string;
@@ -93,13 +108,15 @@ interface Props {
     diplomes: Diplome[];
     contrats: Contrat[];
     evenements: Evenement[];
+    documents: Document[];
     bulletins: BulletinLigne[];
     referentiels: {
-        employeurs: { id: number; sigle: string; nom: string }[];
+        employeurs: { id: number; sigle: string; nom: string; posteDeclare: string | null }[];
         profils: { id: number; nom: string; echelon: string | null; salaireBase: number }[];
         types: Record<string, string>;
         evenements: Record<string, string>;
         niveaux: string[];
+        documents: Record<string, string>;
     };
     peutGerer: boolean;
 }
@@ -151,14 +168,26 @@ function Info({ libelle, valeur }: { libelle: string; valeur: string | number | 
     );
 }
 
-export default function FicheAgent({ agent, diplomes, contrats, evenements, bulletins, referentiels, peutGerer }: Props) {
-    const [onglet, setOnglet] = useState<'dossier' | 'diplomes' | 'contrats' | 'carriere' | 'bulletins'>('dossier');
+export default function FicheAgent({
+    agent,
+    diplomes,
+    contrats,
+    evenements,
+    documents,
+    bulletins,
+    referentiels,
+    peutGerer,
+}: Props) {
+    const [onglet, setOnglet] = useState<
+        'dossier' | 'diplomes' | 'contrats' | 'carriere' | 'documents' | 'bulletins'
+    >('dossier');
 
     const onglets = [
         { cle: 'dossier', libelle: 'Dossier', icon: 'user', compte: null },
         { cle: 'diplomes', libelle: 'Diplômes', icon: 'award', compte: diplomes.length },
         { cle: 'contrats', libelle: 'Contrats', icon: 'briefcase', compte: contrats.length },
         { cle: 'carriere', libelle: 'Carrière', icon: 'layers', compte: evenements.length },
+        { cle: 'documents', libelle: 'Documents', icon: 'document', compte: documents.length },
         { cle: 'bulletins', libelle: 'Bulletins', icon: 'wallet', compte: bulletins.length },
     ] as const;
 
@@ -234,6 +263,14 @@ export default function FicheAgent({ agent, diplomes, contrats, evenements, bull
             {onglet === 'carriere' && (
                 <Carriere agent={agent} evenements={evenements} contrats={contrats} types={referentiels.evenements} peutGerer={peutGerer} />
             )}
+                {onglet === 'documents' && (
+                    <Documents
+                        agent={agent}
+                        documents={documents}
+                        types={referentiels.documents}
+                        peutGerer={peutGerer}
+                    />
+                )}
                 {onglet === 'bulletins' && <Bulletins bulletins={bulletins} />}
         </PersonnelLayout>
     );
@@ -712,10 +749,14 @@ function Contrats({
     const [ouvert, setOuvert] = useState(false);
     const [edite, setEdite] = useState<Contrat | null>(null);
 
+    /** Ce que la personne a déclaré, pour l'institut choisi ou à défaut. */
+    const posteDeclare = (employeurId: string) =>
+        referentiels.employeurs.find((e) => String(e.id) === employeurId)?.posteDeclare ?? agent.poste ?? '';
+
     const vide = {
         employeur_id: '',
         type: 'cdi',
-        poste: '',
+        poste: posteDeclare(''),
         date_debut: '',
         date_fin: '',
         quotite: 100,
@@ -849,7 +890,20 @@ function Contrats({
                         <Champ libelle="Employeur" erreur={formulaire.errors.employeur_id}>
                             <Select
                                 value={formulaire.data.employeur_id}
-                                onChange={(event) => formulaire.setData('employeur_id', event.target.value)}
+                                onChange={(event) => {
+                                    const choisi = event.target.value;
+                                    formulaire.setData('employeur_id', choisi);
+
+                                    // Le poste suit l'institut choisi, sauf
+                                    // s'il a déjà été écrit à la main.
+                                    const suggestions = referentiels.employeurs
+                                        .map((e) => e.posteDeclare ?? '')
+                                        .concat(agent.poste ?? '', '');
+
+                                    if (suggestions.includes(formulaire.data.poste.trim())) {
+                                        formulaire.setData('poste', posteDeclare(choisi));
+                                    }
+                                }}
                                 required
                             >
                                 <option value="">Choisir…</option>
@@ -871,8 +925,17 @@ function Contrats({
                             </Select>
                         </Champ>
 
-                        <Champ libelle="Poste" erreur={formulaire.errors.poste} className="sm:col-span-2">
-                            <Input value={formulaire.data.poste} onChange={(event) => formulaire.setData('poste', event.target.value)} required />
+                        <Champ
+                            libelle="Poste"
+                            erreur={formulaire.errors.poste}
+                            aide="Repris de ce que la personne a déclaré à l'inscription. Modifiable."
+                            className="sm:col-span-2"
+                        >
+                            <Input
+                                value={formulaire.data.poste}
+                                onChange={(event) => formulaire.setData('poste', event.target.value)}
+                                required
+                            />
                         </Champ>
 
                         <Champ libelle="Début" erreur={formulaire.errors.date_debut}>
@@ -1106,6 +1169,214 @@ function Carriere({
                         </Bouton>
                         <Bouton type="submit" icon="check" disabled={formulaire.processing}>
                             {formulaire.processing ? 'Enregistrement…' : 'Enregistrer'}
+                        </Bouton>
+                    </div>
+                </form>
+            </Modale>
+        </Card>
+    );
+}
+
+// ---------------------------------------------------------------- documents
+
+/** Teinte du badge d'extension : on reconnaît un PDF d'une photo. */
+const TONS_FICHIER: Record<string, string> = {
+    pdf: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300',
+    doc: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+    docx: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
+    xls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+    xlsx: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
+};
+
+function Documents({
+    agent,
+    documents,
+    types,
+    peutGerer,
+}: {
+    agent: Agent;
+    documents: Document[];
+    types: Record<string, string>;
+    peutGerer: boolean;
+}) {
+    const [ouvert, setOuvert] = useState(false);
+
+    const formulaire = useForm<{ type: string; libelle: string; note: string; fichier: File | null }>({
+        type: 'cv',
+        libelle: '',
+        note: '',
+        fichier: null,
+    });
+
+    const deposer = (event: FormEvent) => {
+        event.preventDefault();
+        formulaire.post(routes.personnel.documents(agent.userId), {
+            forceFormData: true,
+            onSuccess: () => {
+                setOuvert(false);
+                formulaire.reset();
+            },
+        });
+    };
+
+    const supprimer = (document: Document) => {
+        if (confirm(`Retirer « ${document.libelle} » du dossier ? Le fichier sera supprimé.`)) {
+            formulaire.delete(routes.personnel.document(document.id), { preserveScroll: true });
+        }
+    };
+
+    // Les pièces se lisent par nature : CV d'un côté, diplômes de l'autre.
+    const groupes = Object.entries(types)
+        .map(([cle, libelle]) => ({ cle, libelle, pieces: documents.filter((d) => d.type === cle) }))
+        .filter((groupe) => groupe.pieces.length > 0);
+
+    return (
+        <Card className="p-6">
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h2 className="text-sm font-semibold text-ink-900 dark:text-white">Pièces du dossier</h2>
+                    <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
+                        CV, contrat signé, diplômes et toute autre pièce. Les fichiers ne sont accessibles qu'aux
+                        gestionnaires du dossier.
+                    </p>
+                </div>
+                {peutGerer && (
+                    <Bouton icon="plus" onClick={() => setOuvert(true)}>
+                        Déposer
+                    </Bouton>
+                )}
+            </div>
+
+            <div className="mt-5 space-y-5">
+                {documents.length === 0 && <Vide message="Aucune pièce au dossier." icon="document" />}
+
+                {groupes.map((groupe) => (
+                    <div key={groupe.cle}>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
+                            {groupe.libelle}
+                        </p>
+
+                        <div className="space-y-2">
+                            {groupe.pieces.map((piece) => (
+                                <div
+                                    key={piece.id}
+                                    className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-200 px-4 py-2.5 dark:border-white/10"
+                                >
+                                    <span
+                                        className={cn(
+                                            'shrink-0 rounded-lg px-2 py-1 text-[10px] font-bold uppercase',
+                                            TONS_FICHIER[piece.extension] ??
+                                                'bg-ink-100 text-ink-600 dark:bg-white/10 dark:text-ink-300',
+                                        )}
+                                    >
+                                        {piece.extension || '?'}
+                                    </span>
+
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-medium text-ink-900 dark:text-white">
+                                            {piece.libelle}
+                                        </p>
+                                        <p className="truncate text-xs text-ink-500 dark:text-ink-400">
+                                            {piece.nomOrigine} · {piece.poids}
+                                            {piece.deposeLe && ` · déposé le ${piece.deposeLe}`}
+                                            {piece.deposePar && ` par ${piece.deposePar}`}
+                                        </p>
+                                        {piece.note && (
+                                            <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">{piece.note}</p>
+                                        )}
+                                    </div>
+
+                                    {piece.manquant ? (
+                                        <span className="shrink-0 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                            fichier introuvable
+                                        </span>
+                                    ) : (
+                                        <a
+                                            href={routes.personnel.document(piece.id)}
+                                            title={`Télécharger ${piece.nomOrigine}`}
+                                            className="shrink-0 rounded-lg p-1.5 text-ink-400 transition hover:bg-ink-100 hover:text-ink-700 dark:hover:bg-white/10"
+                                        >
+                                            <Icon name="upload" className="h-4 w-4 rotate-180" />
+                                        </a>
+                                    )}
+
+                                    {peutGerer && (
+                                        <button
+                                            type="button"
+                                            onClick={() => supprimer(piece)}
+                                            aria-label="Retirer du dossier"
+                                            className="shrink-0 rounded-lg p-1.5 text-ink-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                                        >
+                                            <Icon name="trash" className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <Modale titre="Déposer une pièce" ouverte={ouvert} onFermer={() => setOuvert(false)}>
+                <form onSubmit={deposer} className="space-y-4">
+                    <ErrorSummary errors={formulaire.errors} title="Corrigez ces points" />
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Champ libelle="Nature de la pièce" erreur={formulaire.errors.type}>
+                            <Select
+                                value={formulaire.data.type}
+                                onChange={(event) => formulaire.setData('type', event.target.value)}
+                            >
+                                {Object.entries(types).map(([cle, libelle]) => (
+                                    <option key={cle} value={cle}>
+                                        {libelle}
+                                    </option>
+                                ))}
+                            </Select>
+                        </Champ>
+
+                        <Champ
+                            libelle="Intitulé"
+                            erreur={formulaire.errors.libelle}
+                            aide="Facultatif : la nature de la pièce sert d'intitulé."
+                        >
+                            <Input
+                                value={formulaire.data.libelle}
+                                onChange={(event) => formulaire.setData('libelle', event.target.value)}
+                                maxLength={255}
+                            />
+                        </Champ>
+                    </div>
+
+                    <Champ
+                        libelle="Fichier"
+                        erreur={formulaire.errors.fichier}
+                        aide="PDF, image, Word ou Excel. 10 Mo au plus."
+                    >
+                        <input
+                            type="file"
+                            accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx"
+                            onChange={(event) => formulaire.setData('fichier', event.target.files?.[0] ?? null)}
+                            required
+                            className="field-input file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-700 dark:file:bg-white/10 dark:file:text-ink-200"
+                        />
+                    </Champ>
+
+                    <Champ libelle="Note" erreur={formulaire.errors.note}>
+                        <Textarea
+                            rows={2}
+                            value={formulaire.data.note}
+                            onChange={(event) => formulaire.setData('note', event.target.value)}
+                            maxLength={500}
+                        />
+                    </Champ>
+
+                    <div className="flex justify-end gap-2">
+                        <Bouton type="button" variante="secondaire" onClick={() => setOuvert(false)}>
+                            Annuler
+                        </Bouton>
+                        <Bouton type="submit" icon="check" disabled={formulaire.processing || !formulaire.data.fichier}>
+                            {formulaire.processing ? 'Dépôt…' : 'Déposer'}
                         </Bouton>
                     </div>
                 </form>

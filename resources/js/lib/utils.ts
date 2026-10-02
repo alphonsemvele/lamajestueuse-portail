@@ -85,6 +85,7 @@ export const routes = {
         matriculeProchain: '/personnel/matricules/prochain',
         matriculesAttribuer: '/personnel/matricules',
         export: '/personnel/export',
+        listePdf: (apercu = false) => `/personnel/liste${apercu ? '?apercu=1' : ''}`,
         // Le dossier est identifié par le compte du portail : il n'a pas
         // besoin d'exister pour qu'on ouvre la fiche.
         agent: (user: number) => `/personnel/dossier/${user}`,

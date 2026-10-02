@@ -88,6 +88,23 @@ class BulletinPdf
         ];
     }
 
+    /**
+     * Le logo du groupe, encode pour un document.
+     *
+     * Sert aux pieces qui ne relevent d'aucun employeur — la liste du
+     * personnel, par exemple — la ou le bulletin suit son institut.
+     */
+    public function logoDuGroupe(): ?string
+    {
+        return $this->fichierEnBase64('images/marque-la-majestueuse.png');
+    }
+
+    /** Les options de dompdf, pour un document qui n'est pas un bulletin. */
+    public function optionsDocument(): array
+    {
+        return $this->options();
+    }
+
     public function nomDuFichier(Bulletin $bulletin): string
     {
         $qui = $bulletin->agent?->user?->matricule ?: 'agent-'.$bulletin->agent_id;

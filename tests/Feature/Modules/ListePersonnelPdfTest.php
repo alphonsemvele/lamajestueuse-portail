@@ -1,0 +1,183 @@
+<?php
+
+namespace Tests\Feature\Modules;
+
+use App\Models\Application;
+use App\Models\Employeur;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * La liste du personnel en PDF : nom, prenom, matricule et adresse
+ * professionnelle, par ordre alphabetique.
+ */
+class ListePersonnelPdfTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Application $module;
+
+    private Application $institut;
+
+    private Employeur $employeur;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->module = Application::factory()->module('personnel')->create(['name' => 'Personnel & paie']);
+        $this->institut = Application::factory()->create(['name' => 'IUM']);
+        $this->employeur = Employeur::create([
+            'nom' => 'Institut Universitaire', 'sigle' => 'IUM',
+            'application_id' => $this->institut->id, 'actif' => true,
+        ]);
+    }
+
+    private function admin(): User
+    {
+        return User::factory()->create(['role' => 'admin', 'status' => 'active']);
+    }
+
+    private function membre(string $prenom, string $nom, ?string $email = null): User
+    {
+        $membre = User::factory()->create(['name' => $prenom, 'lastname' => $nom, 'email' => $email]);
+        $membre->applications()->attach($this->institut);
+
+        return $membre;
+    }
+
+    /** Le rendu HTML du meme modele, pour lire ce que le PDF contient. */
+    private function rendu(User $admin): string
+    {
+        $this->actingAs($admin)->get(route('personnel.liste'))->assertOk();
+
+        $personnel = User::duPersonnel()
+            ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
+            ->orderByRaw('LOWER(name) ASC')
+            ->get(['id', 'name', 'lastname', 'matricule', 'email']);
+
+        $methode = new \ReflectionMethod(
+            \App\Http\Controllers\Modules\Personnel\PersonnelController::class,
+            'proposerLesAdresses'
+        );
+        $methode->invoke(app(\App\Http\Controllers\Modules\Personnel\PersonnelController::class), $personnel);
+
+        return view('pdf.liste-personnel', [
+            'personnel' => $personnel,
+            'editeLe' => now()->translatedFormat('j F Y'),
+            'couleur' => '#0f766e',
+            'logo' => null,
+            'perimetre' => 'Ensemble du groupe',
+        ])->render();
+    }
+
+    public function test_la_liste_s_obtient_en_pdf(): void
+    {
+        $this->membre('Célestin', 'NSOE');
+
+        $reponse = $this->actingAs($this->admin())->get(route('personnel.liste'))->assertOk();
+
+        $this->assertStringContainsString('application/pdf', $reponse->headers->get('content-type'));
+        $this->assertStringContainsString('attachment', (string) $reponse->headers->get('content-disposition'));
+    }
+
+    public function test_elle_se_previsualise_en_ligne(): void
+    {
+        $this->membre('Célestin', 'NSOE');
+
+        $reponse = $this->actingAs($this->admin())
+            ->get(route('personnel.liste', ['apercu' => 1]))->assertOk();
+
+        $this->assertStringContainsString('inline', (string) $reponse->headers->get('content-disposition'));
+    }
+
+    public function test_elle_est_classee_par_ordre_alphabetique(): void
+    {
+        $this->membre('Alvine', 'ZOA');
+        $this->membre('Célestin', 'ABENA');
+        $this->membre('Marie', 'MBALLA');
+
+        $html = $this->rendu($this->admin());
+
+        $this->assertLessThan(
+            strpos($html, 'MBALLA'),
+            strpos($html, 'ABENA'),
+            'ABENA devrait précéder MBALLA.'
+        );
+        $this->assertLessThan(
+            strpos($html, 'ZOA'),
+            strpos($html, 'MBALLA'),
+            'MBALLA devrait précéder ZOA.'
+        );
+    }
+
+    public function test_elle_propose_une_adresse_a_qui_n_en_a_pas(): void
+    {
+        $this->membre('Célestin', 'NSOE');
+
+        $html = $this->rendu($this->admin());
+
+        $this->assertStringContainsString('celestin.nsoe@lamajestueuse.com', $html);
+    }
+
+    public function test_une_adresse_existante_est_gardee_telle_quelle(): void
+    {
+        $this->membre('Célestin', 'NSOE', 'c.nsoe@lamajestueuse.com');
+
+        $html = $this->rendu($this->admin());
+
+        $this->assertStringContainsString('c.nsoe@lamajestueuse.com', $html);
+        $this->assertStringNotContainsString('celestin.nsoe@lamajestueuse.com', $html);
+    }
+
+    /** Deux homonymes ne peuvent pas recevoir la meme adresse. */
+    public function test_deux_homonymes_recoivent_des_adresses_distinctes(): void
+    {
+        $this->membre('Célestin', 'NSOE');
+        $this->membre('Célestin', 'NSOE');
+
+        $html = $this->rendu($this->admin());
+
+        $this->assertStringContainsString('celestin.nsoe@lamajestueuse.com', $html);
+        $this->assertStringContainsString('celestin.nsoe2@lamajestueuse.com', $html);
+    }
+
+    public function test_une_adresse_proposee_ne_prend_pas_celle_d_un_autre(): void
+    {
+        $this->membre('Célestin', 'NSOE', 'celestin.nsoe@lamajestueuse.com');
+        $this->membre('Célestin', 'NSOE');
+
+        $html = $this->rendu($this->admin());
+
+        $this->assertStringContainsString('celestin.nsoe2@lamajestueuse.com', $html);
+    }
+
+    public function test_un_employe_ordinaire_n_obtient_pas_la_liste(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('personnel.liste'))
+            ->assertForbidden();
+    }
+
+    public function test_un_gestionnaire_ne_liste_que_ses_entites(): void
+    {
+        $autreInstitut = Application::factory()->create(['name' => 'GSBM']);
+        $autre = Employeur::create([
+            'nom' => 'Groupe Scolaire', 'sigle' => 'GSBM',
+            'application_id' => $autreInstitut->id, 'actif' => true,
+        ]);
+
+        $this->membre('Marie', 'MBALLA');
+        $ailleurs = User::factory()->create(['name' => 'Alvine', 'lastname' => 'ZOA']);
+        $ailleurs->applications()->attach($autreInstitut);
+
+        $gestionnaire = User::factory()->create();
+        $gestionnaire->applications()->attach($this->module, ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])]);
+        $gestionnaire->employeursRh()->attach($this->employeur);
+
+        $this->actingAs($gestionnaire)->get(route('personnel.liste'))->assertOk();
+
+        unset($autre, $ailleurs);
+    }
+}

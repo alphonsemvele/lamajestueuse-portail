@@ -136,6 +136,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/matricules/prochain', [PersonnelController::class, 'prochainMatricule'])->name('matricules.prochain');
         Route::post('/matricules', [PersonnelController::class, 'attribuerMatricules'])->name('matricules.attribuer');
         Route::get('/export', [PersonnelController::class, 'exporter'])->name('export');
+        Route::get('/liste', [PersonnelController::class, 'listePdf'])->name('liste');
         Route::get('/dossier/{user}', [PersonnelController::class, 'show'])->name('agents.show');
         Route::put('/dossier/{user}', [PersonnelController::class, 'update'])->name('agents.update');
 

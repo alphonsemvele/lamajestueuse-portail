@@ -7,6 +7,11 @@
 
     <title inertia>{{ config('app.name', 'La Majestueuse') }}</title>
 
+    {{-- La marque du groupe dans l'onglet et sur l'ecran d'accueil mobile. --}}
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" href="{{ asset('images/icone-la-majestueuse.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/icone-la-majestueuse.png') }}">
+
     {{-- Applique le theme avant le premier rendu pour eviter tout clignotement. --}}
     <script>
         (function () {

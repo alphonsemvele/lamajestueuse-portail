@@ -91,11 +91,11 @@ export default function Login() {
                 <HeroCarousel slides={slides} interval={6500}>
                     <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
                         <div className="flex items-center gap-3">
-                            <Logo size="md" />
-                            <div className="leading-tight">
-                                <p className="text-lg font-semibold text-white">La Majestueuse</p>
-                                <p className="text-xs uppercase tracking-[0.16em] text-white/55">{t('Portail entreprise')}</p>
-                            </div>
+                            {/* Le logo porte deja la raison sociale : inutile de la repeter. */}
+                            <Logo size="lg" complet className="drop-shadow-lg" />
+                            <p className="self-end pb-1 text-xs uppercase tracking-[0.16em] text-white/55">
+                                {t('Portail entreprise')}
+                            </p>
                         </div>
 
                         <div className="max-w-xl">

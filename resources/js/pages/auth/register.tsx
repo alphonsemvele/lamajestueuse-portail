@@ -396,14 +396,14 @@ export default function Register({ instituts }: { instituts: Application[] }) {
             </main>
 
             <footer className="mx-auto max-w-4xl px-5 pb-10 text-center text-xs text-ink-400">
-                © {new Date().getFullYear()} La Majestueuse · Yaoundé
-            <p className="mb-2">
+                <p className="mb-2 text-sm text-ink-500 dark:text-ink-400">
                     {'Une question sur l’inscription ? '}
-                    <Link href={routes.support + '#creer-compte'} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                        {'Voir le tutoriel pas à pas'}
+                    <Link href={routes.tutoriels.index} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                        {'Voir les tutoriels pas à pas'}
                     </Link>
                 </p>
-                </footer>
+                © {new Date().getFullYear()} La Majestueuse · Yaoundé
+            </footer>
         </div>
     );
 }

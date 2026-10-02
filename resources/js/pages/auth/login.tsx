@@ -311,6 +311,26 @@ export default function Login() {
                         </Link>
                     </div>
 
+                    {/*
+                      * Les tutoriels se lisent sans compte : c'est ici qu'on
+                      * les cherche, quand on ne sait pas encore par ou commencer.
+                      */}
+                    <Link
+                        href={routes.tutoriels.index}
+                        className="mt-4 flex items-center gap-3 rounded-2xl border border-ink-200/80 bg-white px-4 py-3 transition hover:border-brand-300 hover:bg-brand-50/40 dark:border-white/10 dark:bg-ink-900 dark:hover:border-brand-500/30 dark:hover:bg-white/5"
+                    >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
+                            <Icon name="book" className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-ink-900 dark:text-white">{t('Tutoriels')}</p>
+                            <p className="text-xs leading-snug text-ink-500 dark:text-ink-400">
+                                {t('Apprendre à se servir du portail, pas à pas.')}
+                            </p>
+                        </div>
+                        <Icon name="chevron-right" className="h-4 w-4 shrink-0 text-brand-500" />
+                    </Link>
+
                     <div className="mt-6 space-y-2.5 text-center">
                         <p className="text-sm text-ink-500 dark:text-ink-400">
                             {t("Besoin d'aide ?")}{' '}

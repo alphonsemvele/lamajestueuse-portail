@@ -69,6 +69,10 @@ export default function Support({ rubriques, contact, retour }: Props) {
                             <Logo size="sm" />
                         </Link>
                         <span className="flex-1" />
+                        <Link href={routes.tutoriels.index} className="btn-ghost hidden sm:inline-flex">
+                            <Icon name="book" className="h-4 w-4" />
+                            {t('Tutoriels')}
+                        </Link>
                         <LocaleSwitch />
                         <ThemeToggle />
                         <Link

@@ -16,7 +16,8 @@
         /* en-tête */
         .entete td { vertical-align: middle; }
         .titre { font-size: 17px; font-weight: bold; color: #111827; letter-spacing: .2px; }
-        .sous { font-size: 9px; color: #6b7280; margin-top: 3px; line-height: 1.6; }
+        .sousTitre { font-size: 10px; color: #374151; margin-top: 2px; }
+        .sous { font-size: 8.5px; color: #9ca3af; margin-top: 3px; line-height: 1.6; }
         .compte { text-align: right; }
         .compte .nombre { font-size: 26px; font-weight: bold; color: {{ $couleur }}; line-height: 1; }
         .compte .mot { font-size: 7.5px; text-transform: uppercase; letter-spacing: .8px; color: #9ca3af; }
@@ -34,9 +35,6 @@
         .sans { color: #c3c7cd; font-weight: normal; }
         .nom { text-transform: uppercase; letter-spacing: .2px; }
         .prenom { color: #374151; }
-        .adresse { font-size: 8.5px; color: #374151; }
-        /* Une adresse proposee se distingue d'une adresse reelle. */
-        .proposee { color: #9ca3af; font-style: italic; }
 
         /* pied */
         .pied { position: fixed; bottom: -11mm; left: 0; right: 0;
@@ -74,11 +72,8 @@
         </td>
         <td width="63%">
             <div class="titre">LISTE DU PERSONNEL</div>
-            <div class="sous">
-                {{ $perimetre }}<br>
-                Arrêtée au {{ $editeLe }}<br>
-                Les adresses en gris sont proposées : elles ne sont pas encore créées.
-            </div>
+            <div class="sousTitre">inscrit dans le portail web LA MAJESTUEUSE</div>
+            <div class="sous">Arrêtée au {{ $editeLe }}</div>
         </td>
         <td width="25%" class="compte">
             <div class="nombre">{{ $personnel->count() }}</div>
@@ -93,10 +88,9 @@
     <thead>
         <tr>
             <th class="rang">N°</th>
-            <th style="width: 82px;">Matricule</th>
-            <th style="width: 23%;">Nom</th>
-            <th style="width: 20%;">Prénom</th>
-            <th>Adresse professionnelle</th>
+            <th style="width: 110px;">Matricule</th>
+            <th>Nom</th>
+            <th>Prénom</th>
         </tr>
     </thead>
     <tbody>
@@ -108,9 +102,6 @@
                 </td>
                 <td class="nom">{{ $lisible($membre->lastname) }}</td>
                 <td class="prenom">{{ $lisible($membre->name) }}</td>
-                <td class="adresse {{ $membre->email ? '' : 'proposee' }}">
-                    {{ $membre->email ?: ($membre->adresseProposee ?? '—') }}
-                </td>
             </tr>
         @endforeach
     </tbody>

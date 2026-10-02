@@ -9,8 +9,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * La liste du personnel en PDF : nom, prenom, matricule et adresse
- * professionnelle, par ordre alphabetique.
+ * La liste du personnel en PDF : nom, prenom et matricule, par ordre
+ * alphabetique.
  */
 class ListePersonnelPdfTest extends TestCase
 {
@@ -55,20 +55,13 @@ class ListePersonnelPdfTest extends TestCase
         $personnel = User::duPersonnel()
             ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
             ->orderByRaw('LOWER(name) ASC')
-            ->get(['id', 'name', 'lastname', 'matricule', 'email']);
-
-        $methode = new \ReflectionMethod(
-            \App\Http\Controllers\Admin\UserController::class,
-            'proposerLesAdresses'
-        );
-        $methode->invoke(app(\App\Http\Controllers\Admin\UserController::class), $personnel);
+            ->get(['id', 'name', 'lastname', 'matricule']);
 
         return view('pdf.liste-personnel', [
             'personnel' => $personnel,
             'editeLe' => now()->translatedFormat('j F Y'),
             'couleur' => '#0f766e',
             'logo' => null,
-            'perimetre' => 'Ensemble du groupe',
         ])->render();
     }
 
@@ -112,51 +105,6 @@ class ListePersonnelPdfTest extends TestCase
         );
     }
 
-    public function test_elle_propose_une_adresse_a_qui_n_en_a_pas(): void
-    {
-        $this->membre('Célestin', 'NSOE');
-
-        $html = $this->rendu($this->admin());
-
-        $this->assertStringContainsString('celestin.nsoe@lamajestueuse.com', $html);
-    }
-
-    public function test_une_adresse_existante_est_gardee_telle_quelle(): void
-    {
-        $this->membre('Célestin', 'NSOE', 'c.nsoe@lamajestueuse.com');
-
-        $html = $this->rendu($this->admin());
-
-        $this->assertStringContainsString('c.nsoe@lamajestueuse.com', $html);
-        $this->assertStringNotContainsString('celestin.nsoe@lamajestueuse.com', $html);
-    }
-
-    /** Deux homonymes ne peuvent pas recevoir la meme adresse. */
-    public function test_deux_homonymes_recoivent_des_adresses_distinctes(): void
-    {
-        $this->membre('Célestin', 'NSOE');
-        $this->membre('Célestin', 'NSOE');
-
-        $html = $this->rendu($this->admin());
-
-        $this->assertStringContainsString('celestin.nsoe@lamajestueuse.com', $html);
-        $this->assertStringContainsString('celestin.nsoe2@lamajestueuse.com', $html);
-    }
-
-    public function test_une_adresse_proposee_ne_prend_pas_celle_d_un_autre(): void
-    {
-        $this->membre('Célestin', 'NSOE', 'celestin.nsoe@lamajestueuse.com');
-        $this->membre('Célestin', 'NSOE');
-
-        $html = $this->rendu($this->admin());
-
-        $this->assertStringContainsString('celestin.nsoe2@lamajestueuse.com', $html);
-    }
-
-    /**
-     * Chemin de secours : la meme liste dans le navigateur, qui l'imprime
-     * lui-meme. Elle ne depend pas du moteur PDF du serveur.
-     */
     public function test_elle_s_ouvre_aussi_en_page_imprimable(): void
     {
         $this->membre('Célestin', 'NSOE');
@@ -168,7 +116,6 @@ class ListePersonnelPdfTest extends TestCase
         $this->assertStringContainsString('text/html', $reponse->headers->get('content-type'));
         $reponse->assertSee('LISTE DU PERSONNEL', false);
         $reponse->assertSee('NSOE', false);
-        $reponse->assertSee('celestin.nsoe@lamajestueuse.com', false);
         // De quoi lancer l'impression depuis la page.
         $reponse->assertSee('window.print()', false);
     }

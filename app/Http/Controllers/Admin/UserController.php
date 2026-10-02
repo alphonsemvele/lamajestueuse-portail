@@ -15,7 +15,6 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -250,61 +249,12 @@ class UserController extends Controller
         return back()->with('status', __('Message renvoyé à :adresse.', ['adresse' => $user->email]));
     }
 
-    /** Le domaine des adresses professionnelles du groupe. */
-    public const DOMAINE = '@lamajestueuse.com';
-
-    /**
-     * Propose une adresse professionnelle a qui n'en a pas.
-     *
-     * Elle se deduit du nom : prenom.nom@lamajestueuse.com, sans accent ni
-     * espace. Deux homonymes recevraient la meme : le second se voit alors
-     * numerote. Rien n'est enregistre — c'est une proposition, que la liste
-     * distingue des adresses reelles.
-     *
-     * @param  Collection<int, User>  $personnel
-     */
-    private function proposerLesAdresses($personnel): void
-    {
-        $prises = $personnel->pluck('email')->filter()
-            ->map(fn ($adresse) => mb_strtolower($adresse))->all();
-
-        foreach ($personnel as $membre) {
-            if (filled($membre->email)) {
-                $membre->adresseProposee = null;
-
-                continue;
-            }
-
-            $base = collect([$membre->name, $membre->lastname])
-                ->filter()
-                ->map(fn ($part) => Str::slug($part))
-                ->filter()
-                ->implode('.');
-
-            if ($base === '') {
-                $membre->adresseProposee = null;
-
-                continue;
-            }
-
-            $adresse = $base.self::DOMAINE;
-            $suffixe = 1;
-
-            while (in_array(mb_strtolower($adresse), $prises, true)) {
-                $adresse = $base.(++$suffixe).self::DOMAINE;
-            }
-
-            $prises[] = mb_strtolower($adresse);
-            $membre->adresseProposee = $adresse;
-        }
-    }
-
     /**
      * La liste du personnel en PDF : nom, prenom, matricule.
      *
-     * Classee par ordre alphabetique, c'est la liste qu'on imprime pour un
-     * appel, un emargement ou une transmission. L'export CSV, lui, porte
-     * tout le detail : ici on ne veut que les noms.
+     * C'est la liste qu'on imprime pour un appel, un emargement ou une
+     * transmission. L'export CSV du module RH, lui, porte tout le detail :
+     * ici on ne veut que les noms.
      *
      * `?apercu=1` la sert en ligne pour la previsualiser.
      */
@@ -323,16 +273,13 @@ class UserController extends Controller
         $personnel = User::duPersonnel()
             ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
             ->orderByRaw('LOWER(name) ASC')
-            ->get(['id', 'name', 'lastname', 'matricule', 'email']);
-
-        $this->proposerLesAdresses($personnel);
+            ->get(['id', 'name', 'lastname', 'matricule']);
 
         $donnees = [
             'personnel' => $personnel,
             'editeLe' => now()->translatedFormat('j F Y'),
             'couleur' => '#0f766e',
             'logo' => $pdf->logoDuGroupe(),
-            'perimetre' => 'Ensemble du groupe La Majestueuse',
         ];
 
         if ($navigateur) {

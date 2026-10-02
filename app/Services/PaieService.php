@@ -119,8 +119,16 @@ class PaieService
                  * profil — n'a pas de salaire de base : son bulletin ne
                  * porterait que des zeros. On ne le prepare pas, et on le
                  * signale pour que la RH complete le contrat.
+                 *
+                 * Un brouillon de ce genre deja en place s'efface : il date
+                 * d'avant ce controle, ne vaut rien et encombre l'ecran. Un
+                 * bulletin valide ou paye n'est jamais touche, lui.
                  */
                 if ($contrat->echelonApplique() === null) {
+                    if ($existant && $existant->statut === 'brouillon') {
+                        $existant->delete();
+                    }
+
                     $resultat['sans_remuneration']++;
 
                     continue;

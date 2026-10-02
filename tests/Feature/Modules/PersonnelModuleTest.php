@@ -603,6 +603,38 @@ class PersonnelModuleTest extends TestCase
         $this->assertSame(1, $compte['sans_remuneration']);
     }
 
+    /**
+     * Les brouillons a zero d'avant ce controle s'effacent a la preparation
+     * suivante : ils ne valent rien et encombrent l'ecran.
+     */
+    public function test_un_brouillon_a_zero_disparait_a_la_preparation(): void
+    {
+        $contrat = $this->contrat($this->agent());
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+        $this->assertSame(1, Bulletin::count());
+
+        // Le contrat perd sa remuneration : son brouillon n'a plus lieu d'etre.
+        $contrat->update(['echelon_id' => null, 'profil_salaire_id' => null]);
+
+        $compte = app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+
+        $this->assertSame(0, Bulletin::count());
+        $this->assertSame(1, $compte['sans_remuneration']);
+    }
+
+    public function test_un_bulletin_paye_a_zero_nest_jamais_efface(): void
+    {
+        $contrat = $this->contrat($this->agent());
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+        Bulletin::query()->update(['statut' => 'paye']);
+
+        $contrat->update(['echelon_id' => null, 'profil_salaire_id' => null]);
+
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+
+        $this->assertSame(1, Bulletin::count());
+    }
+
     public function test_la_preparation_signale_les_contrats_sans_remuneration(): void
     {
         $this->contrat($this->agent('MBALLA'), ['echelon_id' => null, 'profil_salaire_id' => null]);

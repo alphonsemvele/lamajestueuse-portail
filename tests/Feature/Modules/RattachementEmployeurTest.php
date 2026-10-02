@@ -234,6 +234,44 @@ class RattachementEmployeurTest extends TestCase
             });
     }
 
+    /**
+     * L'effectif d'une entite se lit comme sa liste : le personnel rattache,
+     * contrat saisi ou non. Le compter sur les contrats affichait zero tant
+     * que la RH n'avait rien saisi.
+     */
+    public function test_l_effectif_par_employeur_compte_les_rattaches(): void
+    {
+        $this->membre([$this->ium->id]);
+        $this->membre([$this->ium->id]);
+        $this->membre([$this->gsbm->id]);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.index'))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) {
+                $employeurs = collect($page->toArray()['props']['employeurs']);
+
+                $this->assertSame(2, $employeurs->firstWhere('sigle', 'IUM')['effectif']);
+                $this->assertSame(1, $employeurs->firstWhere('sigle', 'GSBM')['effectif']);
+
+                // Les contrats restent comptes a part.
+                $this->assertSame(0, $employeurs->firstWhere('sigle', 'IUM')['contratsActifs']);
+            });
+    }
+
+    public function test_l_effectif_suit_le_rattachement_choisi(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+        $membre->update(['employeur_id' => $this->employeurGsbm->id]);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.index'))
+            ->assertInertia(function (Assert $page) {
+                $employeurs = collect($page->toArray()['props']['employeurs']);
+
+                $this->assertSame(0, $employeurs->firstWhere('sigle', 'IUM')['effectif']);
+                $this->assertSame(1, $employeurs->firstWhere('sigle', 'GSBM')['effectif']);
+            });
+    }
+
     public function test_le_filtre_retrouve_ceux_qui_attendent_un_rattachement(): void
     {
         $this->membre([$this->ium->id, $this->gsbm->id]);      // à trancher

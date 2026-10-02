@@ -19,6 +19,7 @@ interface EmployeurLigne {
     sigle: string;
     actif: boolean;
     effectif: number;
+    contratsActifs: number;
     masse: Masse;
 }
 
@@ -113,7 +114,12 @@ export default function TableauDeBordPersonnel({
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <Chiffre icon="users" libelle="Dossiers ouverts" valeur={String(chiffres.agents)} detail={`${chiffres.contratsActifs} contrat(s) actif(s)`} />
+                <Chiffre
+                    icon="users"
+                    libelle="Effectif du personnel"
+                    valeur={String(chiffres.agents)}
+                    detail={`${chiffres.contratsActifs} contrat(s) actif(s)`}
+                />
                 <Chiffre
                     icon="wallet"
                     libelle="Masse salariale nette"
@@ -165,6 +171,7 @@ export default function TableauDeBordPersonnel({
                                     <div>
                                         <p className="text-[11px] uppercase tracking-wide text-ink-400">Effectif</p>
                                         <p className="text-sm font-semibold tabular-nums text-ink-900 dark:text-white">{employeur.effectif}</p>
+                                        <p className="text-[11px] text-ink-400">{employeur.contratsActifs} contrat(s)</p>
                                     </div>
                                     <div>
                                         <p className="text-[11px] uppercase tracking-wide text-ink-400">Net du mois</p>

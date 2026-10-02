@@ -49,16 +49,23 @@ class PersonnelController extends Controller
         // Tout l'ecran se limite aux entites confiees a l'utilisateur.
         $perimetre = $this->perimetre($request);
 
-        $employeurs = Employeur::withCount(['contrats as effectif' => fn ($q) => $q->where('statut', 'actif')])
+        $employeurs = Employeur::withCount(['contrats as contratsActifs' => fn ($q) => $q->where('statut', 'actif')])
             ->when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
             ->orderBy('sigle')->get();
 
         return Inertia::render('modules/personnel/index', [
             'periode' => ['mois' => $mois, 'annee' => $annee],
-            'employeurs' => $employeurs->map(fn (Employeur $e) => $e->toUiArray() + [
-                'effectif' => (int) $e->effectif,
+            /*
+             * L'effectif d'une entite, c'est son personnel au sens de la
+             * liste : rattache a elle, qu'un contrat soit saisi ou non.
+             * Le compter sur les contrats affichait zero partout tant que la
+             * RH n'avait rien saisi, alors que les rattachements existaient.
+             */
+            'employeurs' => $employeurs->map(fn (Employeur $e) => array_merge($e->toUiArray(), [
+                'effectif' => User::duPersonnel()->duPerimetreRh([$e->id])->count(),
+                'contratsActifs' => (int) $e->contratsActifs,
                 'masse' => $paie->masseSalariale($mois, $annee, $e->id),
-            ])->all(),
+            ]))->all(),
             'perimetreLimite' => $perimetre !== null,
             'chiffres' => [
                 // L'effectif, c'est le personnel du portail relevant des

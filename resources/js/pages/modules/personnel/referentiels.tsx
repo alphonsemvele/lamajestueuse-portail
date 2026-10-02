@@ -818,6 +818,9 @@ function Profils({
     // finisse de saisir « 4,2 », alors que le nombre vaut deja 4.
     const [saisies, setSaisies] = useState<Record<string, string>>({});
 
+    // Ce qu'on vient de décocher, gardé le temps de la saisie.
+    const [retirees, setRetirees] = useState<Record<string, LigneSaisie>>({});
+
     const tousEchelons = categories.flatMap((categorie) =>
         categorie.echelons.map((echelon) => ({ ...echelon, categorie: categorie.libelle })),
     );
@@ -849,6 +852,7 @@ function Profils({
                 : vide,
         );
         setSaisies({});
+        setRetirees({});
         setOuvert(true);
     };
 
@@ -860,17 +864,28 @@ function Profils({
         edite ? formulaire.put(routes.personnel.profil(edite.id), apres) : formulaire.post(routes.personnel.profils, apres);
     };
 
-    /** Coche ou décoche un élément, en gardant sa valeur si elle existe déjà. */
+    /**
+     * Coche ou décoche un élément.
+     *
+     * Ce qui était saisi est mis de côté au lieu d'être jeté : décoché par
+     * mégarde, l'élément retrouve sa valeur et son assiette dès qu'on le
+     * recoche, sans avoir à tout ressaisir.
+     */
     const basculer = (champ: 'indemnites' | 'retenues', id: number) => {
         const lignes = formulaire.data[champ];
-        const presente = lignes.some((ligne) => ligne.id === id);
+        const presente = lignes.find((ligne) => ligne.id === id);
+        const memoire = `${champ}:${id}`;
 
-        formulaire.setData(
-            champ,
-            presente
-                ? lignes.filter((ligne) => ligne.id !== id)
-                : [...lignes, { id, type_calcul: 'fixe' as const, valeur: 0, base_calcul: null }],
-        );
+        if (presente) {
+            setRetirees((actuelles) => ({ ...actuelles, [memoire]: presente }));
+            formulaire.setData(champ, lignes.filter((ligne) => ligne.id !== id));
+
+            return;
+        }
+
+        const reprise = retirees[memoire] ?? { id, type_calcul: 'fixe' as const, valeur: 0, base_calcul: null };
+
+        formulaire.setData(champ, [...lignes, reprise]);
     };
 
     const majLigne = (champ: 'indemnites' | 'retenues', id: number, modif: Partial<LigneSaisie>) =>
@@ -929,7 +944,13 @@ function Profils({
 
                     return (
                         <div key={element.id} className="rounded-xl border border-ink-200 px-3 py-2 dark:border-white/10">
-                            <label className="flex items-center gap-2 text-sm text-ink-800 dark:text-ink-100">
+                            {/*
+                              * inline-flex et w-fit : sans eux le label
+                              * occupe toute la largeur de la ligne, et un
+                              * clic dans le vide a droite du libelle decoche
+                              * l'element qu'on venait de renseigner.
+                              */}
+                            <label className="inline-flex w-fit cursor-pointer items-center gap-2 text-sm text-ink-800 dark:text-ink-100">
                                 <input
                                     type="checkbox"
                                     checked={Boolean(ligne)}

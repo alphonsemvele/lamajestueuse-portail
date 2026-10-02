@@ -82,30 +82,50 @@ class RegistrationTest extends TestCase
         $this->assertNull($compte->email);
     }
 
-    public function test_seuls_le_prenom_et_le_mot_de_passe_restent_exiges(): void
+    /** L'identite reste exigee : c'est elle qui fait le dossier. */
+    public function test_l_identite_est_exigee(): void
     {
         $this->from(route('register'))->post(route('register'), [])
-            ->assertSessionHasErrors(['name', 'password']);
+            ->assertSessionHasErrors(['name', 'lastname', 'sexe', 'phone', 'photo', 'password']);
 
         $this->assertDatabaseCount('users', 0);
     }
 
-    public function test_une_inscription_reduite_au_minimum_passe(): void
+    /** Seuls le matricule et l'adresse peuvent manquer. */
+    public function test_une_inscription_sans_matricule_ni_adresse_passe(): void
     {
-        $this->post(route('register'), [
-            'name' => 'Célestin',
-            'password' => 'MotDePasse2026!',
-            'password_confirmation' => 'MotDePasse2026!',
-        ])->assertSessionHasNoErrors();
+        $this->post(route('register'), $this->payload(['matricule' => '', 'email' => '']))
+            ->assertSessionHasNoErrors();
 
         $compte = User::firstOrFail();
 
-        $this->assertSame('Célestin', $compte->name);
-        $this->assertNull($compte->lastname);
-        $this->assertNull($compte->sexe);
-        $this->assertNull($compte->phone);
-        $this->assertNull($compte->avatar);
+        $this->assertNull($compte->matricule);
+        $this->assertNull($compte->email);
         $this->assertSame('pending', $compte->status);
+    }
+
+    /**
+     * La confirmation s'affiche meme sans identifiant de connexion.
+     *
+     * Flasher l'identifiant seul laissait la page muette quand il manquait :
+     * l'inscription reussissait sans que rien ne l'indique.
+     */
+    public function test_la_confirmation_s_affiche_sans_identifiant(): void
+    {
+        $this->post(route('register'), $this->payload(['matricule' => '', 'email' => '']));
+
+        $annonce = session('registered');
+
+        $this->assertIsArray($annonce);
+        $this->assertNull($annonce['identifiant']);
+        $this->assertNotEmpty($annonce['nom']);
+    }
+
+    public function test_la_confirmation_porte_l_identifiant_quand_il_existe(): void
+    {
+        $this->post(route('register'), $this->payload(['matricule' => 'LM-260147', 'email' => '']));
+
+        $this->assertSame('LM-260147', session('registered')['identifiant']);
     }
 
     public function test_les_messages_de_validation_sont_en_francais(): void
@@ -247,7 +267,7 @@ class RegistrationTest extends TestCase
             ->assertSessionHasErrors('email');
     }
 
-    public function test_la_photo_de_profil_est_facultative(): void
+    public function test_la_photo_de_profil_est_obligatoire(): void
     {
         $ifpm = Application::factory()->create();
 
@@ -259,9 +279,9 @@ class RegistrationTest extends TestCase
 
         $this->from(route('register'))
             ->post(route('register'), $payload)
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('photo');
 
-        $this->assertNull(User::firstOrFail()->avatar);
+        $this->assertDatabaseCount('users', 0);
     }
 
     public function test_la_photo_est_enregistree_et_servie(): void

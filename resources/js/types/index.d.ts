@@ -137,7 +137,7 @@ export interface SharedProps {
     auth: { user: AuthUser | null };
     locale: string;
     translations: Record<string, string>;
-    flash: { status: string | null; registered?: string | null };
+    flash: { status: string | null; registered?: { nom: string; identifiant: string | null } | null };
     errors: Record<string, string>;
     [key: string]: unknown;
 }

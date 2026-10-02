@@ -40,29 +40,30 @@ class RegistrationController extends Controller
         $instituts = $this->instituts();
 
         /*
-         * L'inscription ne demande rien d'autre que le prenom et le mot de
-         * passe : le prenom parce qu'il faut bien nommer la demande dans la
-         * liste de l'administrateur, le mot de passe parce qu'il n'y a pas
-         * de compte sans lui. Tout le reste se complete ensuite, par
-         * l'interesse ou par le service du personnel.
+         * L'identite est exigee : c'est elle qui fait le dossier. Seuls le
+         * matricule et l'adresse restent facultatifs — un nouvel arrivant n'a
+         * pas encore de matricule, et tout le personnel n'a pas d'adresse
+         * professionnelle. L'administration en attribue un a la validation.
          *
-         * Matricule et adresse restent uniques quand ils sont donnes : ils
-         * servent a se connecter.
+         * Ils restent uniques quand ils sont donnes : ils servent a se
+         * connecter.
          */
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
-            'lastname' => ['nullable', 'string', 'max:80'],
-            'sexe' => ['nullable', Rule::in(['M', 'F'])],
+            'lastname' => ['required', 'string', 'max:80'],
+            'sexe' => ['required', Rule::in(['M', 'F'])],
             'matricule' => ['nullable', 'string', 'max:40', 'unique:users,matricule'],
             'email' => ['nullable', 'email', 'max:150', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:40'],
+            'phone' => ['required', 'string', 'max:40'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // La photo identifie l'employe dans tout le portail.
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'instituts' => ['nullable', 'array'],
             'instituts.*' => [Rule::in($instituts->pluck('id')->all())],
             'postes' => ['nullable', 'array'],
         ], [
             'instituts.*.in' => __("Cet institut n'est pas disponible."),
+            'photo.required' => __('Une photo de profil est obligatoire.'),
         ]);
 
         $choisis = $data['instituts'] ?? [];
@@ -77,14 +78,14 @@ class RegistrationController extends Controller
 
         $user = User::create([
             'name' => $data['name'],
-            'lastname' => $data['lastname'] ?? null,
-            'sexe' => $data['sexe'] ?? null,
+            'lastname' => $data['lastname'],
+            'sexe' => $data['sexe'],
             // Vide plutot que chaine vide : le matricule est unique en base.
             'matricule' => ($data['matricule'] ?? null) ?: null,
             'email' => ($data['email'] ?? null) ?: null,
-            'phone' => $data['phone'] ?? null,
+            'phone' => $data['phone'],
             'password' => $data['password'],
-            'avatar' => $request->file('photo')?->store('utilisateurs/photos', 'public'),
+            'avatar' => $request->file('photo')->store('utilisateurs/photos', 'public'),
             // Poste et entite ne sont renseignes que si un institut a ete choisi.
             'poste' => $choisis ? ($request->input("postes.{$choisis[0]}") ?: null) : null,
             'entite' => $choisis ? $instituts->firstWhere('id', (int) $choisis[0])?->name : null,
@@ -115,7 +116,16 @@ class RegistrationController extends Controller
             $user->applications()->pluck('name')->all(),
         ));
 
-        return redirect()->route('register')->with('registered', $user->email ?: $user->matricule);
+        /*
+         * On annonce la demande enregistree, avec l'identifiant de connexion
+         * s'il y en a un. Flasher l'identifiant seul laissait la page muette
+         * quand il manquait : l'inscription reussissait sans que rien ne
+         * l'indique, et on la recommencait.
+         */
+        return redirect()->route('register')->with('registered', [
+            'nom' => $user->fullName(),
+            'identifiant' => $user->email ?: $user->matricule,
+        ]);
     }
 
     /**

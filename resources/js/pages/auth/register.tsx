@@ -93,10 +93,14 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                             {t('Votre demande a bien été enregistrée')}
                         </h1>
                         <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-ink-500 dark:text-ink-400">
-                            {t(
-                                'Votre compte a été créé. Vous pourrez vous connecter avec :identifiant dès qu’un administrateur aura validé votre inscription.',
-                                { identifiant: registered ?? '' },
-                            )}
+                            {registered.identifiant
+                                ? t(
+                                      'Votre compte a été créé. Vous pourrez vous connecter avec :identifiant dès qu’un administrateur aura validé votre inscription.',
+                                      { identifiant: registered.identifiant },
+                                  )
+                                : t(
+                                      'Votre compte a été créé. L’administration vous communiquera votre identifiant de connexion en validant votre inscription.',
+                                  )}
                         </p>
                         <Link href={routes.login} className="btn-primary mx-auto mt-7">
                             <Icon name="login" className="h-4 w-4" />
@@ -144,7 +148,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                 <h2 className="text-sm font-semibold uppercase tracking-[0.09em] text-ink-500">{t('Identité')}</h2>
 
                                 <div className="mt-5">
-                                    <Label>{t('Photo de profil')}</Label>
+                                    <Label required>{t('Photo de profil')}</Label>
                                     <div className="mt-2">
                                         <PhotoField
                                             preview={photoPreview}
@@ -172,7 +176,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         <Erreur message={errors.name} />
                                     </div>
                                     <div>
-                                        <Label htmlFor="lastname">
+                                        <Label htmlFor="lastname" required>
                                             {t('Nom de famille')}
                                         </Label>
                                         <Input id="lastname" className="mt-2" value={data.lastname} onChange={(e) => setData('lastname', e.target.value)} maxLength={80} />
@@ -180,7 +184,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                     </div>
 
                                     <div>
-                                        <Label>{t('Sexe')}</Label>
+                                        <Label required>{t('Sexe')}</Label>
                                         <div className="mt-2 grid grid-cols-2 gap-2.5">
                                             {(
                                                 [
@@ -242,7 +246,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         )}
                                     </div>
                                     <div>
-                                        <Label htmlFor="phone">
+                                        <Label htmlFor="phone" required>
                                             {t('Numéro de téléphone')}
                                         </Label>
                                         <Input

@@ -102,6 +102,23 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
         });
     };
 
+    const supprimer = (bulletin: BulletinLigne) => {
+        const qui = bulletin.agent ?? 'cet agent';
+        const avertissement =
+            bulletin.statut === 'paye'
+                ? `Le bulletin de ${qui} est marqué payé. Le supprimer ?`
+                : `Supprimer le bulletin de ${qui} ?`;
+
+        if (!confirm(`${avertissement} Cette action est définitive.`)) return;
+
+        router.delete(routes.personnel.bulletinSupprimer(bulletin.id), {
+            preserveScroll: true,
+            onStart: () => setEnCours(true),
+            onFinish: () => setEnCours(false),
+            onSuccess: () => setSelection((actuelle) => actuelle.filter((id) => id !== bulletin.id)),
+        });
+    };
+
     const basculer = (id: number) =>
         setSelection((actuelle) => (actuelle.includes(id) ? actuelle.filter((item) => item !== id) : [...actuelle, id]));
 
@@ -254,7 +271,7 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                         {bulletins.map((bulletin) => (
                             <tr key={bulletin.id} className="hover:bg-ink-50/60 dark:hover:bg-white/5">
                                 <td className="px-3 py-2.5">
-                                    {peutGerer && bulletin.statut !== 'paye' && (
+                                    {peutGerer && (
                                         <input
                                             type="checkbox"
                                             checked={selection.includes(bulletin.id)}
@@ -284,14 +301,29 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                                 <td className="px-3 py-2.5">
                                     <Statut valeur={bulletin.statut} />
                                 </td>
-                                <td className="px-3 py-2.5 text-right">
-                                    <Link
-                                        href={routes.personnel.bulletin(bulletin.id)}
-                                        className="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:underline dark:text-teal-300"
-                                    >
-                                        Détail
-                                        <Icon name="chevron-right" className="h-3.5 w-3.5" />
-                                    </Link>
+                                <td className="px-3 py-2.5">
+                                    <div className="flex items-center justify-end gap-3">
+                                        <Link
+                                            href={routes.personnel.bulletin(bulletin.id)}
+                                            className="inline-flex items-center gap-1 text-sm font-medium text-teal-700 hover:underline dark:text-teal-300"
+                                        >
+                                            Détail
+                                            <Icon name="chevron-right" className="h-3.5 w-3.5" />
+                                        </Link>
+
+                                        {peutGerer && (
+                                            <button
+                                                type="button"
+                                                onClick={() => supprimer(bulletin)}
+                                                disabled={enCours}
+                                                title={`Supprimer le bulletin de ${bulletin.agent ?? 'cet agent'}`}
+                                                aria-label={`Supprimer le bulletin de ${bulletin.agent ?? 'cet agent'}`}
+                                                className="rounded-lg p-1.5 text-ink-400 transition hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+                                            >
+                                                <Icon name="trash" className="h-4 w-4" />
+                                            </button>
+                                        )}
+                                    </div>
                                 </td>
                             </tr>
                         ))}

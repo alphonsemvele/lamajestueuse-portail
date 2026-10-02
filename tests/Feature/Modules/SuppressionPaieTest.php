@@ -83,6 +83,7 @@ class SuppressionPaieTest extends TestCase
         $bulletin = $this->bulletin();
 
         $this->actingAs($this->gestionnaire())
+            ->from(route('personnel.paie.bulletin', $bulletin))
             ->delete(route('personnel.paie.bulletin.destroy', $bulletin))
             ->assertRedirect(route('personnel.paie.index', ['mois' => 9, 'annee' => 2026]));
 
@@ -111,6 +112,18 @@ class SuppressionPaieTest extends TestCase
             ->from(route('personnel.paie.bulletin', $bulletin))
             ->delete(route('personnel.paie.bulletin.destroy', $bulletin))
             ->assertRedirect(route('personnel.paie.index', ['mois' => 9, 'annee' => 2026]));
+    }
+
+    /** Supprime depuis une liste, on y reste : seule sa propre page disparait. */
+    public function test_la_suppression_depuis_le_registre_reste_sur_le_registre(): void
+    {
+        $this->contrat();
+        $bulletin = $this->bulletin();
+
+        $this->actingAs($this->gestionnaire())
+            ->from(route('personnel.bulletins'))
+            ->delete(route('personnel.paie.bulletin.destroy', $bulletin))
+            ->assertRedirect(route('personnel.bulletins'));
     }
 
     public function test_les_ajustements_du_mois_survivent_pour_la_regeneration(): void

@@ -254,13 +254,19 @@ class PaieController extends Controller
         $this->autoriserGestion($request->user());
         $this->verifierEntite($request, $bulletin->employeur_id);
 
-        $periode = ['mois' => $bulletin->mois, 'annee' => $bulletin->annee];
+        // On ne revient sur la page precedente que si elle existe encore :
+        // supprime depuis sa propre page, le bulletin n'a plus de page, et on
+        // retombe sur le mois. Depuis une liste, on y reste.
+        $saPage = parse_url(route('personnel.paie.bulletin', $bulletin), PHP_URL_PATH);
+        $venait = parse_url((string) url()->previous(), PHP_URL_PATH);
+
+        $retour = $venait === $saPage
+            ? redirect()->route('personnel.paie.index', ['mois' => $bulletin->mois, 'annee' => $bulletin->annee])
+            : back();
 
         $this->effacer($bulletin, $request->user());
 
-        // On ne revient pas sur la page du bulletin : elle n'existe plus.
-        return redirect()->route('personnel.paie.index', $periode)
-            ->with('status', __('Bulletin supprimé.'));
+        return $retour->with('status', __('Bulletin supprimé.'));
     }
 
     /**

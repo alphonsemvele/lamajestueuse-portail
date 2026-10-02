@@ -42,7 +42,7 @@ class PaieController extends Controller
         $perimetre = $this->perimetre($request);
 
         $bulletins = Bulletin::query()
-            ->with(['agent.user', 'employeur', 'contrat'])
+            ->with(['agent.user', 'employeur', 'contrat.agent.user'])
             ->where('mois', $mois)->where('annee', $annee)
             ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
             ->when($employeurId, fn ($q) => $q->where('employeur_id', $employeurId))
@@ -87,15 +87,23 @@ class PaieController extends Controller
         $perimetre = $this->perimetre($request);
 
         $bulletins = Bulletin::query()
-            ->with(['agent.user', 'employeur', 'contrat'])
+            ->with(['agent.user', 'employeur', 'contrat.agent.user'])
             ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
             ->when($annee, fn ($q) => $q->where('annee', (int) $annee))
             ->when($employeurId, fn ($q) => $q->where('employeur_id', $employeurId))
             ->when(in_array($statut, ['brouillon', 'valide', 'paye'], true), fn ($q) => $q->where('statut', $statut))
-            ->when($recherche !== '', fn ($q) => $q->whereHas('agent.user', fn ($u) => $u
-                ->where('name', 'like', "%{$recherche}%")
-                ->orWhere('lastname', 'like', "%{$recherche}%")
-                ->orWhere('matricule', 'like', "%{$recherche}%")))
+            // La recherche suit aussi le contrat : un bulletin qui a perdu son
+            // lien direct au dossier reste trouvable par le nom de l'agent.
+            ->when($recherche !== '', function ($q) use ($recherche) {
+                $parNom = fn ($u) => $u
+                    ->where('name', 'like', "%{$recherche}%")
+                    ->orWhere('lastname', 'like', "%{$recherche}%")
+                    ->orWhere('matricule', 'like', "%{$recherche}%");
+
+                $q->where(fn ($sub) => $sub
+                    ->whereHas('agent.user', $parNom)
+                    ->orWhereHas('contrat.agent.user', $parNom));
+            })
             ->orderByDesc('annee')->orderByDesc('mois')->orderBy('id')
             ->paginate(30)->withQueryString()
             ->through(fn (Bulletin $b) => $b->toUiArray());
@@ -116,7 +124,7 @@ class PaieController extends Controller
         $this->autoriserAcces($request->user());
         $this->verifierEntite($request, $bulletin->employeur_id);
 
-        $bulletin->load(['agent.user', 'employeur', 'contrat.echelon.categorie', 'contrat.profil']);
+        $bulletin->load(['agent.user', 'employeur', 'contrat.agent.user', 'contrat.echelon.categorie', 'contrat.profil']);
 
         return Inertia::render('modules/personnel/paie/bulletin', [
             'bulletin' => $bulletin->toUiArray(),

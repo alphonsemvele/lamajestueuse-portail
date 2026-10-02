@@ -10,6 +10,7 @@ import { Bouton, Chiffre, Entete, fcfa, MOIS, Statut, Tableau, Vide } from '../p
 
 interface BulletinLigne {
     id: number;
+    userId: number | null;
     agent: string | null;
     matricule: string | null;
     employeur: string | null;
@@ -304,7 +305,17 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                                     )}
                                 </td>
                                 <td className="px-3 py-2.5">
-                                    <p className="font-medium text-ink-900 dark:text-white">{bulletin.agent ?? '—'}</p>
+                                    {/* Le nom mene a la fiche : on veut souvent verifier la personne. */}
+                                    {bulletin.userId ? (
+                                        <Link
+                                            href={routes.personnel.agent(bulletin.userId)}
+                                            className="font-medium text-ink-900 hover:text-teal-700 hover:underline dark:text-white dark:hover:text-teal-300"
+                                        >
+                                            {bulletin.agent ?? 'Voir la fiche'}
+                                        </Link>
+                                    ) : (
+                                        <p className="font-medium text-ink-400">—</p>
+                                    )}
                                     <p className="text-xs text-ink-500 dark:text-ink-400">
                                         {bulletin.matricule} · {bulletin.poste}
                                     </p>

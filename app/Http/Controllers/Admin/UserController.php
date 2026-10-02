@@ -133,8 +133,26 @@ class UserController extends Controller
             return back()->withErrors(['user' => 'Vous ne pouvez pas supprimer votre propre compte.']);
         }
 
+        /*
+         * Un compte qui a des bulletins ne se supprime pas : ce sont des
+         * pieces de paie, et la base ne garantit pas le menage — les cles
+         * etrangeres ne sont pas appliquees partout sur l'hebergement, si
+         * bien qu'un compte efface laissait derriere lui un dossier et des
+         * bulletins sans titulaire, impossibles a rattacher.
+         */
+        $dossier = $user->agent;
+
+        if ($dossier && $dossier->bulletins()->exists()) {
+            return back()->withErrors([
+                'user' => __('Ce compte a des bulletins de paie : suspendez-le plutôt que de le supprimer, sinon ses bulletins resteraient sans titulaire.'),
+            ]);
+        }
+
         $name = $user->fullName();
         $this->deleteUploaded($user->avatar);
+
+        // Le dossier part avec le compte : on ne compte pas sur la base.
+        $dossier?->delete();
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('status', "Le compte de {$name} a été supprimé.");

@@ -60,15 +60,31 @@ class Bulletin extends Model
         return $this->statut === 'paye';
     }
 
+    /**
+     * Le dossier du bulletin, ou a defaut celui de son contrat.
+     *
+     * Un bulletin peut avoir perdu son lien direct au dossier ; l'identite
+     * ne doit pas disparaitre de l'ecran pour autant, puisque le contrat la
+     * porte aussi.
+     */
+    public function dossier(): ?Agent
+    {
+        return $this->agent ?? $this->contrat?->agent;
+    }
+
     public function toUiArray(): array
     {
+        $agent = $this->dossier();
+
         return [
             'id' => $this->id,
             'contratId' => $this->contrat_id,
-            'agentId' => $this->agent_id,
-            'userId' => $this->agent?->user_id,
-            'agent' => $this->agent?->user?->fullName(),
-            'matricule' => $this->agent?->user?->matricule,
+            'agentId' => $agent?->id,
+            'userId' => $agent?->user_id,
+            // Sans titulaire, on le dit : « — » laissait croire a un defaut
+            // d'affichage, alors que le compte a ete supprime.
+            'agent' => $agent?->user?->fullName() ?: ($agent ? 'Compte supprimé' : null),
+            'matricule' => $agent?->user?->matricule,
             'employeur' => $this->employeur?->sigle,
             'poste' => $this->contrat?->poste,
             'mois' => (int) $this->mois,

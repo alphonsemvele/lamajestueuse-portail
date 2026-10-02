@@ -13,6 +13,7 @@ import { Champ, Entete, fcfa, Statut, Tableau, Vide } from '../parts';
 
 interface BulletinLigne {
     id: number;
+    userId: number | null;
     agent: string | null;
     matricule: string | null;
     employeur: string | null;
@@ -135,7 +136,17 @@ export default function RegistreBulletins({ bulletins, filtres, employeurs, anne
                             <tr key={bulletin.id} className="hover:bg-ink-50/60 dark:hover:bg-white/5">
                                 <td className="px-3 py-2.5 font-medium text-ink-900 dark:text-white">{bulletin.periode}</td>
                                 <td className="px-3 py-2.5">
-                                    <p className="text-ink-900 dark:text-white">{bulletin.agent ?? '—'}</p>
+                                    {/* Le nom mene a la fiche : on veut souvent verifier la personne. */}
+                                    {bulletin.userId ? (
+                                        <Link
+                                            href={routes.personnel.agent(bulletin.userId)}
+                                            className="font-medium text-ink-900 hover:text-teal-700 hover:underline dark:text-white dark:hover:text-teal-300"
+                                        >
+                                            {bulletin.agent ?? 'Voir la fiche'}
+                                        </Link>
+                                    ) : (
+                                        <p className="text-ink-400">—</p>
+                                    )}
                                     <p className="text-xs text-ink-500 dark:text-ink-400">
                                         {bulletin.matricule} · {bulletin.poste}
                                     </p>

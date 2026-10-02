@@ -129,38 +129,84 @@ class InstallationPersonnelTest extends TestCase
         $this->assertFalse($admin->applications()->where('applications.id', $module->id)->exists());
     }
 
-    /** La grille reprise d'IUM, telle qu'elle y était configurée. */
-    public function test_l_installation_reprend_la_grille_d_ium(): void
+    /**
+     * L'installation finit sur la grille officielle du groupe, et garde tout
+     * ce qu'IUM apportait d'autre : indemnités, retenues et profils salaire
+     * ne sont jamais supprimés — seuls catégories et échelons sont adaptés.
+     */
+    public function test_l_installation_pose_la_grille_officielle(): void
     {
         $this->installer();
 
-        $this->assertSame(8, CategorieRh::count());
-        $this->assertSame(11, Echelon::count());
+        $this->assertSame(12, CategorieRh::count());
+
+        // Les 72 cases du tableau, plus l'échelon « temps partiel » d'IUM,
+        // gardé désactivé parce qu'un profil le vise encore.
+        $this->assertSame(73, Echelon::count());
+        $this->assertSame(72, Echelon::where('actif', true)->count());
+
+        foreach (range(1, 12) as $numero) {
+            $this->assertSame(
+                ['A', 'B', 'C', 'D', 'E', 'F'],
+                CategorieRh::where('libelle', "Catégorie {$numero}")->firstOrFail()
+                    ->echelons()->where('actif', true)->orderBy('numero')->pluck('libelle')->all(),
+                "Catégorie {$numero}"
+            );
+        }
+    }
+
+    /** Les profils, indemnités et retenues d'IUM traversent l'installation. */
+    public function test_l_installation_ne_supprime_aucun_profil_ni_indemnite(): void
+    {
+        $this->installer();
+
         $this->assertSame(11, ProfilSalaire::count());
         $this->assertSame(5, \App\Models\Indemnite::count());
 
         // IUM n'avait aucune retenue : le net s'y calcule base + indemnités.
         $this->assertSame(0, \App\Models\Retenue::count());
 
+        // Chaque profil garde l'échelon qu'il visait.
+        $this->assertSame(0, ProfilSalaire::whereNull('echelon_id')->count());
+
         $coordonnateur = ProfilSalaire::where('nom', 'Coordonnateur de filière')->firstOrFail();
-        $this->assertSame(20000.0, (float) $coordonnateur->echelon->salaire);
         $this->assertCount(4, $coordonnateur->indemnites);
 
         $transport = $coordonnateur->indemnites->firstWhere('libelle', 'Indemnité de transport');
         $this->assertSame('fixe', $transport->pivot->type_calcul);
         $this->assertSame(183198.0, (float) $transport->pivot->valeur);
+
+        // Son échelon passe des 20 000 erronés d'IUM au salaire du tableau.
+        $this->assertSame(183198.0, (float) $coordonnateur->echelon->salaire);
     }
 
-    /** Une grille déjà saisie n'est jamais remplacée. */
-    public function test_l_installation_ne_touche_pas_a_une_grille_existante(): void
+    /**
+     * Une catégorie saisie à la main et devenue inutile est retirée, mais
+     * celle qui porte encore un profil est seulement désactivée : le profil
+     * survit intact.
+     */
+    public function test_une_grille_maison_cede_la_place_sans_emporter_ses_profils(): void
     {
-        $categorie = CategorieRh::create(['libelle' => 'Grille maison']);
-        Echelon::create(['categorie_rh_id' => $categorie->id, 'numero' => 1, 'salaire' => 123456]);
+        $inutilisee = CategorieRh::create(['libelle' => 'Grille maison']);
+        Echelon::create(['categorie_rh_id' => $inutilisee->id, 'numero' => 1, 'salaire' => 123456]);
+
+        $portante = CategorieRh::create(['libelle' => 'Grille maison (en service)']);
+        $echelon = Echelon::create(['categorie_rh_id' => $portante->id, 'numero' => 1, 'salaire' => 654321]);
+        $profil = ProfilSalaire::create([
+            'nom' => 'Profil maison',
+            'categorie_rh_id' => $portante->id,
+            'echelon_id' => $echelon->id,
+            'actif' => true,
+        ]);
 
         $this->installer();
 
-        $this->assertSame(1, CategorieRh::count());
-        $this->assertSame(123456.0, (float) Echelon::firstOrFail()->salaire);
-        $this->assertSame(0, ProfilSalaire::count());
+        $this->assertDatabaseMissing('categories_rh', ['id' => $inutilisee->id]);
+
+        $this->assertDatabaseHas('categories_rh', ['id' => $portante->id, 'actif' => false]);
+        $this->assertDatabaseHas('echelons', ['id' => $echelon->id, 'actif' => false]);
+        $this->assertSame(654321.0, (float) $echelon->fresh()->salaire);
+
+        $this->assertDatabaseHas('profils_salaire', ['id' => $profil->id, 'echelon_id' => $echelon->id]);
     }
 }

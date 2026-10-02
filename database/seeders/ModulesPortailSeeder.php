@@ -18,8 +18,11 @@ use Illuminate\Database\Seeder;
  * qu'a sa creation — si l'un d'eux s'en detache ensuite, le deploiement
  * suivant ne la lui remet pas.
  *
- * La grille de paie reprise d'IUM est installee la premiere fois par
- * GrilleIumSeeder, qui ne fait rien si une grille existe deja.
+ * Cote paie, deux seeders se suivent : GrilleIumSeeder apporte les
+ * indemnites et les profils repris d'IUM, puis GrilleSalarialeSeeder pose la
+ * grille officielle du groupe (12 categories, echelons A a F) et retire
+ * l'extrait partiel qu'IUM portait. Aucun des deux ne rejoue une fois en
+ * place : la grille vit ensuite dans l'ecran des referentiels.
  */
 class ModulesPortailSeeder extends Seeder
 {
@@ -32,6 +35,7 @@ class ModulesPortailSeeder extends Seeder
         $module = $this->tuile();
         $this->employeurs();
         $this->call(GrilleIumSeeder::class);
+        $this->call(GrilleSalarialeSeeder::class);
 
         if ($existante) {
             return;

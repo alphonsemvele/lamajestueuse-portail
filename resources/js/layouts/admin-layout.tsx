@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { type PropsWithChildren, useState } from 'react';
+import { type PropsWithChildren, useEffect, useRef, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
 import Logo from '@/components/logo';
@@ -33,6 +33,19 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
     ];
 
     const path = url.split('?')[0];
+
+    const [menuOpen, setMenuOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const fermer = (evenement: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(evenement.target as Node)) setMenuOpen(false);
+        };
+
+        document.addEventListener('mousedown', fermer);
+
+        return () => document.removeEventListener('mousedown', fermer);
+    }, []);
 
     return (
         <div className="flex min-h-dvh bg-ink-50 dark:bg-ink-950">
@@ -105,17 +118,68 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
 
                     <ThemeToggle />
 
-                    {/* L'avatar mène à « Mon profil » : il ne faisait rien. */}
-                    <Link
-                        href={routes.profil.index}
-                        title={t('Voir mon profil')}
-                        className="flex items-center gap-2.5 rounded-full border border-ink-200 py-1.5 pl-1.5 pr-1.5 transition hover:bg-ink-50 dark:border-white/10 dark:hover:bg-white/5 sm:pr-3.5"
-                    >
-                        <Avatar url={auth.user?.avatarUrl} initials={auth.user?.initials ?? ''} className="h-7 w-7 text-[11px]" />
-                        <span className="hidden text-[13px] font-medium text-ink-700 dark:text-ink-200 sm:inline">
-                            {auth.user?.fullName}
-                        </span>
-                    </Link>
+                    {/*
+                      * L'avatar ouvre le menu du compte : retour au portail,
+                      * profil et deconnexion. Les deux derniers n'etaient
+                      * accessibles qu'en bas de la barre laterale, qu'on ne
+                      * voit pas depuis le haut d'une longue page.
+                      */}
+                    <div ref={menuRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setMenuOpen((ouvert) => !ouvert)}
+                            aria-haspopup="menu"
+                            aria-expanded={menuOpen}
+                            className="flex items-center gap-2.5 rounded-full border border-ink-200 py-1.5 pl-1.5 pr-2.5 transition hover:bg-ink-50 dark:border-white/10 dark:hover:bg-white/5"
+                        >
+                            <Avatar url={auth.user?.avatarUrl} initials={auth.user?.initials ?? ''} className="h-7 w-7 text-[11px]" />
+                            <span className="hidden text-[13px] font-medium text-ink-700 dark:text-ink-200 sm:inline">
+                                {auth.user?.fullName}
+                            </span>
+                            <Icon name="chevron-down" className="h-4 w-4 text-ink-400" />
+                        </button>
+
+                        {menuOpen && (
+                            <div
+                                role="menu"
+                                className="absolute right-0 mt-2 w-60 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-xl dark:border-white/10 dark:bg-ink-900"
+                            >
+                                <div className="border-b border-ink-100 px-4 py-3 dark:border-white/10">
+                                    <p className="truncate text-sm font-semibold text-ink-900 dark:text-white">{auth.user?.fullName}</p>
+                                    <p className="truncate text-xs text-ink-500 dark:text-ink-400">
+                                        {auth.user?.email ?? auth.user?.poste}
+                                    </p>
+                                </div>
+
+                                <Link
+                                    href={routes.profil.index}
+                                    onClick={() => setMenuOpen(false)}
+                                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-ink-700 transition hover:bg-ink-50 dark:text-ink-200 dark:hover:bg-white/5"
+                                >
+                                    <Icon name="user" className="h-4 w-4 text-ink-400" />
+                                    {t('Mon profil')}
+                                </Link>
+
+                                <Link
+                                    href={routes.dashboard}
+                                    onClick={() => setMenuOpen(false)}
+                                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-ink-700 transition hover:bg-ink-50 dark:text-ink-200 dark:hover:bg-white/5"
+                                >
+                                    <Icon name="arrow-right" className="h-4 w-4 rotate-180 text-ink-400" />
+                                    {t('Retour au portail')}
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    onClick={() => router.post(routes.logout)}
+                                    className="flex w-full items-center gap-2.5 border-t border-ink-100 px-4 py-2.5 text-sm text-red-600 transition hover:bg-red-50 dark:border-white/10 dark:text-red-400 dark:hover:bg-red-500/10"
+                                >
+                                    <Icon name="logout" className="h-4 w-4" />
+                                    {t('Se déconnecter')}
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </header>
 
                 <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8">

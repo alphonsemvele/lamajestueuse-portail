@@ -55,6 +55,8 @@ interface LigneProfil {
     libelle: string;
     typeCalcul: 'fixe' | 'pourcentage';
     valeur: number;
+    /** « indemnite:12 », « retenue:5 », ou null pour le salaire de base. */
+    baseCalcul: string | null;
 }
 
 interface Profil {
@@ -793,7 +795,12 @@ function Profils({
     const [ouvert, setOuvert] = useState(false);
     const [edite, setEdite] = useState<Profil | null>(null);
 
-    type LigneSaisie = { id: number; type_calcul: 'fixe' | 'pourcentage'; valeur: number };
+    type LigneSaisie = {
+        id: number;
+        type_calcul: 'fixe' | 'pourcentage';
+        valeur: number;
+        base_calcul: string | null;
+    };
 
     const vide = {
         nom: '',
@@ -806,6 +813,10 @@ function Profils({
     };
 
     const formulaire = useForm(vide);
+
+    // Ce que la RH a tape, tel quel : « 4, » reste affiche le temps qu'elle
+    // finisse de saisir « 4,2 », alors que le nombre vaut deja 4.
+    const [saisies, setSaisies] = useState<Record<string, string>>({});
 
     const tousEchelons = categories.flatMap((categorie) =>
         categorie.echelons.map((echelon) => ({ ...echelon, categorie: categorie.libelle })),
@@ -826,15 +837,18 @@ function Profils({
                           id: ligne.id,
                           type_calcul: ligne.typeCalcul,
                           valeur: ligne.valeur,
+                          base_calcul: ligne.baseCalcul,
                       })),
                       retenues: (profil.retenues ?? []).map((ligne) => ({
                           id: ligne.id,
                           type_calcul: ligne.typeCalcul,
                           valeur: ligne.valeur,
+                          base_calcul: ligne.baseCalcul,
                       })),
                   }
                 : vide,
         );
+        setSaisies({});
         setOuvert(true);
     };
 
@@ -853,7 +867,9 @@ function Profils({
 
         formulaire.setData(
             champ,
-            presente ? lignes.filter((ligne) => ligne.id !== id) : [...lignes, { id, type_calcul: 'fixe' as const, valeur: 0 }],
+            presente
+                ? lignes.filter((ligne) => ligne.id !== id)
+                : [...lignes, { id, type_calcul: 'fixe' as const, valeur: 0, base_calcul: null }],
         );
     };
 
@@ -866,6 +882,41 @@ function Profils({
     const salaireReference = Number(
         tousEchelons.find((echelon) => String(echelon.id) === formulaire.data.echelon_id)?.salaire ?? 0,
     );
+
+    /** Le libellé d'une ligne cochée, pour nommer les assiettes offertes. */
+    const nomDe = (cle: string) => {
+        const [sens, id] = cle.split(':');
+        const source = sens === 'indemnite' ? indemnites : retenues;
+
+        return source.find((element) => String(element.id) === id)?.libelle ?? cle;
+    };
+
+    /**
+     * Le montant d'une ligne, en suivant les renvois comme le fait le moteur
+     * de paie. La profondeur bornée évite de tourner en rond pendant la
+     * saisie, le temps que la validation refuse la boucle à l'envoi.
+     */
+    const montantDe = (cle: string, profondeur = 0): number => {
+        if (profondeur > 10) return 0;
+
+        const [sens, id] = cle.split(':');
+        const champ = sens === 'indemnite' ? 'indemnites' : 'retenues';
+        const ligne = formulaire.data[champ].find((item) => String(item.id) === id);
+
+        if (!ligne) return 0;
+        if (ligne.type_calcul !== 'pourcentage') return ligne.valeur;
+
+        const assiette = ligne.base_calcul ? montantDe(ligne.base_calcul, profondeur + 1) : salaireReference;
+
+        return (assiette * ligne.valeur) / 100;
+    };
+
+    /** Les assiettes qu'une ligne peut viser : tout le reste, sauf elle-même. */
+    const assiettesPour = (cle: string) =>
+        [
+            ...formulaire.data.indemnites.map((ligne) => `indemnite:${ligne.id}`),
+            ...formulaire.data.retenues.map((ligne) => `retenue:${ligne.id}`),
+        ].filter((autre) => autre !== cle);
 
     const selecteur = (champ: 'indemnites' | 'retenues', elements: Element[], titre: string) => (
         <div>
@@ -893,25 +944,63 @@ function Profils({
                                     <Select
                                         value={ligne.type_calcul}
                                         onChange={(event) =>
-                                            majLigne(champ, element.id, { type_calcul: event.target.value as 'fixe' | 'pourcentage' })
+                                            majLigne(champ, element.id, {
+                                                type_calcul: event.target.value as 'fixe' | 'pourcentage',
+                                                // Un montant fixe ne s'assoit sur rien.
+                                                ...(event.target.value === 'fixe' ? { base_calcul: null } : {}),
+                                            })
                                         }
                                         className="w-auto py-1 text-xs"
                                     >
                                         <option value="fixe">Montant fixe</option>
-                                        <option value="pourcentage">% du base</option>
+                                        <option value="pourcentage">Pourcentage</option>
                                     </Select>
+
                                     <Input
-                                        type="number"
-                                        min={0}
-                                        step={ligne.type_calcul === 'pourcentage' ? '0.1' : '1'}
-                                        value={ligne.valeur}
-                                        onChange={(event) => majLigne(champ, element.id, { valeur: Number(event.target.value) })}
-                                        className="w-32 py-1 text-xs"
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={saisies[`${champ}:${element.id}`] ?? String(ligne.valeur)}
+                                        onChange={(event) => {
+                                            const brut = event.target.value;
+                                            setSaisies((actuelles) => ({ ...actuelles, [`${champ}:${element.id}`]: brut }));
+                                            // La virgule vaut le point : on tape « 4,2 » comme « 4.2 ».
+                                            const nombre = Number(brut.replace(',', '.'));
+                                            majLigne(champ, element.id, {
+                                                valeur: Number.isFinite(nombre) ? nombre : 0,
+                                            });
+                                        }}
+                                        className="w-24 py-1 text-xs"
+                                        aria-label={`Valeur pour ${element.libelle}`}
                                     />
+
+                                    {ligne.type_calcul === 'pourcentage' && (
+                                        <>
+                                            <span className="text-xs text-ink-400">% de</span>
+                                            <Select
+                                                value={ligne.base_calcul ?? ''}
+                                                onChange={(event) =>
+                                                    majLigne(champ, element.id, { base_calcul: event.target.value || null })
+                                                }
+                                                className="w-auto py-1 text-xs"
+                                                aria-label={`Assiette de ${element.libelle}`}
+                                            >
+                                                <option value="">Salaire de base</option>
+                                                {assiettesPour(`${champ === 'indemnites' ? 'indemnite' : 'retenue'}:${element.id}`).map(
+                                                    (cle) => (
+                                                        <option key={cle} value={cle}>
+                                                            {nomDe(cle)}
+                                                        </option>
+                                                    ),
+                                                )}
+                                            </Select>
+                                        </>
+                                    )}
+
                                     <span className="text-xs text-ink-400">
-                                        {ligne.type_calcul === 'pourcentage'
-                                            ? `soit ${fcfa((salaireReference * ligne.valeur) / 100)}`
-                                            : fcfa(ligne.valeur)}
+                                        soit{' '}
+                                        {fcfa(
+                                            montantDe(`${champ === 'indemnites' ? 'indemnite' : 'retenue'}:${element.id}`),
+                                        )}
                                     </span>
                                 </div>
                             )}

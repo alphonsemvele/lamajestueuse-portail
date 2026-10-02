@@ -13,6 +13,8 @@ interface LigneDetail {
     valeur: number;
     montant: number;
     source: 'profil' | 'ajustement';
+    /** Sur quoi le pourcentage a porté ; absent sur les anciens bulletins. */
+    assietteLibelle?: string | null;
 }
 
 interface Bulletin {
@@ -52,7 +54,9 @@ function Ligne({ ligne, signe }: { ligne: LigneDetail; signe: '+' | '−' }) {
             <div className="min-w-0">
                 <p className="truncate text-sm text-ink-800 dark:text-ink-100">{ligne.libelle}</p>
                 <p className="text-[11px] text-ink-400">
-                    {ligne.type === 'pourcentage' ? `${ligne.valeur} % du salaire de base` : 'montant fixe'}
+                    {ligne.type === 'pourcentage'
+                        ? `${ligne.valeur} % de ${ligne.assietteLibelle ?? 'le salaire de base'}`
+                        : 'montant fixe'}
                     {ligne.source === 'ajustement' && ' · exceptionnel ce mois'}
                 </p>
             </div>
@@ -384,11 +388,11 @@ export default function DetailBulletin({ bulletin, contrat, employeur, agent, aj
                         erreur={ajustement.errors.montant}
                     >
                         <Input
-                            type="number"
-                            min={0}
-                            step={ajustement.data.mode === 'pourcentage' ? '0.1' : '1'}
+                            type="text"
+                            inputMode="decimal"
                             value={ajustement.data.montant}
-                            onChange={(event) => ajustement.setData('montant', event.target.value)}
+                            // La virgule vaut le point : on tape « 4,2 » comme « 4.2 ».
+                            onChange={(event) => ajustement.setData('montant', event.target.value.replace(',', '.'))}
                             required
                         />
                     </Champ>

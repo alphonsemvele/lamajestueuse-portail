@@ -38,27 +38,9 @@ class PaieService
         $profil = $contrat->profil;
 
         if ($profil) {
-            $profil->loadMissing(['indemnites', 'retenues']);
-
-            foreach ($profil->indemnites as $indemnite) {
-                $indemnites[] = $this->ligne(
-                    $indemnite->libelle,
-                    $indemnite->pivot->type_calcul,
-                    (float) $indemnite->pivot->valeur,
-                    $base,
-                    'profil'
-                );
-            }
-
-            foreach ($profil->retenues as $retenue) {
-                $retenues[] = $this->ligne(
-                    $retenue->libelle,
-                    $retenue->pivot->type_calcul,
-                    (float) $retenue->pivot->valeur,
-                    $base,
-                    'profil'
-                );
-            }
+            $resolues = $this->lignesDuProfil($profil, $base);
+            $indemnites = $resolues['indemnites'];
+            $retenues = $resolues['retenues'];
         }
 
         $ajustements = Ajustement::where('contrat_id', $contrat->id)
@@ -251,20 +233,104 @@ class PaieService
 
         $base = (float) ($profil->echelon?->salaire ?? 0);
 
-        $somme = fn ($lignes) => round(array_sum($lignes
-            ->map(fn ($l) => $this->ligne(
-                $l->libelle, $l->pivot->type_calcul, (float) $l->pivot->valeur, $base, 'profil'
-            )['montant'])
-            ->all()), 2);
+        $resolues = $this->lignesDuProfil($profil, $base);
 
-        $indemnites = $somme($profil->indemnites);
-        $retenues = $somme($profil->retenues);
+        $somme = fn (array $lignes) => round(array_sum(array_column($lignes, 'montant')), 2);
+
+        $indemnites = $somme($resolues['indemnites']);
+        $retenues = $somme($resolues['retenues']);
 
         return [
             'salaire_base' => $base,
             'total_indemnites' => $indemnites,
             'total_retenues' => $retenues,
             'salaire_net' => round($base + $indemnites - $retenues, 2),
+        ];
+    }
+
+    /**
+     * Les lignes d'un profil, chacune calculee sur son assiette.
+     *
+     * Un pourcentage porte sur le salaire de base par defaut, mais peut
+     * porter sur une autre ligne du meme profil — une retenue assise sur une
+     * indemnite, par exemple. On resout donc par passes successives : a
+     * chaque tour on calcule ce dont l'assiette est connue, jusqu'a ce que
+     * plus rien n'avance.
+     *
+     * Une ligne qui renvoie dans le vide, ou prise dans un renvoi circulaire,
+     * retombe sur le salaire de base plutot que de bloquer la paie : la
+     * saisie l'interdit deja, ceci n'est qu'un filet.
+     *
+     * @return array{indemnites: list<array<string, mixed>>, retenues: list<array<string, mixed>>}
+     */
+    private function lignesDuProfil(ProfilSalaire $profil, float $base): array
+    {
+        $profil->loadMissing(['indemnites', 'retenues']);
+
+        $brutes = [];
+
+        foreach (['indemnite' => $profil->indemnites, 'retenue' => $profil->retenues] as $sens => $elements) {
+            foreach ($elements as $element) {
+                $brutes[$sens.':'.$element->id] = [
+                    'sens' => $sens,
+                    'libelle' => $element->libelle,
+                    'type' => $element->pivot->type_calcul,
+                    'valeur' => (float) $element->pivot->valeur,
+                    'assiette' => $element->pivot->base_calcul ?: null,
+                ];
+            }
+        }
+
+        $resolues = [];
+
+        // Au pire une ligne par passe : la chaine ne peut pas etre plus longue.
+        for ($passe = 0; $passe <= count($brutes) && count($resolues) < count($brutes); $passe++) {
+            foreach ($brutes as $cle => $ligne) {
+                if (isset($resolues[$cle])) {
+                    continue;
+                }
+
+                if ($ligne['assiette'] === null) {
+                    $resolues[$cle] = $this->poser($ligne, $base, 'le salaire de base');
+
+                    continue;
+                }
+
+                if (isset($resolues[$ligne['assiette']])) {
+                    $appui = $resolues[$ligne['assiette']];
+                    $resolues[$cle] = $this->poser($ligne, $appui['montant'], $appui['libelle']);
+                }
+            }
+        }
+
+        $indemnites = [];
+        $retenues = [];
+
+        foreach ($brutes as $cle => $ligne) {
+            // Le filet : non resolue, la ligne retombe sur le salaire de base.
+            $calculee = $resolues[$cle] ?? $this->poser($ligne, $base, 'le salaire de base');
+
+            $ligne['sens'] === 'indemnite'
+                ? $indemnites[] = $calculee
+                : $retenues[] = $calculee;
+        }
+
+        return ['indemnites' => $indemnites, 'retenues' => $retenues];
+    }
+
+    /**
+     * Pose une ligne sur son assiette. `assiette` et `assietteLibelle` restent
+     * dans le detail fige, pour que le bulletin puisse dire sur quoi le
+     * pourcentage a porte.
+     *
+     * @param  array<string, mixed>  $ligne
+     * @return array<string, mixed>
+     */
+    private function poser(array $ligne, float $assiette, string $libelleAssiette): array
+    {
+        return $this->ligne($ligne['libelle'], $ligne['type'], $ligne['valeur'], $assiette, 'profil') + [
+            'assiette' => round($assiette, 2),
+            'assietteLibelle' => $libelleAssiette,
         ];
     }
 

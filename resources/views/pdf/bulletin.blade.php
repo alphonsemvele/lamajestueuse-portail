@@ -3,9 +3,14 @@
     $fcfa = fn ($montant) => number_format((float) $montant, 0, ',', ' ') . ' F';
     $detail = $bulletin->detail ?? ['indemnites' => [], 'retenues' => []];
 
-    /** Le taux d'une ligne, en français : virgule décimale, zéros inutiles retirés. */
+    /**
+     * Le taux d'une ligne, en français : virgule décimale, zéros inutiles
+     * retirés, et l'assiette nommée — un pourcentage peut porter sur une
+     * autre ligne du profil plutôt que sur le salaire de base.
+     */
     $regle = fn (array $ligne) => $ligne['type'] === 'pourcentage'
-        ? rtrim(rtrim(number_format((float) $ligne['valeur'], 2, ',', ' '), '0'), ',') . ' % du salaire de base'
+        ? rtrim(rtrim(number_format((float) $ligne['valeur'], 2, ',', ' '), '0'), ',')
+            . ' % de ' . ($ligne['assietteLibelle'] ?? 'le salaire de base')
         : 'montant fixe';
 @endphp
 <!doctype html>

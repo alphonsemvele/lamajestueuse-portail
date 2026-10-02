@@ -37,13 +37,13 @@ class ProfilSalaire extends Model
     public function indemnites(): BelongsToMany
     {
         return $this->belongsToMany(Indemnite::class, 'profil_indemnite')
-            ->withPivot(['type_calcul', 'valeur'])->withTimestamps();
+            ->withPivot(['type_calcul', 'valeur', 'base_calcul'])->withTimestamps();
     }
 
     public function retenues(): BelongsToMany
     {
         return $this->belongsToMany(Retenue::class, 'profil_retenue')
-            ->withPivot(['type_calcul', 'valeur'])->withTimestamps();
+            ->withPivot(['type_calcul', 'valeur', 'base_calcul'])->withTimestamps();
     }
 
     public function toUiArray(): array
@@ -61,10 +61,12 @@ class ProfilSalaire extends Model
             'indemnites' => $this->relationLoaded('indemnites') ? $this->indemnites->map(fn ($i) => [
                 'id' => $i->id, 'libelle' => $i->libelle,
                 'typeCalcul' => $i->pivot->type_calcul, 'valeur' => (float) $i->pivot->valeur,
+                'baseCalcul' => $i->pivot->base_calcul,
             ])->all() : null,
             'retenues' => $this->relationLoaded('retenues') ? $this->retenues->map(fn ($r) => [
                 'id' => $r->id, 'libelle' => $r->libelle,
                 'typeCalcul' => $r->pivot->type_calcul, 'valeur' => (float) $r->pivot->valeur,
+                'baseCalcul' => $r->pivot->base_calcul,
             ])->all() : null,
         ];
     }

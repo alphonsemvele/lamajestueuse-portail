@@ -16,6 +16,7 @@ use App\Services\PaieService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -408,28 +409,98 @@ class ReferentielController extends Controller
             'indemnites.*.id' => ['required', 'exists:indemnites,id'],
             'indemnites.*.type_calcul' => ['required', Rule::in(['fixe', 'pourcentage'])],
             'indemnites.*.valeur' => ['required', 'numeric', 'min:0', 'max:99999999'],
+            'indemnites.*.base_calcul' => ['nullable', 'string', 'regex:/^(indemnite|retenue):\d+$/'],
             'retenues' => ['array'],
             'retenues.*.id' => ['required', 'exists:retenues,id'],
             'retenues.*.type_calcul' => ['required', Rule::in(['fixe', 'pourcentage'])],
             'retenues.*.valeur' => ['required', 'numeric', 'min:0', 'max:99999999'],
+            'retenues.*.base_calcul' => ['nullable', 'string', 'regex:/^(indemnite|retenue):\d+$/'],
         ]);
 
-        return [
+        $donnees = [
             'profil' => collect($valide)->only(['nom', 'description', 'categorie_rh_id', 'echelon_id', 'actif'])->all(),
             'indemnites' => $valide['indemnites'] ?? [],
             'retenues' => $valide['retenues'] ?? [],
         ];
+
+        $this->verifierLesAssiettes($donnees);
+
+        return $donnees;
+    }
+
+    /**
+     * Une ligne ne se calcule que sur une ligne presente dans le meme profil,
+     * et les renvois ne doivent pas tourner en rond : A sur B sur A ne
+     * donnerait aucun montant.
+     *
+     * @param  array{indemnites: array, retenues: array}  $donnees
+     */
+    private function verifierLesAssiettes(array $donnees): void
+    {
+        $renvois = [];
+
+        foreach (['indemnite' => 'indemnites', 'retenue' => 'retenues'] as $sens => $champ) {
+            foreach ($donnees[$champ] as $ligne) {
+                $cle = $sens.':'.$ligne['id'];
+                $renvois[$cle] = $ligne['base_calcul'] ?? null;
+            }
+        }
+
+        foreach ($renvois as $cle => $vise) {
+            if ($vise === null) {
+                continue;
+            }
+
+            if ($vise === $cle) {
+                throw ValidationException::withMessages([
+                    'profil' => __('Une ligne ne peut pas se calculer sur elle-même.'),
+                ]);
+            }
+
+            if (! array_key_exists($vise, $renvois)) {
+                throw ValidationException::withMessages([
+                    'profil' => __('Une ligne se calcule sur un élément absent du profil : ajoutez-le ou choisissez le salaire de base.'),
+                ]);
+            }
+        }
+
+        // Suivre chaque chaine jusqu'au bout : elle doit finir sur le salaire
+        // de base, sans repasser deux fois au meme endroit.
+        foreach (array_keys($renvois) as $depart) {
+            $vus = [];
+            $cle = $depart;
+
+            while ($cle !== null) {
+                if (isset($vus[$cle])) {
+                    throw ValidationException::withMessages([
+                        'profil' => __('Ces lignes se calculent en boucle l’une sur l’autre : le montant serait impossible à établir.'),
+                    ]);
+                }
+
+                $vus[$cle] = true;
+                $cle = $renvois[$cle] ?? null;
+            }
+        }
+
     }
 
     /** @param  array{indemnites: array, retenues: array}  $donnees */
     private function synchroniserLignes(ProfilSalaire $profil, array $donnees): void
     {
         $profil->indemnites()->sync(collect($donnees['indemnites'])
-            ->mapWithKeys(fn ($l) => [$l['id'] => ['type_calcul' => $l['type_calcul'], 'valeur' => $l['valeur']]])
+            ->mapWithKeys(fn ($l) => [$l['id'] => [
+                'type_calcul' => $l['type_calcul'],
+                'valeur' => $l['valeur'],
+                'base_calcul' => $l['base_calcul'] ?? null,
+            ]])
             ->all());
 
         $profil->retenues()->sync(collect($donnees['retenues'])
-            ->mapWithKeys(fn ($l) => [$l['id'] => ['type_calcul' => $l['type_calcul'], 'valeur' => $l['valeur']]])
+            ->mapWithKeys(fn ($l) => [$l['id'] => [
+                'type_calcul' => $l['type_calcul'],
+                'valeur' => $l['valeur'],
+                'base_calcul' => $l['base_calcul'] ?? null,
+            ]])
             ->all());
     }
 }

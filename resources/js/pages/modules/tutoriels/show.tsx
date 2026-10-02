@@ -72,7 +72,7 @@ export default function Tutoriel({ tutoriel, prealables, module }: Props) {
                   * atteindre l'étape. Il s'y réduit donc à une rangée de
                   * pastilles, qui tient sur une ligne et se parcourt du doigt.
                   */}
-                <div className="-mx-5 overflow-x-auto px-5 lg:hidden">
+                <div className="-mx-4 overflow-x-auto px-4 sm:-mx-5 sm:px-5 lg:hidden">
                     <ol className="flex w-max gap-1.5 pb-1">
                         {etapes.map((item, rang) => (
                             <li key={`chip-${item.section}-${item.titre}`}>

@@ -50,10 +50,13 @@ class TutorielsTest extends TestCase
             ->assertInertia(function (Assert $page) {
                 $prealables = $page->toArray()['props']['prealables'];
 
-                $this->assertCount(3, $prealables['etapes']);
-                $this->assertStringContainsString('inscrire', mb_strtolower($prealables['etapes'][0]['titre']));
-                $this->assertStringContainsString('validation', mb_strtolower($prealables['etapes'][1]['titre']));
-                $this->assertStringContainsString('module', mb_strtolower($prealables['etapes'][2]['titre']));
+                $titres = array_column($prealables['etapes'], 'titre');
+
+                // On commence par la connexion : c'est la porte du portail.
+                $this->assertStringContainsString('connecter', mb_strtolower($titres[0]));
+                $this->assertStringContainsString('compte', mb_strtolower($titres[1]));
+                $this->assertStringContainsString('validation', mb_strtolower($titres[2]));
+                $this->assertStringContainsString('module', mb_strtolower(end($titres)));
             });
     }
 

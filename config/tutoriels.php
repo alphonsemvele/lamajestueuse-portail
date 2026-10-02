@@ -32,11 +32,20 @@ return [
      */
     'prealables' => [
         'titre' => 'Avant de commencer',
-        'resume' => "Ces trois étapes valent pour tous les modules du portail : elles vous donnent un compte et l'accès.",
+        'resume' => "Ces étapes valent pour tous les modules du portail : elles vous donnent l'accès. Si vous avez déjà un compte, la première suffit.",
         'etapes' => [
             [
-                'titre' => "S'inscrire au portail",
-                'texte' => "Depuis la page d'accueil, cliquez sur « Créer un compte ». Renseignez votre identité, votre photo, votre téléphone, et les instituts où vous exercez. Le matricule n'est pas obligatoire : l'administration vous en attribuera un.",
+                'titre' => 'Se connecter au portail',
+                'texte' => "Rendez-vous sur lamajestueuse.com. Le champ d'identifiant arrive préparé avec « LM- » : tapez seulement les chiffres de votre matricule, puis votre mot de passe. Vous préférez votre adresse professionnelle ? Basculez sur « E-mail » au-dessus du champ.",
+                'points' => [
+                    "Les quatre chiffres suffisent : le portail complète le reste.",
+                    "Vous n'avez pas encore de compte ? L'étape suivante vous explique comment en obtenir un.",
+                ],
+                'capture' => 'images/support/01-connexion.jpg',
+            ],
+            [
+                'titre' => "Créer son compte, si l'on n'en a pas",
+                'texte' => "Depuis la page de connexion, cliquez sur « Créer un compte ». Renseignez votre identité, votre photo, votre téléphone, et les instituts où vous exercez. Le matricule n'est pas obligatoire : l'administration vous en attribuera un.",
                 'points' => [
                     "La photo sert partout dans le portail : sur votre profil, et sur votre badge.",
                     "Indiquez votre adresse professionnelle si vous en avez une : elle vous servira à vous connecter.",
@@ -44,7 +53,7 @@ return [
                 'capture' => 'images/support/03-identite.jpg',
             ],
             [
-                'titre' => "Attendre la validation",
+                'titre' => 'Attendre la validation',
                 'texte' => "Votre demande part à l'administration du portail. Tant qu'elle n'est pas validée, la connexion est refusée. Vous recevez un message dès que le compte est ouvert.",
                 'points' => [
                     "C'est à ce moment que votre matricule vous est communiqué, s'il vous en manquait un.",
@@ -52,8 +61,8 @@ return [
                 'capture' => 'images/support/06-confirmation.jpg',
             ],
             [
-                'titre' => "Se connecter et trouver le module",
-                'texte' => "Connectez-vous avec votre matricule — il suffit d'en taper les chiffres — ou avec votre adresse professionnelle. Votre tableau de bord affiche les modules auxquels vous avez accès.",
+                'titre' => 'Trouver le module sur son tableau de bord',
+                'texte' => "Une fois connecté, votre tableau de bord affiche les modules auxquels vous avez accès. Chaque tuile ouvre son application d'un clic.",
                 'points' => [
                     "Certains modules, comme les badges ou votre profil, sont ouverts à tout le personnel : ils apparaissent sans qu'on ait à vous les attribuer.",
                     "Si un module vous manque, demandez-le à l'administration du portail.",

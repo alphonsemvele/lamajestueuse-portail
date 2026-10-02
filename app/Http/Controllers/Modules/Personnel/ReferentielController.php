@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Modules\Personnel;
 
+use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Http\Controllers\Concerns\ServesModule;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
@@ -24,6 +25,7 @@ use Inertia\Response;
  */
 class ReferentielController extends Controller
 {
+    use HandlesMediaUploads;
     use ServesModule;
 
     public const MODULE = 'personnel';
@@ -144,6 +146,7 @@ class ReferentielController extends Controller
             ]);
         }
 
+        $this->deleteUploaded($employeur->logo);
         $employeur->delete();
 
         return back()->with('status', __('Employeur supprimé.'));
@@ -152,7 +155,7 @@ class ReferentielController extends Controller
     /** @return array<string, mixed> */
     private function reglesEmployeur(Request $request, ?Employeur $employeur = null): array
     {
-        return $request->validate([
+        $donnees = $request->validate([
             'nom' => ['required', 'string', 'max:255'],
             'sigle' => ['required', 'string', 'max:20', Rule::unique('employeurs', 'sigle')->ignore($employeur)],
             'application_id' => ['nullable', 'exists:applications,id'],
@@ -162,7 +165,19 @@ class ReferentielController extends Controller
             'compte_bancaire' => ['nullable', 'string', 'max:60'],
             'signataire' => ['nullable', 'string', 'max:255'],
             'actif' => ['boolean'],
+            'logo' => ['nullable', 'string', 'max:255'],
+            'logo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:1024'],
+            'remove_logo' => ['nullable', 'boolean'],
+        ], [
+            'logo_file.max' => __('Le logo ne doit pas dépasser 1 Mo.'),
+            'logo_file.mimes' => __('Formats acceptés : JPG, PNG ou WebP.'),
         ]);
+
+        unset($donnees['logo_file'], $donnees['remove_logo']);
+
+        $donnees['logo'] = $this->resolveMedia($request, $employeur?->logo, 'logo', 'employeurs/logos');
+
+        return $donnees;
     }
 
     /**

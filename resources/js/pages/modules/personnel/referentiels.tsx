@@ -1,6 +1,7 @@
-import { useForm, usePage } from '@inertiajs/react';
+import { router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
+import MediaField from '@/components/media-field';
 import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
 import { routes } from '@/lib/utils';
@@ -17,6 +18,8 @@ interface Employeur {
     banque: string | null;
     compteBancaire: string | null;
     signataire: string | null;
+    logo: string | null;
+    logoUrl: string | null;
     actif: boolean;
     contratsActifs: number;
 }
@@ -191,10 +194,14 @@ function Employeurs({
         banque: '',
         compte_bancaire: '',
         signataire: '',
+        logo: '',
+        logo_file: null as File | null,
+        remove_logo: false,
         actif: true as boolean,
     };
 
     const formulaire = useForm(vide);
+    const [apercuLogo, setApercuLogo] = useState<string | null>(null);
 
     const ouvrir = (employeur: Employeur | null) => {
         setEdite(employeur);
@@ -210,19 +217,27 @@ function Employeurs({
                       banque: employeur.banque ?? '',
                       compte_bancaire: employeur.compteBancaire ?? '',
                       signataire: employeur.signataire ?? '',
+                      logo: employeur.logo && employeur.logo.startsWith('http') ? employeur.logo : '',
+                      logo_file: null,
+                      remove_logo: false,
                       actif: employeur.actif,
                   }
                 : vide,
         );
+        setApercuLogo(employeur?.logoUrl ?? null);
         setOuvert(true);
     };
 
     const enregistrer = (event: FormEvent) => {
         event.preventDefault();
 
-        const apres = { onSuccess: () => setOuvert(false) };
+        // Un logo peut accompagner l'envoi : Inertia doit passer en FormData,
+        // et une modification transite alors par POST avec _method.
+        const apres = { forceFormData: true, onSuccess: () => setOuvert(false) } as const;
 
-        edite ? formulaire.put(routes.personnel.employeur(edite.id), apres) : formulaire.post(routes.personnel.employeurs, apres);
+        edite
+            ? router.post(routes.personnel.employeur(edite.id), { ...formulaire.data, _method: 'put' }, apres)
+            : formulaire.post(routes.personnel.employeurs, apres);
     };
 
     return (
@@ -244,9 +259,25 @@ function Employeurs({
                 {employeurs.length === 0 ? (
                     <Vide message="Aucun employeur enregistré." icon="building" />
                 ) : (
-                    <Tableau entetes={['Sigle', 'Raison sociale', 'NIU', 'CNPS', 'Effectif', 'État', '']}>
+                    <Tableau entetes={['Logo', 'Sigle', 'Raison sociale', 'NIU', 'CNPS', 'Effectif', 'État', '']}>
                         {employeurs.map((employeur) => (
                             <tr key={employeur.id}>
+                                <td className="px-3 py-2.5">
+                                    {employeur.logoUrl ? (
+                                        <img
+                                            src={employeur.logoUrl}
+                                            alt={`Logo ${employeur.sigle}`}
+                                            className="h-8 w-8 rounded-lg object-contain"
+                                        />
+                                    ) : (
+                                        <span
+                                            className="flex h-8 w-8 items-center justify-center rounded-lg bg-ink-100 text-ink-400 dark:bg-white/5"
+                                            title="Sans logo : le bulletin prendra celui de l'institut, puis celui du module"
+                                        >
+                                            <Icon name="building" className="h-4 w-4" />
+                                        </span>
+                                    )}
+                                </td>
                                 <td className="px-3 py-2.5 font-semibold text-ink-900 dark:text-white">{employeur.sigle}</td>
                                 <td className="px-3 py-2.5 text-ink-600 dark:text-ink-300">{employeur.nom}</td>
                                 <td className="px-3 py-2.5 tabular-nums text-ink-600 dark:text-ink-300">{employeur.niu ?? '—'}</td>
@@ -314,6 +345,41 @@ function Employeurs({
                                 onChange={(event) => formulaire.setData('compte_bancaire', event.target.value)}
                             />
                         </Champ>
+                        <div className="sm:col-span-2">
+                            <MediaField
+                                label="Logo de l'employeur"
+                                hint="JPG, PNG ou WebP — 1 Mo maximum. C'est ce logo qui s'imprime sur les bulletins de paie ; sans lui, celui de l'institut rattaché, puis celui du module."
+                                emptyLabel="Aucun logo"
+                                preview={apercuLogo}
+                                externalValue={formulaire.data.logo}
+                                externalPlaceholder="ou une URL externe"
+                                onExternalChange={(valeur) => {
+                                    formulaire.setData('logo', valeur);
+                                    setApercuLogo(valeur || null);
+                                }}
+                                onPick={(fichier) => {
+                                    formulaire.setData((actuel) => ({
+                                        ...actuel,
+                                        logo_file: fichier,
+                                        remove_logo: false,
+                                    }));
+                                    setApercuLogo(URL.createObjectURL(fichier));
+                                }}
+                                onDrop={() => {
+                                    formulaire.setData((actuel) => ({
+                                        ...actuel,
+                                        logo_file: null,
+                                        remove_logo: true,
+                                        logo: '',
+                                    }));
+                                    setApercuLogo(null);
+                                }}
+                            />
+                            {formulaire.errors.logo_file && (
+                                <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">{formulaire.errors.logo_file}</p>
+                            )}
+                        </div>
+
                         <Champ libelle="Signataire des bulletins" erreur={formulaire.errors.signataire} className="sm:col-span-2">
                             <Input value={formulaire.data.signataire} onChange={(event) => formulaire.setData('signataire', event.target.value)} />
                         </Champ>

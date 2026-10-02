@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Un employeur par institut : c'est lui qui declare a la CNPS et qui signe
@@ -14,7 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Employeur extends Model
 {
     protected $fillable = [
-        'nom', 'sigle', 'application_id', 'niu', 'numero_cnps',
+        'nom', 'sigle', 'logo', 'application_id', 'niu', 'numero_cnps',
         'banque', 'compte_bancaire', 'signataire', 'actif',
     ];
 
@@ -41,12 +42,29 @@ class Employeur extends Model
         return $this->hasMany(Bulletin::class);
     }
 
+    /**
+     * L'adresse d'affichage du logo : un chemin televerse passe par le disque
+     * public, une URL externe et un visuel du depot se servent tels quels.
+     */
+    public function logoUrl(): ?string
+    {
+        if (blank($this->logo)) {
+            return null;
+        }
+
+        return str_starts_with($this->logo, 'http') || str_starts_with($this->logo, '/')
+            ? $this->logo
+            : Storage::disk('public')->url($this->logo);
+    }
+
     public function toUiArray(): array
     {
         return [
             'id' => $this->id,
             'nom' => $this->nom,
             'sigle' => $this->sigle,
+            'logo' => $this->logo,
+            'logoUrl' => $this->logoUrl(),
             'niu' => $this->niu,
             'numeroCnps' => $this->numero_cnps,
             'banque' => $this->banque,

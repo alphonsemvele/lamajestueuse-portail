@@ -76,7 +76,7 @@ class MesBulletinsController extends Controller
 
         $pdf = Pdf::loadView('pdf.bulletin', [
             'bulletin' => $bulletin,
-            'enTete' => $this->enTete($request->user()),
+            'enTete' => $this->enTeteDeLEmployeur($bulletin),
             'employeur' => $bulletin->employeur,
             'contrat' => $bulletin->contrat,
             'agent' => $bulletin->agent,
@@ -89,6 +89,67 @@ class MesBulletinsController extends Controller
             $bulletin->annee,
             $bulletin->mois,
         ));
+    }
+
+    /**
+     * L'en-tete du bulletin : c'est l'employeur qui edite la fiche de paie,
+     * donc c'est son identite qui s'affiche.
+     *
+     * Le logo se cherche en trois temps : celui de l'employeur d'abord, puis
+     * celui de l'institut auquel il est rattache, enfin celui du module. Le
+     * premier trouve l'emporte.
+     *
+     * @return array{nom: string, logo: ?string, couleur: string, groupe: bool}
+     */
+    private function enTeteDeLEmployeur(Bulletin $bulletin): array
+    {
+        $employeur = $bulletin->employeur;
+
+        if ($employeur === null) {
+            return $this->enTeteDuGroupe();
+        }
+
+        $institut = $employeur->application;
+
+        return [
+            'nom' => $employeur->nom,
+            'logo' => $this->premierLogo([
+                $employeur->logo,
+                $institut?->logo,
+                $this->logoDuModule(),
+            ]),
+            'couleur' => $institut?->color ?: '#0f766e',
+            'groupe' => false,
+        ];
+    }
+
+    /** @return array{nom: string, logo: ?string, couleur: string, groupe: bool} */
+    private function enTeteDuGroupe(): array
+    {
+        return [
+            'nom' => 'LA MAJESTUEUSE',
+            'logo' => $this->fichierEnBase64($this->logoDuModule()),
+            'couleur' => '#0f766e',
+            'groupe' => true,
+        ];
+    }
+
+    /** Le premier chemin de la liste qui donne reellement une image. */
+    private function premierLogo(array $chemins): ?string
+    {
+        foreach ($chemins as $chemin) {
+            if ($encode = $this->fichierEnBase64($chemin)) {
+                return $encode;
+            }
+        }
+
+        return null;
+    }
+
+    /** Le logo porte par la tuile du module, dernier recours commun. */
+    private function logoDuModule(): ?string
+    {
+        return Application::where('module_key', self::MODULE)->value('logo');
     }
 
     /**
@@ -112,7 +173,7 @@ class MesBulletinsController extends Controller
 
             return [
                 'nom' => $institut->name,
-                'logo' => $this->logoEnBase64($institut),
+                'logo' => $this->fichierEnBase64($institut->logo),
                 'couleur' => $institut->color ?: '#0f766e',
                 'groupe' => false,
             ];
@@ -125,10 +186,8 @@ class MesBulletinsController extends Controller
      * Le logo encode dans le document : dompdf ne va pas chercher les images
      * sur le reseau, et une URL laisserait un cadre vide.
      */
-    private function logoEnBase64(Application $institut): ?string
+    private function fichierEnBase64(?string $chemin): ?string
     {
-        $chemin = $institut->logo;
-
         if (blank($chemin) || str_starts_with($chemin, 'http')) {
             return null;
         }

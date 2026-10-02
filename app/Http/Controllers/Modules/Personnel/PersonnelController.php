@@ -360,7 +360,7 @@ class PersonnelController extends Controller
         $user->loadMissing('applications');
 
         return Inertia::render('modules/personnel/agents/fiche', [
-            'agent' => $this->ficheAdministrative($user, $agent),
+            'agent' => $this->ficheAdministrative($user, $agent, $perimetre),
             'diplomes' => $agent ? $agent->diplomes->map(fn (Diplome $d) => $d->toUiArray())->all() : [],
             // Un agent partage entre deux instituts a deux contrats : chaque
             // gestionnaire ne voit que le sien, et la paie qui va avec.
@@ -412,7 +412,7 @@ class PersonnelController extends Controller
      *
      * @return array<string, mixed>
      */
-    private function ficheAdministrative(User $user, ?Agent $agent): array
+    private function ficheAdministrative(User $user, ?Agent $agent, ?array $perimetre = null): array
     {
         $donnees = $agent?->toUiArray() ?? [
             'id' => null,
@@ -439,9 +439,19 @@ class PersonnelController extends Controller
             // l'avertissement quand elle doit trancher.
             'employeurChoisi' => $user->employeur_id,
             'employeurRetenu' => $user->employeurDeRattachement()?->toUiArray(),
-            'employeursPossibles' => collect($user->employeursPossibles())
+            /*
+             * Le selecteur offre les memes entites que le formulaire de
+             * contrat : celles du perimetre. Le limiter aux instituts du
+             * portail empechait de rattacher quelqu'un ailleurs, ce que la RH
+             * doit pouvoir faire.
+             */
+            'employeursPossibles' => Employeur::where('actif', true)
+                ->when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
+                ->orderBy('sigle')->get()
                 ->map(fn (Employeur $e) => ['id' => $e->id, 'sigle' => $e->sigle, 'nom' => $e->nom])->all(),
             'rattachementATrancher' => $user->rattachementATrancher(),
+            // Ce que le systeme deduirait si la RH ne choisissait rien.
+            'employeurDeduit' => $user->employeur_id ? null : $user->employeurDeRattachement()?->sigle,
         ];
     }
 

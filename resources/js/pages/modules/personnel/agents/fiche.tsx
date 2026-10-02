@@ -41,6 +41,8 @@ interface Agent {
     employeurRetenu: { id: number; sigle: string; nom: string } | null;
     employeursPossibles: { id: number; sigle: string; nom: string }[];
     rattachementATrancher: boolean;
+    /** Ce qui se déduirait si la RH ne choisissait rien. */
+    employeurDeduit: string | null;
 }
 
 interface Diplome {
@@ -321,9 +323,7 @@ function Rattachement({ agent }: { agent: Agent }) {
                     aria-label="Employeur de rattachement"
                 >
                     <option value="">
-                        {agent.employeursPossibles.length === 1
-                            ? `Automatique — ${agent.employeursPossibles[0].sigle}`
-                            : 'À choisir…'}
+                        {agent.employeurDeduit ? `Automatique — ${agent.employeurDeduit}` : 'Automatique — à choisir'}
                     </option>
                     {agent.employeursPossibles.map((employeur) => (
                         <option key={employeur.id} value={employeur.id}>
@@ -336,7 +336,7 @@ function Rattachement({ agent }: { agent: Agent }) {
             {agent.rattachementATrancher && (
                 <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
                     <Icon name="alert" className="h-3.5 w-3.5" />
-                    Cette personne relève de {agent.employeursPossibles.length} instituts : choisissez son employeur.
+                    Plusieurs entités sont possibles pour cette personne : choisissez son employeur.
                 </p>
             )}
         </div>

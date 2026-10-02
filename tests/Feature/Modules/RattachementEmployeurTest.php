@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Modules;
 
+use App\Models\Agent;
 use App\Models\Application;
+use App\Models\Contrat;
 use App\Models\Employeur;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -58,6 +60,25 @@ class RattachementEmployeurTest extends TestCase
         return $user;
     }
 
+    private function gestionnairePour(Employeur $employeur): User
+    {
+        $user = User::factory()->create();
+        $user->applications()->attach($this->module, ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])]);
+        $user->employeursRh()->attach($employeur);
+
+        return $user;
+    }
+
+    private function contrat(User $membre, Employeur $employeur, string $statut = 'actif'): Contrat
+    {
+        return Contrat::create([
+            'agent_id' => Agent::firstOrCreate(['user_id' => $membre->id])->id,
+            'employeur_id' => $employeur->id,
+            'type' => 'cdi', 'poste' => 'Enseignant', 'date_debut' => '2026-01-01',
+            'quotite' => 100, 'statut' => $statut,
+        ]);
+    }
+
     private function membre(array $instituts): User
     {
         $membre = User::factory()->create(['lastname' => 'NKOA']);
@@ -90,6 +111,82 @@ class RattachementEmployeurTest extends TestCase
 
         $this->assertNull($membre->employeurDeRattachement());
         $this->assertFalse($membre->rattachementATrancher());
+    }
+
+    /** Signer avec une entite, c'est en relever : le contrat passe avant l'institut. */
+    public function test_le_contrat_actif_determine_l_employeur(): void
+    {
+        $membre = $this->membre([$this->gsbm->id]);
+        $this->contrat($membre, $this->employeurIum);
+
+        $this->assertSame($this->employeurIum->id, $membre->fresh()->employeurDeRattachement()?->id);
+    }
+
+    public function test_deux_contrats_actifs_demandent_un_arbitrage(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+        $this->contrat($membre, $this->employeurIum);
+        $this->contrat($membre, $this->employeurGsbm);
+
+        $membre->refresh();
+        $this->assertNull($membre->employeurDeRattachement());
+        $this->assertTrue($membre->rattachementATrancher());
+    }
+
+    public function test_un_contrat_termine_ne_determine_rien(): void
+    {
+        $membre = $this->membre([$this->gsbm->id]);
+        $this->contrat($membre, $this->employeurIum, 'termine');
+
+        // On retombe sur l'institut.
+        $this->assertSame($this->employeurGsbm->id, $membre->fresh()->employeurDeRattachement()?->id);
+    }
+
+    public function test_le_choix_de_la_rh_prime_sur_le_contrat(): void
+    {
+        $membre = $this->membre([$this->gsbm->id]);
+        $this->contrat($membre, $this->employeurIum);
+        $membre->update(['employeur_id' => $this->employeurGsbm->id]);
+
+        $this->assertSame($this->employeurGsbm->id, $membre->fresh()->employeurDeRattachement()?->id);
+    }
+
+    public function test_le_perimetre_suit_le_contrat(): void
+    {
+        $membre = $this->membre([$this->gsbm->id]);
+        $this->contrat($membre, $this->employeurIum);
+
+        $gestionnaireIum = $this->gestionnairePour($this->employeurIum);
+        $gestionnaireGsbm = $this->gestionnairePour($this->employeurGsbm);
+
+        $this->actingAs($gestionnaireIum)->get(route('personnel.agents'))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
+
+        // Son institut d'origine ne le retient plus : c'est l'IUM qui l'emploie.
+        $this->actingAs($gestionnaireGsbm)->get(route('personnel.agents'))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 0));
+    }
+
+    /** Le selecteur offre les memes entites que le formulaire de contrat. */
+    public function test_le_selecteur_offre_toutes_les_entites_du_perimetre(): void
+    {
+        $membre = $this->membre([$this->gsbm->id]);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $membre))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                // GSBM et IUM, pas seulement l'institut de la personne.
+                ->has('agent.employeursPossibles', 2)
+                ->where('agent.employeurDeduit', 'GSBM'));
+    }
+
+    public function test_un_gestionnaire_ne_se_voit_offrir_que_ses_entites(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+
+        $this->actingAs($this->gestionnairePour($this->employeurIum))
+            ->get(route('personnel.agents.show', $membre))
+            ->assertInertia(fn (Assert $page) => $page->has('agent.employeursPossibles', 1));
     }
 
     // ----------------------------------------------------- le choix de la RH

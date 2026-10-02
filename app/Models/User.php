@@ -94,9 +94,33 @@ class User extends Authenticatable
             return $this->employeur;
         }
 
-        $possibles = $this->employeursPossibles();
+        // Le contrat passe avant l'institut : signer avec une entite, c'est
+        // en relever, quel que soit l'institut du portail auquel on est
+        // rattache. Deux contrats, aucune evidence : la RH tranche.
+        $parContrat = $this->employeursParContrat();
 
-        return count($possibles) === 1 ? $possibles[0] : null;
+        if ($parContrat !== []) {
+            return count($parContrat) === 1 ? $parContrat[0] : null;
+        }
+
+        $parInstitut = $this->employeursParInstitut();
+
+        return count($parInstitut) === 1 ? $parInstitut[0] : null;
+    }
+
+    /**
+     * Les employeurs avec lesquels elle a un contrat en cours.
+     *
+     * @return list<Employeur>
+     */
+    public function employeursParContrat(): array
+    {
+        $ids = $this->agent?->contrats()->where('statut', 'actif')
+            ->distinct()->pluck('employeur_id') ?? collect();
+
+        return $ids->isEmpty()
+            ? []
+            : Employeur::whereIn('id', $ids)->orderBy('sigle')->get()->all();
     }
 
     /**
@@ -104,22 +128,29 @@ class User extends Authenticatable
      *
      * @return list<Employeur>
      */
-    public function employeursPossibles(): array
+    public function employeursParInstitut(): array
     {
         $instituts = $this->relationLoaded('applications')
             ? $this->applications->where('type', 'application')->pluck('id')
             : $this->applications()->where('applications.type', 'application')->pluck('applications.id');
 
-        return Employeur::whereIn('application_id', $instituts)->orderBy('sigle')->get()->all();
+        return $instituts->isEmpty()
+            ? []
+            : Employeur::whereIn('application_id', $instituts)->orderBy('sigle')->get()->all();
     }
 
     /**
-     * La RH doit-elle trancher ? Plusieurs employeurs possibles, et aucun
-     * choix pose.
+     * La RH doit-elle trancher ? Rien ne se deduit, alors que plusieurs
+     * pistes existent.
      */
     public function rattachementATrancher(): bool
     {
-        return $this->employeur === null && count($this->employeursPossibles()) > 1;
+        if ($this->employeur_id && $this->employeur) {
+            return false;
+        }
+
+        return $this->employeurDeRattachement() === null
+            && (count($this->employeursParContrat()) > 1 || count($this->employeursParInstitut()) > 1);
     }
 
     public function scopeDuPerimetreRh(Builder $query, ?array $employeurs): Builder
@@ -131,17 +162,21 @@ class User extends Authenticatable
         $applications = Employeur::whereIn('id', $employeurs)
             ->whereNotNull('application_id')->pluck('application_id')->all();
 
+        // Sans choix pose, ou quand il ne mene plus nulle part.
+        $sansChoix = fn ($q) => $q->where(fn ($sub) => $sub
+            ->whereNull('employeur_id')
+            ->orWhereNotIn('employeur_id', Employeur::select('id')));
+
         return $query->where(fn ($sub) => $sub
-            // Le choix de la RH prime : rattachee ici, la personne y reste,
-            // quels que soient ses instituts.
+            // 1. Le choix de la RH prime : rattachee ici, la personne y reste.
             ->whereIn('employeur_id', $employeurs)
-            ->orWhereHas('agent.contrats', fn ($c) => $c->whereIn('employeur_id', $employeurs))
-            // A defaut de choix — ou quand celui-ci ne mene plus nulle part —
-            // c'est l'institut rattache qui designe l'entite.
-            ->orWhere(fn ($ni) => $ni
-                ->where(fn ($sans) => $sans
-                    ->whereNull('employeur_id')
-                    ->orWhereNotIn('employeur_id', Employeur::select('id')))
+            // 2. A defaut, le contrat en cours.
+            ->orWhere(fn ($q) => $sansChoix($q)
+                ->whereHas('agent.contrats', fn ($c) => $c
+                    ->where('statut', 'actif')->whereIn('employeur_id', $employeurs)))
+            // 3. A defaut de tout, l'institut du portail.
+            ->orWhere(fn ($q) => $sansChoix($q)
+                ->whereDoesntHave('agent.contrats', fn ($c) => $c->where('statut', 'actif'))
                 ->whereHas('applications', fn ($a) => $a->whereIn('applications.id', $applications))));
     }
 

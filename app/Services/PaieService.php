@@ -96,7 +96,8 @@ class PaieService
         $contrats = Contrat::with(['profil.indemnites', 'profil.retenues', 'echelon', 'agent'])
             ->where('employeur_id', $employeur->id)
             ->where('statut', 'actif')
-            ->whereDate('date_debut', '<=', $fin)
+            // Sans date de debut, le contrat est repute avoir toujours couru.
+            ->where(fn ($q) => $q->whereNull('date_debut')->orWhereDate('date_debut', '<=', $fin))
             ->where(fn ($q) => $q->whereNull('date_fin')->orWhereDate('date_fin', '>=', $debut))
             ->get();
 

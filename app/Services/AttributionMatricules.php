@@ -92,6 +92,39 @@ class AttributionMatricules
      * Annee de recrutement retenue pour une personne : celle de son premier
      * contrat, a defaut celle de la creation de son compte.
      */
+    /**
+     * Complete une saisie courte en matricule entier.
+     *
+     * A la connexion, taper les quatre chiffres suffit : le prefixe et
+     * l'annee se devinent. On essaie d'abord l'annee en cours, qui couvre le
+     * cas ordinaire ; a defaut, on cherche le seul matricule du groupe qui
+     * se termine par ces chiffres, pour que les recrutes d'autres annees en
+     * profitent aussi.
+     *
+     * Deux candidats, ou aucun : on rend la saisie telle quelle, et c'est
+     * l'authentification qui tranchera.
+     */
+    public function completer(string $saisi): string
+    {
+        $saisi = trim($saisi);
+
+        if (! preg_match('/^\d{1,'.self::LONGUEUR.'}$/', $saisi)) {
+            return $saisi;
+        }
+
+        $chiffres = str_pad($saisi, self::LONGUEUR, '0', STR_PAD_LEFT);
+        $cetteAnnee = $this->formater((int) date('Y'), (int) $chiffres);
+
+        if (User::where('matricule', $cetteAnnee)->exists()) {
+            return $cetteAnnee;
+        }
+
+        $candidats = User::where('matricule', 'like', self::PREFIXE.'%'.$chiffres)
+            ->limit(2)->pluck('matricule');
+
+        return $candidats->count() === 1 ? (string) $candidats->first() : $saisi;
+    }
+
     public function anneeDeRecrutement(User $personne): int
     {
         $debut = $personne->agent?->contrats()->min('date_debut');

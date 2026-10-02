@@ -588,6 +588,62 @@ class PersonnelModuleTest extends TestCase
                 ->where('referentiels.employeurs.0.posteDeclare', 'Agent polyvalent'));
     }
 
+    public function test_la_date_de_debut_du_contrat_nest_pas_obligatoire(): void
+    {
+        $agent = $this->agent();
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $agent->user), [
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi',
+            'poste' => 'Enseignant',
+            'quotite' => 100,
+            'statut' => 'actif',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertNull(Contrat::firstOrFail()->date_debut);
+    }
+
+    /** Le recrutement s'inscrit quand meme dans la carriere, date du jour. */
+    public function test_un_contrat_sans_date_inscrit_le_recrutement_au_jour_de_la_saisie(): void
+    {
+        $agent = $this->agent();
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $agent->user), [
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi', 'poste' => 'Enseignant', 'quotite' => 100, 'statut' => 'actif',
+        ]);
+
+        $this->assertDatabaseHas('evenements_carriere', [
+            'contrat_id' => Contrat::firstOrFail()->id,
+            'type' => 'recrutement',
+            'date_evenement' => now()->startOfDay(),
+        ]);
+    }
+
+    /** Sans date de debut, le contrat est repute avoir toujours couru. */
+    public function test_un_contrat_sans_date_de_debut_produit_son_bulletin(): void
+    {
+        $this->contrat($this->agent(), ['date_debut' => null]);
+
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+
+        $this->assertSame(1, Bulletin::count());
+        $this->assertSame(200000.0, (float) Bulletin::firstOrFail()->salaire_base);
+    }
+
+    public function test_une_date_de_fin_seule_est_acceptee(): void
+    {
+        $agent = $this->agent();
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $agent->user), [
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdd', 'poste' => 'Enseignant', 'quotite' => 100, 'statut' => 'actif',
+            'date_fin' => '2027-08-31',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertNull(Contrat::firstOrFail()->date_debut);
+    }
+
     public function test_le_poste_du_contrat_nest_pas_obligatoire(): void
     {
         $membre = User::factory()->create(['lastname' => 'ESSOMBA', 'poste' => null]);

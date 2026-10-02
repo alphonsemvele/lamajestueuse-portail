@@ -731,7 +731,9 @@ class PersonnelController extends Controller
         // Le recrutement s'inscrit tout seul dans la carriere.
         $agent->evenements()->create([
             'contrat_id' => $contrat->id,
-            'date_evenement' => $contrat->date_debut,
+            // La carriere date l'evenement : a defaut de date de debut, le
+            // jour de la saisie fait foi.
+            'date_evenement' => $contrat->date_debut ?? now()->toDateString(),
             'type' => 'recrutement',
             'libelle' => trim(($contrat->poste ?: __('Poste à préciser')).' — '.$contrat->employeur?->sigle, ' —'),
             'saisi_par' => $request->user()->id,
@@ -785,8 +787,12 @@ class PersonnelController extends Controller
             'employeur_id' => ['required', 'exists:employeurs,id'],
             'type' => ['required', Rule::in(array_keys(Contrat::TYPES))],
             'poste' => ['nullable', 'string', 'max:255'],
-            'date_debut' => ['required', 'date'],
-            'date_fin' => ['nullable', 'date', 'after:date_debut'],
+            'date_debut' => ['nullable', 'date'],
+            // « after » n'a de sens que s'il y a un debut a comparer.
+            'date_fin' => array_filter([
+                'nullable', 'date',
+                $request->filled('date_debut') ? 'after:date_debut' : null,
+            ]),
             'quotite' => ['required', 'integer', 'min:1', 'max:100'],
             'profil_salaire_id' => ['nullable', 'exists:profils_salaire,id'],
             'echelon_id' => ['nullable', 'exists:echelons,id'],

@@ -1008,12 +1008,15 @@ function Contrats({
                             />
                         </Champ>
 
-                        <Champ libelle="Début" erreur={formulaire.errors.date_debut}>
+                        <Champ
+                            libelle="Début (facultatif)"
+                            erreur={formulaire.errors.date_debut}
+                            aide="Laissée vide, le contrat est réputé courir depuis toujours."
+                        >
                             <Input
                                 type="date"
                                 value={formulaire.data.date_debut}
                                 onChange={(event) => formulaire.setData('date_debut', event.target.value)}
-                                required
                             />
                         </Champ>
 

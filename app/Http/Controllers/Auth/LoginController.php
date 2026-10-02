@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\AccessLog;
+use App\Services\AttributionMatricules;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -37,6 +38,11 @@ class LoginController extends Controller
         // On accepte l'adresse professionnelle ou le matricule.
         $field = filter_var($credentials['username'], FILTER_VALIDATE_EMAIL) ? 'email' : 'matricule';
 
+        // Quatre chiffres suffisent : le prefixe et l'annee se completent.
+        if ($field === 'matricule') {
+            $credentials['username'] = app(AttributionMatricules::class)->completer($credentials['username']);
+        }
+
         $attempt = Auth::attempt(
             [$field => $credentials['username'], 'password' => $credentials['password']],
             $request->boolean('remember')
@@ -46,7 +52,7 @@ class LoginController extends Controller
             RateLimiter::hit($this->throttleKey($request));
 
             throw ValidationException::withMessages([
-                'username' => __("Identifiants incorrects. Vérifiez votre adresse ou votre matricule."),
+                'username' => __('Identifiants incorrects. Vérifiez votre adresse ou votre matricule.'),
             ]);
         }
 
@@ -117,7 +123,7 @@ class LoginController extends Controller
         $seconds = RateLimiter::availableIn($this->throttleKey($request));
 
         throw ValidationException::withMessages([
-            'username' => __("Trop de tentatives. Réessayez dans :seconds secondes.", ['seconds' => $seconds]),
+            'username' => __('Trop de tentatives. Réessayez dans :seconds secondes.', ['seconds' => $seconds]),
         ]);
     }
 

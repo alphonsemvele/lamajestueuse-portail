@@ -33,6 +33,15 @@ export default function Login() {
         post(routes.login);
     };
 
+    /*
+     * Saisie de 1 à 4 chiffres : le portail la complétera en LM-AAxxxx. On
+     * montre le matricule reconstitué, sans toucher au champ — le serveur
+     * reste seul juge, et il essaie aussi les autres années de recrutement.
+     */
+    const matriculeDevine = /^\d{1,4}$/.test(data.username.trim())
+        ? `LM-${String(new Date().getFullYear()).slice(-2)}${data.username.trim().padStart(4, '0')}`
+        : null;
+
     const hour = new Date().getHours();
     const greeting = hour < 12 ? t('Bonjour') : hour < 18 ? t('Bon après-midi') : t('Bonsoir');
 
@@ -132,9 +141,20 @@ export default function Login() {
                                         placeholder={t('adresse professionnelle ou matricule')}
                                         className={cn('field-input pl-10', errors.username && 'border-red-400 focus:border-red-500 focus:ring-red-500/15')}
                                     />
+
+                                    {/*
+                                      * Quatre chiffres saisis : on montre le
+                                      * matricule que le portail reconstituera,
+                                      * pour que personne ne doute du préfixe.
+                                      */}
+                                    {matriculeDevine && (
+                                        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 rounded-md bg-teal-50 px-1.5 py-0.5 text-xs font-medium tabular-nums text-teal-700 dark:bg-teal-500/10 dark:text-teal-300">
+                                            {matriculeDevine}
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="mt-1.5 text-xs text-ink-400">
-                                    {t('Votre matricule ou votre adresse professionnelle, au choix.')}
+                                    {t('Votre adresse professionnelle, ou les 4 chiffres de votre matricule : LM-26 se complète tout seul.')}
                                 </p>
                             </div>
 

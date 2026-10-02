@@ -160,6 +160,108 @@ class MonProfilTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->has('diplomes', 0));
     }
 
+    // ------------------------------------------- ce que je corrige moi-meme
+
+    public function test_je_corrige_mes_informations(): void
+    {
+        $moi = $this->moi();
+
+        $this->actingAs($moi)->post(route('profil.mettre-a-jour'), [
+            'name' => 'Célestin',
+            'lastname' => 'NSOE',
+            'phone' => '680646122',
+            'email' => 'celestin@lamajestueuse.com',
+            'lieu_naissance' => 'Yaoundé',
+            'situation_familiale' => 'marie',
+            'enfants' => 2,
+            'adresse' => 'Bastos, Yaoundé',
+            'urgence_nom' => 'Marie NSOE',
+            'urgence_telephone' => '690000000',
+        ])->assertSessionHasNoErrors();
+
+        $moi->refresh();
+
+        $this->assertSame('Célestin', $moi->name);
+        $this->assertSame('celestin@lamajestueuse.com', $moi->email);
+        $this->assertSame('680646122', $moi->phone);
+
+        // Le dossier nait a la premiere correction s'il n'existait pas.
+        $this->assertSame('Yaoundé', $moi->agent->lieu_naissance);
+        $this->assertSame('marie', $moi->agent->situation_familiale);
+        $this->assertSame(2, (int) $moi->agent->enfants);
+        $this->assertSame('Marie NSOE', $moi->agent->urgence_nom);
+    }
+
+    public function test_je_change_ma_photo_de_profil(): void
+    {
+        Storage::fake('public');
+        $moi = $this->moi();
+
+        $this->actingAs($moi)->post(route('profil.mettre-a-jour'), [
+            'name' => $moi->name,
+            'photo' => UploadedFile::fake()->image('moi.jpg', 300, 300),
+        ])->assertSessionHasNoErrors();
+
+        $moi->refresh();
+
+        $this->assertNotNull($moi->avatar);
+        Storage::disk('public')->assertExists($moi->avatar);
+    }
+
+    public function test_un_envoi_sans_photo_garde_celle_en_place(): void
+    {
+        $moi = $this->moi();
+        $moi->update(['avatar' => 'utilisateurs/photos/avant.png']);
+
+        $this->actingAs($moi)->post(route('profil.mettre-a-jour'), ['name' => 'Célestin']);
+
+        $this->assertSame('utilisateurs/photos/avant.png', $moi->fresh()->avatar);
+    }
+
+    /** Le matricule et le poste s'attribuent : ils ne se declarent pas. */
+    public function test_je_ne_change_ni_mon_matricule_ni_mon_poste(): void
+    {
+        $moi = $this->moi();
+        $matricule = $moi->matricule;
+
+        $this->actingAs($moi)->post(route('profil.mettre-a-jour'), [
+            'name' => $moi->name,
+            'matricule' => 'LM-269999',
+            'poste' => 'Directeur général',
+        ])->assertSessionHasNoErrors();
+
+        $moi->refresh();
+
+        $this->assertSame($matricule, $moi->matricule);
+        $this->assertNotSame('Directeur général', $moi->poste);
+    }
+
+    public function test_je_ne_prends_pas_l_adresse_d_un_autre(): void
+    {
+        $voisin = User::factory()->create(['email' => 'occupee@lamajestueuse.com']);
+        $moi = $this->moi();
+
+        $this->actingAs($moi)->post(route('profil.mettre-a-jour'), [
+            'name' => $moi->name,
+            'email' => 'occupee@lamajestueuse.com',
+        ])->assertSessionHasErrors('email');
+
+        unset($voisin);
+    }
+
+    public function test_le_formulaire_recoit_mes_valeurs_brutes(): void
+    {
+        $moi = $this->moi();
+        Agent::create(['user_id' => $moi->id, 'date_naissance' => '1990-05-14', 'lieu_naissance' => 'Douala']);
+
+        $this->actingAs($moi)->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                // Le formulaire a besoin de la date en format ISO.
+                ->where('saisie.date_naissance', '1990-05-14')
+                ->where('saisie.lieu_naissance', 'Douala')
+                ->where('saisie.name', $moi->name));
+    }
+
     // -------------------------------------------------- ce que je soumets
 
     public function test_je_declare_un_diplome_qui_attend_la_validation(): void

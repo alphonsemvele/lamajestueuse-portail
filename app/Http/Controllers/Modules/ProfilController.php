@@ -77,6 +77,34 @@ class ProfilController extends Controller
                 'anciennete' => $agent->anciennete(),
             ] : ['ouvert' => false],
 
+            /*
+             * Les memes donnees, brutes, pour le formulaire : la date y est
+             * en format ISO, et chaque champ vaut '' plutot que null pour
+             * qu'un champ vide reste un champ vide et non « null ».
+             */
+            'saisie' => [
+                'name' => $moi->name,
+                'lastname' => $moi->lastname ?? '',
+                'email' => $moi->email ?? '',
+                'phone' => $moi->phone ?? '',
+                'date_naissance' => $agent?->date_naissance?->format('Y-m-d') ?? '',
+                'lieu_naissance' => $agent?->lieu_naissance ?? '',
+                'situation_familiale' => $agent?->situation_familiale ?? '',
+                'enfants' => (int) ($agent?->enfants ?? 0),
+                'cni' => $agent?->cni ?? '',
+                'numero_cnps' => $agent?->numero_cnps ?? '',
+                'adresse' => $agent?->adresse ?? '',
+                'urgence_nom' => $agent?->urgence_nom ?? '',
+                'urgence_telephone' => $agent?->urgence_telephone ?? '',
+            ],
+
+            'situationsFamiliales' => [
+                'celibataire' => 'Célibataire',
+                'marie' => 'Marié(e)',
+                'divorce' => 'Divorcé(e)',
+                'veuf' => 'Veuf(ve)',
+            ],
+
             'instituts' => $moi->applications->map(fn ($institut) => [
                 'id' => $institut->id,
                 'nom' => $institut->name,
@@ -154,6 +182,67 @@ class ProfilController extends Controller
                 'valeur' => (float) $r->pivot->valeur,
             ])->all() ?? [],
         ];
+    }
+
+    // --------------------------------------------- ce que je corrige moi-meme
+
+    /**
+     * Je corrige mes informations.
+     *
+     * Tout ce qui me concerne en propre — identite, contacts, photo, dossier
+     * administratif — se modifie ici : je le connais mieux que quiconque, et
+     * attendre le service du personnel pour un changement de telephone n'a
+     * pas de sens.
+     *
+     * Deux choses restent hors de ma main : le matricule et le poste. Ils ne
+     * se declarent pas, ils s'attribuent — les corriger soi-meme viderait de
+     * son sens tout ce qui en depend, de la paie aux bulletins.
+     */
+    public function mettreAJour(Request $request): RedirectResponse
+    {
+        $this->autoriserAcces($request->user());
+
+        $moi = $request->user();
+
+        $donnees = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+            'lastname' => ['nullable', 'string', 'max:80'],
+            'email' => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($moi->id)],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+
+            'date_naissance' => ['nullable', 'date', 'before:today'],
+            'lieu_naissance' => ['nullable', 'string', 'max:120'],
+            'situation_familiale' => ['nullable', Rule::in(['celibataire', 'marie', 'divorce', 'veuf'])],
+            'enfants' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'cni' => ['nullable', 'string', 'max:40'],
+            'numero_cnps' => ['nullable', 'string', 'max:40'],
+            'adresse' => ['nullable', 'string', 'max:255'],
+            'urgence_nom' => ['nullable', 'string', 'max:120'],
+            'urgence_telephone' => ['nullable', 'string', 'max:40'],
+        ], [
+            'email.unique' => __('Cette adresse est déjà utilisée par un autre compte.'),
+            'photo.max' => __('La photo ne doit pas dépasser 4 Mo.'),
+        ]);
+
+        $moi->update([
+            'name' => $donnees['name'],
+            'lastname' => $donnees['lastname'] ?? null,
+            'email' => ($donnees['email'] ?? null) ?: null,
+            'phone' => $donnees['phone'] ?? null,
+            'avatar' => $request->hasFile('photo')
+                ? $request->file('photo')->store('utilisateurs/photos', 'public')
+                : $moi->avatar,
+        ]);
+
+        $this->monDossier($moi)->update(
+            collect($donnees)->only([
+                'date_naissance', 'lieu_naissance', 'situation_familiale', 'enfants',
+                'cni', 'numero_cnps', 'adresse', 'urgence_nom', 'urgence_telephone',
+            ])->all()
+        );
+
+        return back()->with('status', __('Vos informations sont à jour.'));
     }
 
     // ----------------------------------------------------- ce que je depose

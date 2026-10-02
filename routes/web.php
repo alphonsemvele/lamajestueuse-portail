@@ -82,6 +82,7 @@ Route::middleware('auth')->group(function () {
      */
     Route::prefix('mon-profil')->name('profil.')->group(function () {
         Route::get('/', [ProfilController::class, 'index'])->name('index');
+        Route::post('/', [ProfilController::class, 'mettreAJour'])->name('mettre-a-jour');
         Route::post('/diplomes', [ProfilController::class, 'soumettreDiplome'])->name('diplomes.store');
         Route::delete('/diplomes/{diplome}', [ProfilController::class, 'retirerDiplome'])->name('diplomes.destroy');
         Route::post('/documents', [ProfilController::class, 'soumettreDocument'])->name('documents.store');

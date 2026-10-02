@@ -78,13 +78,64 @@ interface Props {
     diplomes: Diplome[];
     documents: Document[];
     referentiels: { niveaux: string[]; typesDocument: Record<string, string> };
+    saisie: Saisie;
+    situationsFamiliales: Record<string, string>;
 }
 
 type Onglet = 'informations' | 'parcours' | 'remuneration' | 'pieces';
 
+/** Ce que chacun peut corriger de lui-même. */
+interface Saisie {
+    name: string;
+    lastname: string;
+    email: string;
+    phone: string;
+    date_naissance: string;
+    lieu_naissance: string;
+    situation_familiale: string;
+    enfants: number;
+    cni: string;
+    numero_cnps: string;
+    adresse: string;
+    urgence_nom: string;
+    urgence_telephone: string;
+}
+
+/** Les champs libres du formulaire, hors la liste déroulante et la photo. */
+const CHAMPS: [keyof Saisie, string, string][] = [
+    ['name', 'Prénom', 'text'],
+    ['lastname', 'Nom de famille', 'text'],
+    ['email', 'Adresse professionnelle', 'email'],
+    ['phone', 'Téléphone', 'tel'],
+    ['date_naissance', 'Date de naissance', 'date'],
+    ['lieu_naissance', 'Lieu de naissance', 'text'],
+    ['cni', 'Numéro de CNI', 'text'],
+    ['numero_cnps', 'Numéro CNPS', 'text'],
+    ['enfants', 'Enfants à charge', 'number'],
+    ['adresse', 'Adresse', 'text'],
+    ['urgence_nom', 'Personne à prévenir', 'text'],
+    ['urgence_telephone', 'Son téléphone', 'tel'],
+];
+
 const fcfa = (montant: number) => `${new Intl.NumberFormat('fr-FR').format(Math.round(montant))} F`;
 
-/** Un chiffre clé de l'en-tête. */
+/**
+ * Un repère chiffré, sur une seule ligne.
+ *
+ * En carte, les quatre prenaient une bande entière pour quatre nombres — et
+ * sur un téléphone, quatre bandes empilées avant d'atteindre le contenu.
+ */
+function Repere({ icon, valeur, libelle }: { icon: string; valeur: string; libelle: string }) {
+    return (
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-ink-100/70 px-2.5 py-1 text-xs text-ink-600 dark:bg-white/5 dark:text-ink-300">
+            <Icon name={icon} className="h-3.5 w-3.5 text-ink-400" />
+            <span className="font-semibold text-ink-900 dark:text-white">{valeur}</span>
+            {libelle}
+        </span>
+    );
+}
+
+/** Un chiffre clé encadré, pour la rémunération. */
 function Chiffre({ icon, valeur, libelle }: { icon: string; valeur: string; libelle: string }) {
     return (
         <div className="flex items-center gap-3 rounded-xl border border-ink-200 px-3.5 py-2.5 dark:border-white/10">
@@ -165,10 +216,25 @@ export default function MonProfil({
     diplomes,
     documents,
     referentiels,
+    saisie,
+    situationsFamiliales,
 }: Props) {
     const [onglet, setOnglet] = useState<Onglet>('informations');
+    const [modification, setModification] = useState(false);
+    const [apercuPhoto, setApercuPhoto] = useState<string | null>(identite.photoUrl);
     const [ouvertDiplome, setOuvertDiplome] = useState(false);
     const [ouvertDocument, setOuvertDocument] = useState(false);
+
+    const mesInfos = useForm({ ...saisie, photo: null as File | null });
+
+    const enregistrer = (event: FormEvent) => {
+        event.preventDefault();
+        mesInfos.post(routes.profil.index, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => setModification(false),
+        });
+    };
 
     const diplome = useForm({ intitule: '', niveau: '', specialite: '', etablissement: '', annee_obtention: '' });
     const document = useForm({ type: 'cv', libelle: '', note: '', fichier: null as File | null });
@@ -227,18 +293,49 @@ export default function MonProfil({
 
                             <div className="min-w-0 flex-1 pb-1">
                                 <h1 className="truncate text-xl font-semibold text-ink-900 dark:text-white">{identite.nom}</h1>
-                                <p className="truncate text-sm text-ink-500 dark:text-ink-400">
-                                    {identite.poste ?? 'Poste à préciser'}
-                                    {identite.employeur && ` · ${identite.employeur.sigle}`}
+
+                                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink-500 dark:text-ink-400">
+                                    {/* Le matricule tient sa place a cote du nom : c'est lui
+                                        qu'on cherche, pas une mention releguee au bout de la ligne. */}
+                                    <span className="rounded-lg bg-ink-100 px-2 py-0.5 font-mono text-[13px] font-medium text-ink-800 dark:bg-white/10 dark:text-ink-100">
+                                        {identite.matricule ?? 'matricule à venir'}
+                                    </span>
+                                    <span className="truncate">
+                                        {identite.poste ?? 'Poste à préciser'}
+                                        {identite.employeur && ` · ${identite.employeur.sigle}`}
+                                    </span>
                                 </p>
                             </div>
 
-                            <span className="mb-1 rounded-lg bg-ink-100 px-2.5 py-1 font-mono text-[13px] text-ink-700 dark:bg-white/10 dark:text-ink-200">
-                                {identite.matricule ?? 'matricule à venir'}
-                            </span>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOnglet('informations');
+                                    setModification(true);
+                                }}
+                                className="mb-1 inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-ink-900 dark:text-ink-200 dark:hover:bg-white/5"
+                            >
+                                <Icon name="pencil" className="h-4 w-4" />
+                                Modifier
+                            </button>
                         </div>
 
-                        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-ink-600 dark:text-ink-300">
+                        <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                            <Repere
+                                icon="building"
+                                valeur={String(instituts.length)}
+                                libelle={instituts.length > 1 ? 'instituts' : 'institut'}
+                            />
+                            <Repere icon="briefcase" valeur={String(contratsActifs)} libelle="contrat(s)" />
+                            <Repere
+                                icon="calendar"
+                                valeur={dossier.anciennete ? `${dossier.anciennete}` : '—'}
+                                libelle="an(s) dans le groupe"
+                            />
+                            {enAttente > 0 && <Repere icon="document" valeur={String(enAttente)} libelle="pièce(s) en attente" />}
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-ink-600 dark:text-ink-300">
                             {identite.email && (
                                 <span className="inline-flex items-center gap-1.5">
                                     <Icon name="mail" className="h-3.5 w-3.5 text-ink-400" />
@@ -290,24 +387,83 @@ export default function MonProfil({
                     </div>
                 </Card>
 
-                {/* --------------------------------------------- chiffres clés */}
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <Chiffre
-                        icon="building"
-                        valeur={String(instituts.length)}
-                        libelle={instituts.length > 1 ? 'instituts rattachés' : 'institut rattaché'}
-                    />
-                    <Chiffre icon="briefcase" valeur={String(contratsActifs)} libelle="contrat(s) en cours" />
-                    <Chiffre
-                        icon="calendar"
-                        valeur={dossier.anciennete ? `${dossier.anciennete} an(s)` : '—'}
-                        libelle="ancienneté dans le groupe"
-                    />
-                    <Chiffre icon="document" valeur={String(enAttente)} libelle="pièce(s) en attente" />
-                </div>
-
                 {/* ------------------------------------------------ informations */}
-                {onglet === 'informations' && (
+                {onglet === 'informations' && modification && (
+                    <Bloc
+                        titre="Modifier mes informations"
+                        sous="Vous les connaissez mieux que quiconque. Le matricule et le poste restent attribués par le service du personnel."
+                        action={
+                            <button
+                                type="button"
+                                onClick={() => setModification(false)}
+                                className="rounded-xl border border-ink-200 px-3.5 py-2 text-sm text-ink-700 dark:border-white/10 dark:text-ink-200"
+                            >
+                                Annuler
+                            </button>
+                        }
+                    >
+                        <form onSubmit={enregistrer} className="space-y-5">
+                            <div className="flex flex-wrap items-center gap-4">
+                                <Avatar url={apercuPhoto} initials={identite.initiales ?? '?'} className="h-16 w-16 text-lg" />
+                                <div>
+                                    <label className="text-xs text-ink-600 dark:text-ink-300">Photo de profil</label>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(event) => {
+                                            const fichier = event.target.files?.[0] ?? null;
+                                            mesInfos.setData('photo', fichier);
+                                            setApercuPhoto(fichier ? URL.createObjectURL(fichier) : identite.photoUrl);
+                                        }}
+                                        className="mt-1 block text-sm text-ink-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-2 file:text-sm file:text-ink-700 dark:text-ink-300 dark:file:bg-white/10 dark:file:text-ink-200"
+                                    />
+                                    {mesInfos.errors.photo && <p className="mt-1 text-xs text-red-600">{mesInfos.errors.photo}</p>}
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                {CHAMPS.map(([champ, libelle, type]) => (
+                                    <div key={String(champ)}>
+                                        <label className="text-xs text-ink-600 dark:text-ink-300">{libelle}</label>
+                                        <Input
+                                            type={type}
+                                            value={String(mesInfos.data[champ] ?? '')}
+                                            onChange={(event) => mesInfos.setData(champ, event.target.value)}
+                                        />
+                                        {mesInfos.errors[champ] && (
+                                            <p className="mt-1 text-xs text-red-600">{mesInfos.errors[champ]}</p>
+                                        )}
+                                    </div>
+                                ))}
+
+                                <div>
+                                    <label className="text-xs text-ink-600 dark:text-ink-300">Situation familiale</label>
+                                    <Select
+                                        value={String(mesInfos.data.situation_familiale ?? '')}
+                                        onChange={(event) => mesInfos.setData('situation_familiale', event.target.value)}
+                                    >
+                                        <option value="">Non précisée</option>
+                                        {Object.entries(situationsFamiliales).map(([cle, libelle]) => (
+                                            <option key={cle} value={cle}>
+                                                {libelle}
+                                            </option>
+                                        ))}
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <button
+                                type="submit"
+                                disabled={mesInfos.processing}
+                                className="rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-teal-700 disabled:opacity-60"
+                            >
+                                {mesInfos.processing ? 'Enregistrement…' : 'Enregistrer'}
+                            </button>
+                        </form>
+                    </Bloc>
+                )}
+
+                {onglet === 'informations' && !modification && (
                     <div className="grid gap-5 lg:grid-cols-2">
                         <Bloc titre="Mes instituts" sous="Les entités du groupe auxquelles vous êtes rattaché.">
                             {instituts.length === 0 ? (

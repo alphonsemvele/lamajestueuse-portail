@@ -2,6 +2,7 @@ import { router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Icon from '@/components/icon';
 import MediaField from '@/components/media-field';
+import ToutCocher from '@/components/tout-cocher';
 import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
 import { routes } from '@/lib/utils';
@@ -959,9 +960,41 @@ function Profils({
             ...formulaire.data.retenues.map((ligne) => `retenue:${ligne.id}`),
         ].filter((autre) => autre !== cle);
 
+    /** Coche ou décoche toute une colonne du profil d'un coup. */
+    const toutBasculer = (champ: 'indemnites' | 'retenues', elements: Element[], ids: number[]) => {
+        const lignes = formulaire.data[champ];
+
+        formulaire.setData(
+            champ,
+            ids.length === 0
+                ? []
+                : elements
+                      .filter((element) => ids.includes(element.id))
+                      .map(
+                          (element) =>
+                              lignes.find((ligne) => ligne.id === element.id) ??
+                              retirees[`${champ}:${element.id}`] ?? {
+                                  id: element.id,
+                                  type_calcul: 'fixe' as const,
+                                  valeur: 0,
+                                  base_calcul: null,
+                              },
+                      ),
+        );
+    };
+
     const selecteur = (champ: 'indemnites' | 'retenues', elements: Element[], titre: string) => (
         <div>
-            <p className="mb-2 text-[13px] font-medium text-ink-700 dark:text-ink-200">{titre}</p>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[13px] font-medium text-ink-700 dark:text-ink-200">{titre}</p>
+
+                <ToutCocher
+                    valeurs={elements.map((element) => element.id)}
+                    selection={formulaire.data[champ].map((ligne) => ligne.id)}
+                    onChange={(selection) => toutBasculer(champ, elements, selection)}
+                    className="text-xs"
+                />
+            </div>
             <div className="space-y-2">
                 {elements.length === 0 && <p className="text-xs text-ink-400">Aucun élément défini.</p>}
 

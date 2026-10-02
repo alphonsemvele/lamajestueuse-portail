@@ -4,6 +4,7 @@ import ChampMotDePasse from '@/components/champ-mot-de-passe';
 import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
 import Label from '@/components/label';
+import ToutCocher from '@/components/tout-cocher';
 import LocaleSwitch from '@/components/locale-switch';
 import Logo from '@/components/logo';
 import PhotoField from '@/components/photo-field';
@@ -266,7 +267,17 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                     {t("Si vous savez déjà où vous exercez, cochez les instituts concernés. Sinon, laissez vide : l'administration vous attribuera vos accès à la validation.")}
                                 </p>
 
-                                <div className="mt-5 space-y-3">
+                                {instituts.length > 1 && (
+                                    <ToutCocher
+                                        valeurs={instituts.map((institut) => institut.id)}
+                                        selection={data.instituts}
+                                        onChange={(selection) => setData('instituts', selection)}
+                                        libelle={t('Tout cocher')}
+                                        className="mt-4"
+                                    />
+                                )}
+
+                                <div className="mt-4 space-y-3">
                                     {instituts.length === 0 && (
                                         <p className="rounded-xl border border-dashed border-ink-300 px-4 py-10 text-center text-sm text-ink-400 dark:border-white/15">
                                             {t("Aucun institut n'est disponible pour le moment.")}

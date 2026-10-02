@@ -5,6 +5,7 @@ import Icon from '@/components/icon';
 import Spinner from '@/components/spinner';
 import SwitchField from '@/components/switch-field';
 import Label from '@/components/label';
+import ToutCocher from '@/components/tout-cocher';
 import MultiSelect from '@/components/multi-select';
 import PhotoField from '@/components/photo-field';
 import { Card, Input, Select } from '@/components/ui';
@@ -155,7 +156,15 @@ export default function UserForm({ user, applications, assigned, postes }: Props
                             {t('Le portail décide quelles applications s’affichent. Les rôles choisis sont transmis à l’application au moment de la connexion : ils y déterminent les menus et les pages accessibles.')}
                         </p>
 
-                        <div className="mt-5 space-y-2.5">
+                        <ToutCocher
+                            valeurs={applications.map((application) => application.id)}
+                            selection={data.applications}
+                            onChange={(selection) => setData('applications', selection)}
+                            libelle={t('Donner accès à toutes')}
+                            className="mt-4"
+                        />
+
+                        <div className="mt-3 space-y-2.5">
                             {applications.map((application) => {
                                 const options = application.roleCatalogue.map((role) => ({ value: role.code, label: role.libelle, description: role.description }));
                                 const error = errors[`roles.${application.id}` as keyof typeof errors];

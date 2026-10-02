@@ -2,6 +2,7 @@ import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
+import ToutCocher from '@/components/tout-cocher';
 import Spinner from '@/components/spinner';
 import MultiSelect from '@/components/multi-select';
 import { Alert, Card, Input } from '@/components/ui';
@@ -162,6 +163,13 @@ export default function ApplicationAccess({ application, users, granted, referen
                             />
                             {t('Seulement le personnel ayant accès')}
                         </label>
+                        <ToutCocher
+                            valeurs={visible.map((user) => user.id)}
+                            selection={data.users}
+                            onChange={(selection) => setData('users', selection)}
+                            libelle={t('Tout cocher')}
+                        />
+
                         <p className="text-sm text-ink-500 dark:text-ink-400">
                             {choice(':count accès actuellement accordé|:count accès actuellement accordés', data.users.length)}
                         </p>

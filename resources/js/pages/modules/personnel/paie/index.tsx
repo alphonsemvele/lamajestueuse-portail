@@ -57,8 +57,12 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
             { preserveScroll: true, onStart: () => setEnCours(true), onFinish: () => setEnCours(false) },
         );
 
-    const traiter = (action: 'valider' | 'payer') => {
+    const traiter = (action: 'valider' | 'payer' | 'supprimer') => {
         if (selection.length === 0) return;
+
+        if (action === 'supprimer' && !confirm(`Supprimer ${selection.length} bulletin(s) ? Cette action est définitive.`)) {
+            return;
+        }
 
         router.post(
             routes.personnel.paieLot,
@@ -72,10 +76,38 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
         );
     };
 
+    const vider = () => {
+        const periodeLue = `${MOIS[periode.mois - 1]} ${periode.annee}`;
+
+        if (!confirm(`Supprimer tous les bulletins de ${periodeLue} ? Cette action est définitive.`)) return;
+
+        // Les bulletins payes ne partent qu'apres un second accord explicite.
+        const payes = repartition.paye;
+
+        if (payes > 0 && !confirm(`${payes} bulletin(s) de ${periodeLue} sont déjà marqués payés.\n\nLes supprimer aussi ?`)) {
+            return;
+        }
+
+        router.delete(routes.personnel.paieVider, {
+            data: {
+                mois: periode.mois,
+                annee: periode.annee,
+                employeur_id: filtres.employeur ?? '',
+                inclure_payes: payes > 0,
+            },
+            preserveScroll: true,
+            onStart: () => setEnCours(true),
+            onFinish: () => setEnCours(false),
+            onSuccess: () => setSelection([]),
+        });
+    };
+
     const basculer = (id: number) =>
         setSelection((actuelle) => (actuelle.includes(id) ? actuelle.filter((item) => item !== id) : [...actuelle, id]));
 
-    const selectionnables = bulletins.filter((bulletin) => bulletin.statut !== 'paye').map((bulletin) => bulletin.id);
+    // Tout bulletin se coche, y compris paye : il faut pouvoir le supprimer.
+    // Valider et payer signalent eux-memes ce qu'ils refusent.
+    const selectionnables = bulletins.map((bulletin) => bulletin.id);
     const toutSelectionne = selectionnables.length > 0 && selectionnables.every((id) => selection.includes(id));
 
     const annees = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - 3 + index);
@@ -133,16 +165,24 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                     </Select>
 
                     {peutGerer && (
-                        <Bouton icon="refresh" onClick={generer} disabled={enCours} className="ml-auto">
-                            {enCours ? 'Préparation…' : 'Préparer les bulletins'}
-                        </Bouton>
+                        <div className="ml-auto flex flex-wrap gap-2">
+                            {masse.bulletins > 0 && (
+                                <Bouton variante="danger" icon="trash" onClick={vider} disabled={enCours}>
+                                    Vider la période
+                                </Bouton>
+                            )}
+                            <Bouton icon="refresh" onClick={generer} disabled={enCours}>
+                                {enCours ? 'Préparation…' : 'Préparer les bulletins'}
+                            </Bouton>
+                        </div>
                     )}
                 </div>
 
                 {peutGerer && (
                     <p className="mt-2 text-xs text-ink-500 dark:text-ink-400">
                         La préparation crée les brouillons manquants et recalcule ceux qui existent. Les bulletins
-                        validés ou payés ne bougent plus.
+                        validés ou payés ne bougent plus — pour les refaire, supprimez-les puis relancez la
+                        préparation. Les ajustements du mois sont conservés et se réappliquent.
                     </p>
                 )}
             </Card>
@@ -168,6 +208,9 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                         </Bouton>
                         <Bouton icon="wallet" onClick={() => traiter('payer')} disabled={enCours}>
                             Marquer payés
+                        </Bouton>
+                        <Bouton variante="danger" icon="trash" onClick={() => traiter('supprimer')} disabled={enCours}>
+                            Supprimer
                         </Bouton>
                     </div>
                 </div>

@@ -264,6 +264,23 @@ export default function DetailBulletin({ bulletin, contrat, employeur, agent, aj
                                     Marquer payé
                                 </Bouton>
                             )}
+                            <Bouton
+                                variante="danger"
+                                icon="trash"
+                                onClick={() => {
+                                    const avertissement =
+                                        bulletin.statut === 'paye'
+                                            ? 'Ce bulletin est marqué payé. Le supprimer ?'
+                                            : 'Supprimer ce bulletin ?';
+
+                                    if (confirm(`${avertissement} Cette action est définitive.`)) {
+                                        action.delete(routes.personnel.bulletinSupprimer(bulletin.id));
+                                    }
+                                }}
+                                disabled={action.processing}
+                            >
+                                Supprimer
+                            </Bouton>
                         </div>
                     </div>
 

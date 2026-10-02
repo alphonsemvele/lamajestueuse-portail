@@ -8,9 +8,11 @@ use App\Models\Ajustement;
 use App\Models\Bulletin;
 use App\Models\Contrat;
 use App\Models\Employeur;
+use App\Models\User;
 use App\Services\PaieService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -202,7 +204,7 @@ class PaieController extends Controller
         $this->autoriserGestion($request->user());
 
         $donnees = $request->validate([
-            'action' => ['required', Rule::in(['valider', 'payer'])],
+            'action' => ['required', Rule::in(['valider', 'payer', 'supprimer'])],
             'bulletins' => ['required', 'array', 'min:1'],
             'bulletins.*' => ['integer', 'exists:bulletins,id'],
         ]);
@@ -218,9 +220,11 @@ class PaieController extends Controller
 
         foreach ($selection as $bulletin) {
             try {
-                $donnees['action'] === 'valider'
-                    ? $paie->valider($bulletin, $request->user()->id)
-                    : $paie->payer($bulletin, $request->user()->id);
+                match ($donnees['action']) {
+                    'valider' => $paie->valider($bulletin, $request->user()->id),
+                    'payer' => $paie->payer($bulletin, $request->user()->id),
+                    'supprimer' => $this->effacer($bulletin, $request->user()),
+                };
                 $faits++;
             } catch (RuntimeException $e) {
                 $refus[] = ($bulletin->agent?->user?->fullName() ?? '#'.$bulletin->id).' : '.$e->getMessage();
@@ -234,6 +238,90 @@ class PaieController extends Controller
         }
 
         return back()->with('status', __(':n bulletin(s) traité(s).', ['n' => $faits]));
+    }
+
+    /**
+     * Supprime un bulletin, quel que soit son statut.
+     *
+     * Un mois mal prepare doit pouvoir etre refait : rien n'est verrouille.
+     * La suppression est tracee dans le journal, seule memoire qu'il en
+     * reste, et l'employe perd aussitot ce bulletin dans « Mes bulletins ».
+     * Les ajustements du mois survivent : ils se reappliquent a la
+     * regeneration.
+     */
+    public function destroy(Request $request, Bulletin $bulletin): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+        $this->verifierEntite($request, $bulletin->employeur_id);
+
+        $periode = ['mois' => $bulletin->mois, 'annee' => $bulletin->annee];
+
+        $this->effacer($bulletin, $request->user());
+
+        // On ne revient pas sur la page du bulletin : elle n'existe plus.
+        return redirect()->route('personnel.paie.index', $periode)
+            ->with('status', __('Bulletin supprimé.'));
+    }
+
+    /**
+     * Vide toute une periode : de quoi recommencer une paie ratee d'un geste,
+     * au lieu de supprimer les bulletins un par un.
+     */
+    public function viderMois(Request $request): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $donnees = $request->validate([
+            'mois' => ['required', 'integer', 'min:1', 'max:12'],
+            'annee' => ['required', 'integer', 'min:2000', 'max:'.(date('Y') + 1)],
+            'employeur_id' => ['nullable', 'exists:employeurs,id'],
+            // Garde-fou : on ne vide pas un mois paye sans le dire.
+            'inclure_payes' => ['nullable', 'boolean'],
+        ]);
+
+        $choisi = $donnees['employeur_id'] ?? null;
+
+        if ($choisi) {
+            $this->verifierEntite($request, (int) $choisi);
+        }
+
+        $perimetre = $this->perimetre($request);
+
+        $bulletins = Bulletin::where('mois', $donnees['mois'])->where('annee', $donnees['annee'])
+            ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
+            ->when($choisi, fn ($q) => $q->where('employeur_id', $choisi))
+            ->when(! ($donnees['inclure_payes'] ?? false), fn ($q) => $q->where('statut', '!=', 'paye'))
+            ->get();
+
+        if ($bulletins->isEmpty()) {
+            return back()->withErrors(['paie' => __('Aucun bulletin à supprimer pour cette période.')]);
+        }
+
+        foreach ($bulletins as $bulletin) {
+            $this->effacer($bulletin, $request->user());
+        }
+
+        return back()->with('status', trans_choice(
+            '{1}1 bulletin supprimé.|[2,*]:n bulletins supprimés.',
+            $bulletins->count(),
+            ['n' => $bulletins->count()],
+        ));
+    }
+
+    /** Efface le bulletin en laissant une trace dans le journal. */
+    private function effacer(Bulletin $bulletin, User $auteur): void
+    {
+        Log::info('Bulletin supprimé', [
+            'bulletin' => $bulletin->id,
+            'periode' => $bulletin->periode(),
+            'employeur' => $bulletin->employeur_id,
+            'agent' => $bulletin->agent_id,
+            'statut' => $bulletin->statut,
+            'net' => (float) $bulletin->salaire_net,
+            'par' => $auteur->id,
+        ]);
+
+        $bulletin->delete();
     }
 
     public function annoter(Request $request, Bulletin $bulletin): RedirectResponse

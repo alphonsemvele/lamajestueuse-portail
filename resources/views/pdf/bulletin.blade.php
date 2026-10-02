@@ -48,15 +48,15 @@
         .marque { font-size: 16px; font-weight: bold; color: {{ $couleur }}; letter-spacing: .2px; }
         .coordonnees { font-size: 7.5px; color: #6b7280; line-height: 1.6; margin-top: 3px; }
         .titre-bloc { text-align: right; }
-        .titre { font-size: 15px; font-weight: bold; color: #111827; letter-spacing: .2px; }
-        .periode { font-size: 10.5px; color: {{ $couleur }}; font-weight: bold; margin-top: 2px; }
+        .titre { font-size: 15px; font-weight: bold; color: {{ $couleur }}; letter-spacing: 1.4px; }
+        .periode { font-size: 10.5px; color: #374151; font-weight: bold; margin-top: 3px; }
         .reference { font-size: 7.5px; color: #9ca3af; margin-top: 4px; }
-        .filet { height: 3px; background: {{ $couleur }}; margin: 12px 0 13px; }
-        .sceau { border: .8px solid {{ $couleur }}; color: {{ $couleur }}; font-size: 7px; font-weight: bold;
-                 text-transform: uppercase; letter-spacing: .8px; padding: 2px 6px; }
+        .filet { height: 1.6px; background: {{ $couleur }}; margin: 12px 0 14px; }
+        .sceau { border: .6px solid #c8cee0; color: #6b7280; font-size: 6.8px; font-weight: bold;
+                 text-transform: uppercase; letter-spacing: .9px; padding: 2px 6px; }
 
         /* identité */
-        .cartouche { border: .6px solid #e5e7eb; margin-bottom: 12px; }
+        .cartouche { border: .6px solid #dfe3ec; margin-bottom: 13px; }
         .cartouche td { padding: 6px 9px; border-right: .6px solid #f1f2f4; border-bottom: .6px solid #f1f2f4; }
         .cartouche tr:last-child td { border-bottom: none; }
         .cartouche td:last-child { border-right: none; }
@@ -66,13 +66,16 @@
         .valeur-forte { font-weight: bold; }
 
         /* décompte */
-        .decompte th { background: #f8fafc; color: #475569; font-size: 7px; text-transform: uppercase;
-                       letter-spacing: .7px; padding: 6px 9px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .decompte th { color: #8a93a6; font-size: 7px; text-transform: uppercase;
+                       letter-spacing: .9px; padding: 4px 9px; text-align: left;
+                       border-bottom: .6px solid #e2e6ee; }
         .decompte td { padding: 5.5px 9px; border-bottom: .6px solid #f3f4f6; }
-        .rubrique td { background: {{ $couleur }}; color: #fff; font-size: 7.5px; font-weight: bold;
-                       text-transform: uppercase; letter-spacing: .7px; padding: 5px 9px; border-bottom: none; }
+        .rubrique td { background: #f4f6fa; color: {{ $couleur }}; font-size: 7.5px; font-weight: bold;
+                       text-transform: uppercase; letter-spacing: .9px; padding: 6px 9px;
+                       border-top: 1px solid {{ $couleur }}; border-bottom: .6px solid #e2e6ee; }
         .base { font-size: 7.5px; color: #9ca3af; }
-        .soustotal td { background: #f8fafc; font-weight: bold; border-bottom: .6px solid #e2e8f0; }
+        .soustotal td { background: #fbfcfe; font-weight: bold; border-top: .6px solid #e2e6ee;
+                        border-bottom: .6px solid #e2e6ee; }
         .rien td { color: #9ca3af; font-style: italic; }
 
         /* net */
@@ -80,7 +83,7 @@
         .net td { padding: 11px 13px; }
         .net-bande { background: {{ $couleur }}; color: #fff; }
         .net-libelle { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; }
-        .net-montant { font-size: 19px; font-weight: bold; }
+        .net-montant { font-size: 20px; font-weight: bold; letter-spacing: .3px; }
         .recapitulatif { border: .6px solid #e5e7eb; }
         .recapitulatif td { padding: 4.5px 9px; font-size: 8.5px; border-bottom: .6px solid #f3f4f6; }
         .recapitulatif tr:last-child td { border-bottom: none; }
@@ -99,7 +102,7 @@
     <tr>
         <td width="58%">
             @if ($enTete['logo'])
-                <img src="{{ $enTete['logo'] }}" style="height: 40px;" alt="">
+                <img src="{{ $enTete['logo'] }}" style="height: 64px;" alt="">
             @else
                 <div class="marque">{{ $enTete['nom'] }}</div>
             @endif
@@ -148,8 +151,13 @@
         </td>
         <td width="25%">
             <span class="etiquette">Classification</span>
+            @php
+                // L'echelon du contrat, ou a defaut celui que son profil porte :
+                // c'est bien celui-la qui a servi au calcul.
+                $echelonApplique = $contrat?->echelon ?? $contrat?->profil?->echelon;
+            @endphp
             <span class="valeur">
-                {{ $contrat?->echelon?->categorie?->libelle ?? '—' }}{{ $contrat?->echelon?->libelle ? ' · '.$contrat->echelon->libelle : '' }}
+                {{ $echelonApplique?->categorie?->libelle ?? '—' }}{{ $echelonApplique?->libelle ? ' · '.$echelonApplique->libelle : '' }}
             </span>
         </td>
         <td width="25%">
@@ -161,6 +169,16 @@
             <span class="valeur">
                 {{ $contrat?->date_debut?->format('d/m/Y') ?? '—' }}{{ $contrat ? ' · '.(int) $contrat->quotite.' %' : '' }}
             </span>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2">
+            <span class="etiquette">Profil de salaire</span>
+            <span class="valeur">{{ $contrat?->profil?->nom ?: '—' }}</span>
+        </td>
+        <td colspan="2">
+            <span class="etiquette">Mode de règlement</span>
+            <span class="valeur">{{ $employeur?->banque ?: 'Virement bancaire' }}</span>
         </td>
     </tr>
 </table>
@@ -176,7 +194,7 @@
     <tr>
         <td>Salaire de base</td>
         <td class="base">
-            {{ $contrat?->echelon ? 'Échelon '.($contrat->echelon->libelle ?: $contrat->echelon->numero) : 'Contrat' }}{{ $contrat && (int) $contrat->quotite !== 100 ? ' · quotité '.(int) $contrat->quotite.' %' : '' }}
+            {{ $echelonApplique ? 'Échelon '.($echelonApplique->libelle ?: $echelonApplique->numero) : 'Contrat' }}{{ $contrat && (int) $contrat->quotite !== 100 ? ' · quotité '.(int) $contrat->quotite.' %' : '' }}
         </td>
         <td class="nombre">{{ $fcfa($bulletin->salaire_base) }}</td>
     </tr>
@@ -253,9 +271,6 @@
 
 <div class="mentions">
     {{ $mention }}
-    @if ($employeur?->banque)
-        <br>Règlement par {{ $employeur->banque }}{{ $employeur->compte_bancaire ? ' · compte '.$employeur->compte_bancaire : '' }}.
-    @endif
     <br>Dans votre intérêt et pour vous aider à faire valoir vos droits, conservez ce bulletin sans limitation de durée.
 </div>
 

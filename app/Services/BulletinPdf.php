@@ -21,7 +21,8 @@ class BulletinPdf
     /** La tuile dont le logo sert de dernier recours. */
     private const MODULE = 'bulletins';
 
-    private const COULEUR = '#0f766e';
+    /** Le bleu du logo : c'est la couleur du groupe sur les documents. */
+    private const COULEUR = '#002484';
 
     /**
      * Rend le bulletin, a l'ecran ou en telechargement.
@@ -42,15 +43,24 @@ class BulletinPdf
     /** Le document lui-meme, sans decider de ce qu'on en fait. */
     public function rendre(Bulletin $bulletin, ?string $mention = null): \Barryvdh\DomPDF\PDF
     {
-        $bulletin->loadMissing(['agent.user', 'employeur.application', 'contrat.echelon.categorie', 'contrat.profil']);
+        $bulletin->loadMissing([
+            'agent.user', 'employeur.application',
+            'contrat.agent.user', 'contrat.echelon.categorie',
+            'contrat.profil.echelon.categorie',
+        ]);
+
+        // Le dossier du bulletin, ou a defaut celui de son contrat : un
+        // bulletin ancien peut avoir perdu son lien direct, et l'identite ne
+        // doit pas disparaitre du document pour autant.
+        $agent = $bulletin->agent ?? $bulletin->contrat?->agent;
 
         return Pdf::setOptions($this->options())->loadView('pdf.bulletin', [
             'bulletin' => $bulletin,
             'enTete' => $this->enTete($bulletin),
             'employeur' => $bulletin->employeur,
             'contrat' => $bulletin->contrat,
-            'agent' => $bulletin->agent,
-            'salarie' => $bulletin->agent?->user,
+            'agent' => $agent,
+            'salarie' => $agent?->user,
             'mention' => $mention ?? "Document remis a titre d'information. Conservez-le : il fait foi de votre remuneration.",
         ])->setPaper('a4');
     }
@@ -145,7 +155,9 @@ class BulletinPdf
         return [
             'nom' => $employeur->nom,
             'logo' => $this->premierLogo([$employeur->logo, $institut?->logo, $this->logoDuModule()]),
-            'couleur' => $institut?->color ?: self::COULEUR,
+            // Le document garde le bleu du groupe : la couleur d'un institut
+            // sert a le reconnaitre a l'ecran, pas a teinter une piece de paie.
+            'couleur' => self::COULEUR,
             'groupe' => false,
         ];
     }

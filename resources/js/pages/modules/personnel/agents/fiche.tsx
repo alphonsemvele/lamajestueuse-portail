@@ -54,7 +54,7 @@ interface Contrat {
     employeur: string | null;
     type: string;
     typeLibelle: string;
-    poste: string;
+    poste: string | null;
     dateDebut: string | null;
     dateFin: string | null;
     quotite: number;
@@ -777,7 +777,7 @@ function Contrats({
                 ? {
                       employeur_id: String(contrat.employeurId),
                       type: contrat.type,
-                      poste: contrat.poste,
+                      poste: contrat.poste ?? '',
                       date_debut: contrat.dateDebut ?? '',
                       date_fin: contrat.dateFin ?? '',
                       quotite: contrat.quotite,
@@ -837,7 +837,9 @@ function Contrats({
                         <div className="flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <p className="text-sm font-semibold text-ink-900 dark:text-white">{contrat.poste}</p>
+                                    <p className="text-sm font-semibold text-ink-900 dark:text-white">
+                                        {contrat.poste || <span className="italic text-ink-400">Poste à préciser</span>}
+                                    </p>
                                     <Statut valeur={contrat.statut} />
                                 </div>
                                 <p className="mt-0.5 text-xs text-ink-500 dark:text-ink-400">
@@ -926,15 +928,15 @@ function Contrats({
                         </Champ>
 
                         <Champ
-                            libelle="Poste"
+                            libelle="Poste (facultatif)"
                             erreur={formulaire.errors.poste}
-                            aide="Repris de ce que la personne a déclaré à l'inscription. Modifiable."
+                            aide="Repris de ce que la personne a déclaré à l'inscription. Modifiable, ou laissé vide."
                             className="sm:col-span-2"
                         >
                             <Input
                                 value={formulaire.data.poste}
                                 onChange={(event) => formulaire.setData('poste', event.target.value)}
-                                required
+                                placeholder="À préciser plus tard"
                             />
                         </Champ>
 
@@ -1153,7 +1155,8 @@ function Carriere({
                             <option value="">Aucun en particulier</option>
                             {contrats.map((contrat) => (
                                 <option key={contrat.id} value={contrat.id}>
-                                    {contrat.employeur} — {contrat.poste}
+                                    {contrat.employeur}
+                                    {contrat.poste ? ` — ${contrat.poste}` : ''}
                                 </option>
                             ))}
                         </Select>

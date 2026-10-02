@@ -86,7 +86,7 @@
     <tr>
         <td colspan="2">
             <span class="etiquette">Emploi</span>
-            {{ $contrat?->poste ?? '—' }}
+            {{ $contrat?->poste ?: '—' }}
         </td>
         <td>
             <span class="etiquette">Catégorie &amp; échelon</span>

@@ -536,6 +536,76 @@ class PersonnelModuleTest extends TestCase
                 ->where('referentiels.employeurs.0.posteDeclare', 'Agent polyvalent'));
     }
 
+    public function test_le_poste_du_contrat_nest_pas_obligatoire(): void
+    {
+        $membre = User::factory()->create(['lastname' => 'ESSOMBA', 'poste' => null]);
+        $membre->applications()->attach($this->institut);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $membre), [
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi',
+            'date_debut' => '2026-09-01',
+            'quotite' => 100,
+            'statut' => 'actif',
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertNull(Contrat::firstOrFail()->poste);
+    }
+
+    public function test_un_poste_laisse_vide_reprend_celui_declare_pour_cet_institut(): void
+    {
+        $membre = User::factory()->create(['lastname' => 'ESSOMBA', 'poste' => 'Agent polyvalent']);
+        $membre->applications()->attach($this->institut, ['poste' => 'Chargée de scolarité']);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $membre), [
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi',
+            'poste' => '   ',
+            'date_debut' => '2026-09-01',
+            'quotite' => 100,
+            'statut' => 'actif',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('Chargée de scolarité', Contrat::firstOrFail()->poste);
+    }
+
+    public function test_un_contrat_sans_poste_inscrit_quand_meme_le_recrutement(): void
+    {
+        $membre = User::factory()->create(['lastname' => 'ESSOMBA', 'poste' => null]);
+        $membre->applications()->attach($this->institut);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.contrats.store', $membre), [
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi',
+            'date_debut' => '2026-09-01',
+            'quotite' => 100,
+            'statut' => 'actif',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('evenements_carriere', [
+            'contrat_id' => Contrat::firstOrFail()->id,
+            'type' => 'recrutement',
+            'libelle' => 'Poste à préciser — '.$this->employeur->sigle,
+        ]);
+    }
+
+    public function test_le_poste_se_vide_a_la_modification_du_contrat(): void
+    {
+        $contrat = $this->contrat();
+
+        $this->actingAs($this->gestionnaire())->put(route('personnel.contrats.update', $contrat), [
+            'employeur_id' => $contrat->employeur_id,
+            'type' => 'cdi',
+            'poste' => '',
+            'date_debut' => '2026-01-01',
+            'quotite' => 100,
+            'statut' => 'actif',
+        ])->assertSessionHasNoErrors();
+
+        // Le compte n'a declare aucun poste : le contrat reste sans poste.
+        $this->assertNull($contrat->fresh()->poste);
+    }
+
     public function test_la_creation_d_un_contrat_inscrit_le_recrutement_dans_la_carriere(): void
     {
         $agent = $this->agent();

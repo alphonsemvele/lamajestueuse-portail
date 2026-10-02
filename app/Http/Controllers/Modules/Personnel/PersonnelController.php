@@ -416,9 +416,9 @@ class PersonnelController extends Controller
      * Ce que la personne a declare comme poste : celui indique pour cet
      * institut a l'inscription, a defaut celui de son compte.
      */
-    private function posteDeclare(User $user, Employeur $employeur): ?string
+    private function posteDeclare(User $user, ?Employeur $employeur): ?string
     {
-        $pivot = $employeur->application_id
+        $pivot = $employeur?->application_id
             ? $user->applications->firstWhere('id', $employeur->application_id)?->pivot?->poste
             : null;
 
@@ -650,7 +650,7 @@ class PersonnelController extends Controller
         $this->autoriserGestion($request->user());
         $this->verifierPersonne($request, $user);
 
-        $donnees = $this->reglesContrat($request);
+        $donnees = $this->reglesContrat($request, $user);
         $this->verifierEntite($request, (int) $donnees['employeur_id']);
 
         $agent = $this->dossierDe($user);
@@ -661,7 +661,7 @@ class PersonnelController extends Controller
             'contrat_id' => $contrat->id,
             'date_evenement' => $contrat->date_debut,
             'type' => 'recrutement',
-            'libelle' => $contrat->poste.' — '.$contrat->employeur?->sigle,
+            'libelle' => trim(($contrat->poste ?: __('Poste à préciser')).' — '.$contrat->employeur?->sigle, ' —'),
             'saisi_par' => $request->user()->id,
         ]);
 
@@ -675,7 +675,7 @@ class PersonnelController extends Controller
         // on ne sort pas un contrat de son institut par la bande.
         $this->verifierEntite($request, $contrat->employeur_id);
 
-        $donnees = $this->reglesContrat($request);
+        $donnees = $this->reglesContrat($request, $contrat->agent->user);
         $this->verifierEntite($request, (int) $donnees['employeur_id']);
 
         $contrat->update($donnees);
@@ -701,13 +701,18 @@ class PersonnelController extends Controller
         return back()->with('status', __('Contrat supprimé.'));
     }
 
-    /** @return array<string, mixed> */
-    private function reglesContrat(Request $request): array
+    /**
+     * Regles du contrat. Le poste n'est pas exige : laisse vide, il reprend
+     * celui que la personne a declare pour cet institut a l'inscription.
+     *
+     * @return array<string, mixed>
+     */
+    private function reglesContrat(Request $request, User $user): array
     {
         $donnees = $request->validate([
             'employeur_id' => ['required', 'exists:employeurs,id'],
             'type' => ['required', Rule::in(array_keys(Contrat::TYPES))],
-            'poste' => ['required', 'string', 'max:255'],
+            'poste' => ['nullable', 'string', 'max:255'],
             'date_debut' => ['required', 'date'],
             'date_fin' => ['nullable', 'date', 'after:date_debut'],
             'quotite' => ['required', 'integer', 'min:1', 'max:100'],
@@ -721,6 +726,11 @@ class PersonnelController extends Controller
         if ($donnees['statut'] !== 'termine') {
             $donnees['motif_fin'] = null;
         }
+
+        $poste = trim((string) ($donnees['poste'] ?? ''));
+        $donnees['poste'] = $poste !== ''
+            ? $poste
+            : $this->posteDeclare($user, Employeur::find($donnees['employeur_id']));
 
         return $donnees;
     }

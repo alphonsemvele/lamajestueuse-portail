@@ -6,6 +6,7 @@ use App\Models\Ajustement;
 use App\Models\Bulletin;
 use App\Models\Contrat;
 use App\Models\Employeur;
+use App\Models\ProfilSalaire;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -218,6 +219,38 @@ class PaieService
      *
      * @return array{libelle: string, type: string, valeur: float, montant: float, source: string}
      */
+    /**
+     * Ce qu'un profil verse a quotite pleine, hors ajustement du mois.
+     *
+     * Memes regles que calculer() — c'est la meme methode ligne() qui applique
+     * les pourcentages — de sorte que le net lu sur un profil soit celui que
+     * le bulletin produira.
+     *
+     * @return array{salaire_base: float, total_indemnites: float, total_retenues: float, salaire_net: float}
+     */
+    public function apercuProfil(ProfilSalaire $profil): array
+    {
+        $profil->loadMissing(['echelon', 'indemnites', 'retenues']);
+
+        $base = (float) ($profil->echelon?->salaire ?? 0);
+
+        $somme = fn ($lignes) => round(array_sum($lignes
+            ->map(fn ($l) => $this->ligne(
+                $l->libelle, $l->pivot->type_calcul, (float) $l->pivot->valeur, $base, 'profil'
+            )['montant'])
+            ->all()), 2);
+
+        $indemnites = $somme($profil->indemnites);
+        $retenues = $somme($profil->retenues);
+
+        return [
+            'salaire_base' => $base,
+            'total_indemnites' => $indemnites,
+            'total_retenues' => $retenues,
+            'salaire_net' => round($base + $indemnites - $retenues, 2),
+        ];
+    }
+
     private function ligne(string $libelle, string $type, float $valeur, float $base, string $source): array
     {
         $montant = $type === 'pourcentage' ? round($base * $valeur / 100, 2) : round($valeur, 2);

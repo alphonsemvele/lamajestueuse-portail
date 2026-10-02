@@ -66,6 +66,9 @@ interface Profil {
     indemnites: LigneProfil[];
     retenues: LigneProfil[];
     contratsActifs: number;
+    totalIndemnites: number;
+    totalRetenues: number;
+    salaireNet: number;
 }
 
 interface Props {
@@ -877,7 +880,7 @@ function Profils({
                                     {!profil.actif && <span className="ml-2 text-xs font-normal text-ink-400">(inactif)</span>}
                                 </p>
                                 <p className="truncate text-xs text-ink-500 dark:text-ink-400">
-                                    {profil.echelon ?? 'sans échelon'} · {fcfa(profil.salaireBase)} · {profil.contratsActifs} contrat(s)
+                                    {profil.echelon ?? 'sans échelon'} · {profil.contratsActifs} contrat(s)
                                 </p>
                             </div>
                             <Actions
@@ -889,6 +892,39 @@ function Profils({
                                 }}
                             />
                         </div>
+
+                        <dl className="mt-3 space-y-1 rounded-lg bg-ink-50 px-3 py-2 text-xs dark:bg-white/5">
+                            <div className="flex justify-between gap-3">
+                                <dt className="text-ink-500 dark:text-ink-400">Salaire de base</dt>
+                                <dd className="tabular-nums text-ink-700 dark:text-ink-200">{fcfa(profil.salaireBase)}</dd>
+                            </div>
+                            {profil.totalIndemnites > 0 && (
+                                <div className="flex justify-between gap-3">
+                                    <dt className="text-ink-500 dark:text-ink-400">Indemnités</dt>
+                                    <dd className="tabular-nums text-emerald-700 dark:text-emerald-300">
+                                        + {fcfa(profil.totalIndemnites)}
+                                    </dd>
+                                </div>
+                            )}
+                            {profil.totalRetenues > 0 && (
+                                <div className="flex justify-between gap-3">
+                                    <dt className="text-ink-500 dark:text-ink-400">Retenues</dt>
+                                    <dd className="tabular-nums text-red-700 dark:text-red-300">
+                                        − {fcfa(profil.totalRetenues)}
+                                    </dd>
+                                </div>
+                            )}
+                            <div className="flex justify-between gap-3 border-t border-ink-200 pt-1 dark:border-white/10">
+                                <dt className="font-semibold text-ink-700 dark:text-ink-200">Net perçu</dt>
+                                <dd className="tabular-nums text-sm font-semibold text-ink-900 dark:text-white">
+                                    {fcfa(profil.salaireNet)}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <p className="mt-1.5 text-[11px] text-ink-400">
+                            À quotité pleine, hors ajustement du mois.
+                        </p>
 
                         <div className="mt-3 flex flex-wrap gap-1.5">
                             {(profil.indemnites ?? []).map((ligne) => (

@@ -11,6 +11,7 @@ use App\Models\Employeur;
 use App\Models\Indemnite;
 use App\Models\ProfilSalaire;
 use App\Models\Retenue;
+use App\Services\PaieService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -59,6 +60,8 @@ class ReferentielController extends Controller
      */
     private function ecran(Request $request, string $section): Response
     {
+        $paie = app(PaieService::class);
+
         $this->autoriserGestion($request->user());
 
         // Un gestionnaire ne voit que ses entites ; la grille, les indemnites,
@@ -86,10 +89,21 @@ class ReferentielController extends Controller
                 ])->all(),
             'indemnites' => Indemnite::orderBy('libelle')->get()->map(fn ($i) => $i->toUiArray())->all(),
             'retenues' => Retenue::orderBy('libelle')->get()->map(fn ($r) => $r->toUiArray())->all(),
+            // Chaque profil porte son net a quotite pleine : c'est ce que la
+            // RH cherche a lire, et il vient du moteur de paie lui-meme.
             'profils' => ProfilSalaire::with(['echelon.categorie', 'categorie', 'indemnites', 'retenues'])
                 ->withCount(['contrats as contratsActifs' => fn ($q) => $q->where('statut', 'actif')])
                 ->orderBy('nom')->get()
-                ->map(fn (ProfilSalaire $p) => $p->toUiArray() + ['contratsActifs' => (int) $p->contratsActifs])->all(),
+                ->map(function (ProfilSalaire $p) use ($paie) {
+                    $apercu = $paie->apercuProfil($p);
+
+                    return $p->toUiArray() + [
+                        'contratsActifs' => (int) $p->contratsActifs,
+                        'totalIndemnites' => $apercu['total_indemnites'],
+                        'totalRetenues' => $apercu['total_retenues'],
+                        'salaireNet' => $apercu['salaire_net'],
+                    ];
+                })->all(),
         ]);
     }
 
@@ -157,7 +171,7 @@ class ReferentielController extends Controller
         abort_unless(
             $request->user()->isAdmin(),
             403,
-            __("Seul un administrateur du portail peut modifier les entités du groupe.")
+            __('Seul un administrateur du portail peut modifier les entités du groupe.')
         );
     }
 

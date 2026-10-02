@@ -147,6 +147,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/paie/lot', [PaieController::class, 'traiterLot'])->name('paie.lot');
         Route::get('/bulletins', [PaieController::class, 'registre'])->name('bulletins');
         Route::get('/paie/bulletins/{bulletin}', [PaieController::class, 'show'])->name('paie.bulletin');
+        Route::get('/paie/bulletins/{bulletin}/pdf', [PaieController::class, 'pdf'])->name('paie.bulletin.pdf');
         Route::post('/paie/bulletins/{bulletin}/recalculer', [PaieController::class, 'recalculer'])->name('paie.recalculer');
         Route::post('/paie/bulletins/{bulletin}/valider', [PaieController::class, 'valider'])->name('paie.valider');
         Route::post('/paie/bulletins/{bulletin}/payer', [PaieController::class, 'payer'])->name('paie.payer');

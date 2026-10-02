@@ -1,17 +1,34 @@
 @php
     /** Montants en francs CFA : pas de décimales, séparateur d'espace. */
     $fcfa = fn ($montant) => number_format((float) $montant, 0, ',', ' ') . ' F';
+
+    /** Un nombre lisible en français, zéros inutiles retirés. */
+    $nombre = fn ($valeur) => rtrim(rtrim(number_format((float) $valeur, 2, ',', ' '), '0'), ',');
+
     $detail = $bulletin->detail ?? ['indemnites' => [], 'retenues' => []];
+    $indemnites = $detail['indemnites'] ?? [];
+    $retenues = $detail['retenues'] ?? [];
 
     /**
-     * Le taux d'une ligne, en français : virgule décimale, zéros inutiles
-     * retirés, et l'assiette nommée — un pourcentage peut porter sur une
-     * autre ligne du profil plutôt que sur le salaire de base.
+     * L'assiette d'une ligne : un pourcentage peut porter sur une autre ligne
+     * du profil plutôt que sur le salaire de base.
      */
-    $regle = fn (array $ligne) => $ligne['type'] === 'pourcentage'
-        ? rtrim(rtrim(number_format((float) $ligne['valeur'], 2, ',', ' '), '0'), ',')
-            . ' % de ' . ($ligne['assietteLibelle'] ?? 'le salaire de base')
-        : 'montant fixe';
+    $assiette = function (array $ligne) use ($nombre) {
+        if ($ligne['type'] !== 'pourcentage') {
+            return 'forfait';
+        }
+
+        $sur = $ligne['assietteLibelle'] ?? 'le salaire de base';
+
+        // « du salaire de base », mais « de Logement » : l'article suit.
+        return $nombre($ligne['valeur']) . ' % '
+            . ($sur === 'le salaire de base' ? 'du salaire de base' : 'de ' . $sur);
+    };
+
+    $brut = (float) $bulletin->salaire_base + (float) $bulletin->total_indemnites;
+
+    $statuts = ['brouillon' => 'Provisoire', 'valide' => 'Arrêté', 'paye' => 'Payé'];
+    $couleur = $enTete['couleur'];
 @endphp
 <!doctype html>
 <html lang="fr">
@@ -19,164 +36,228 @@
     <meta charset="utf-8">
     <title>Bulletin de paie — {{ $bulletin->periode() }}</title>
     <style>
-        @page { margin: 18mm 16mm; }
-        body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #111827; }
-        .bandeau { border-bottom: 2.5px solid {{ $enTete['couleur'] }}; padding-bottom: 10px; margin-bottom: 16px; }
-        .bandeau td { vertical-align: middle; }
-        .marque { font-size: 15px; font-weight: bold; color: {{ $enTete['couleur'] }}; letter-spacing: .3px; }
-        .employeur { font-size: 8.5px; color: #6b7280; line-height: 1.5; }
-        .titre { font-size: 13px; font-weight: bold; }
-        .periode { font-size: 9px; color: #6b7280; }
+        @page { margin: 14mm 14mm 16mm; }
 
-        .identite { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-        .identite td { padding: 5px 8px; border: .5px solid #e5e7eb; width: 25%; }
-        .etiquette { font-size: 7.5px; text-transform: uppercase; letter-spacing: .5px; color: #6b7280; display: block; }
-
-        .lignes { width: 100%; border-collapse: collapse; }
-        .lignes th { background: {{ $enTete['couleur'] }}; color: #fff; font-size: 8px; text-transform: uppercase;
-                     letter-spacing: .5px; padding: 6px 8px; text-align: left; }
-        .lignes td { padding: 5px 8px; border-bottom: .5px solid #f0f1f3; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 9.5px; color: #1f2937; line-height: 1.45; }
+        table { border-collapse: collapse; width: 100%; }
+        td, th { vertical-align: top; }
         .nombre { text-align: right; }
-        .section td { background: #f8fafc; font-weight: bold; font-size: 8.5px; text-transform: uppercase;
-                      letter-spacing: .4px; color: #475569; padding-top: 8px; }
-        .total td { font-weight: bold; border-top: .8px solid #cbd5e1; border-bottom: none; }
-        .net td { background: {{ $enTete['couleur'] }}; color: #fff; font-size: 12px; font-weight: bold; padding: 9px 8px; }
-        .regle { font-size: 7.5px; color: #9ca3af; }
 
-        .pied { margin-top: 18px; font-size: 7.5px; color: #6b7280; line-height: 1.6; }
-        .signature { margin-top: 26px; font-size: 8.5px; }
+        /* en-tête */
+        .entete td { vertical-align: middle; }
+        .marque { font-size: 16px; font-weight: bold; color: {{ $couleur }}; letter-spacing: .2px; }
+        .coordonnees { font-size: 7.5px; color: #6b7280; line-height: 1.6; margin-top: 3px; }
+        .titre-bloc { text-align: right; }
+        .titre { font-size: 15px; font-weight: bold; color: #111827; letter-spacing: .2px; }
+        .periode { font-size: 10.5px; color: {{ $couleur }}; font-weight: bold; margin-top: 2px; }
+        .reference { font-size: 7.5px; color: #9ca3af; margin-top: 4px; }
+        .filet { height: 3px; background: {{ $couleur }}; margin: 12px 0 13px; }
+        .sceau { border: .8px solid {{ $couleur }}; color: {{ $couleur }}; font-size: 7px; font-weight: bold;
+                 text-transform: uppercase; letter-spacing: .8px; padding: 2px 6px; }
+
+        /* identité */
+        .cartouche { border: .6px solid #e5e7eb; margin-bottom: 12px; }
+        .cartouche td { padding: 6px 9px; border-right: .6px solid #f1f2f4; border-bottom: .6px solid #f1f2f4; }
+        .cartouche tr:last-child td { border-bottom: none; }
+        .cartouche td:last-child { border-right: none; }
+        .etiquette { font-size: 6.8px; text-transform: uppercase; letter-spacing: .6px; color: #9ca3af;
+                     display: block; margin-bottom: 1px; }
+        .valeur { font-size: 9.5px; color: #111827; }
+        .valeur-forte { font-weight: bold; }
+
+        /* décompte */
+        .decompte th { background: #f8fafc; color: #475569; font-size: 7px; text-transform: uppercase;
+                       letter-spacing: .7px; padding: 6px 9px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+        .decompte td { padding: 5.5px 9px; border-bottom: .6px solid #f3f4f6; }
+        .rubrique td { background: {{ $couleur }}; color: #fff; font-size: 7.5px; font-weight: bold;
+                       text-transform: uppercase; letter-spacing: .7px; padding: 5px 9px; border-bottom: none; }
+        .base { font-size: 7.5px; color: #9ca3af; }
+        .soustotal td { background: #f8fafc; font-weight: bold; border-bottom: .6px solid #e2e8f0; }
+        .rien td { color: #9ca3af; font-style: italic; }
+
+        /* net */
+        .net { margin-top: 12px; }
+        .net td { padding: 11px 13px; }
+        .net-bande { background: {{ $couleur }}; color: #fff; }
+        .net-libelle { font-size: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .net-montant { font-size: 19px; font-weight: bold; }
+        .recapitulatif { border: .6px solid #e5e7eb; }
+        .recapitulatif td { padding: 4.5px 9px; font-size: 8.5px; border-bottom: .6px solid #f3f4f6; }
+        .recapitulatif tr:last-child td { border-bottom: none; }
+
+        /* pied */
+        .signature { margin-top: 20px; }
+        .signature td { font-size: 8px; color: #6b7280; }
+        .cadre-signature { border-top: .6px solid #d1d5db; padding-top: 4px; width: 60%; }
+        .mentions { margin-top: 16px; padding-top: 8px; border-top: .6px solid #e5e7eb;
+                    font-size: 7px; color: #9ca3af; line-height: 1.7; }
     </style>
 </head>
 <body>
 
-<table class="bandeau" width="100%">
+<table class="entete">
     <tr>
         <td width="58%">
             @if ($enTete['logo'])
-                <img src="{{ $enTete['logo'] }}" style="height: 34px;" alt="">
+                <img src="{{ $enTete['logo'] }}" style="height: 40px;" alt="">
             @else
                 <div class="marque">{{ $enTete['nom'] }}</div>
             @endif
 
-            {{-- L'employeur est toujours nommé : c'est lui qui déclare. --}}
-            <div class="employeur" style="margin-top: 5px;">
-                {{ $employeur?->nom ?? '—' }}<br>
-                @if ($employeur?->niu) NIU {{ $employeur->niu }} @endif
-                @if ($employeur?->numero_cnps) · CNPS {{ $employeur->numero_cnps }} @endif
+            <div class="coordonnees">
+                @if ($enTete['logo'])
+                    <strong style="color: #374151;">{{ $employeur?->nom ?? $enTete['nom'] }}</strong><br>
+                @endif
+                @if ($employeur?->niu)NIU {{ $employeur->niu }}@endif
+                @if ($employeur?->niu && $employeur?->numero_cnps) · @endif
+                @if ($employeur?->numero_cnps)CNPS {{ $employeur->numero_cnps }}@endif
             </div>
         </td>
-        <td width="42%" align="right">
-            <div class="titre">Bulletin de paie</div>
-            <div class="periode">{{ $bulletin->periode() }}</div>
-            <div class="periode">Édité le {{ now()->translatedFormat('d F Y') }}</div>
+        <td width="42%" class="titre-bloc">
+            <div class="titre">BULLETIN DE PAIE</div>
+            <div class="periode">{{ ucfirst($bulletin->periode()) }}</div>
+            <div class="reference">
+                Pièce n° {{ str_pad((string) $bulletin->id, 6, '0', STR_PAD_LEFT) }}
+                &nbsp;<span class="sceau">{{ $statuts[$bulletin->statut] ?? $bulletin->statut }}</span>
+            </div>
         </td>
     </tr>
 </table>
 
-<table class="identite">
+<div class="filet"></div>
+
+<table class="cartouche">
     <tr>
-        <td colspan="2">
+        <td width="50%" colspan="2">
             <span class="etiquette">Salarié</span>
-            <strong>{{ $agent?->user?->fullName() ?? '—' }}</strong>
+            <span class="valeur valeur-forte">{{ $salarie?->fullName() ?? '—' }}</span>
         </td>
-        <td>
+        <td width="25%">
             <span class="etiquette">Matricule</span>
-            {{ $agent?->user?->matricule ?? '—' }}
+            <span class="valeur">{{ $salarie?->matricule ?: '—' }}</span>
         </td>
-        <td>
+        <td width="25%">
             <span class="etiquette">N° CNPS</span>
-            {{ $agent?->numero_cnps ?? '—' }}
+            <span class="valeur">{{ $agent?->numero_cnps ?: '—' }}</span>
         </td>
     </tr>
     <tr>
-        <td colspan="2">
-            <span class="etiquette">Emploi</span>
-            {{ $contrat?->poste ?: '—' }}
+        <td width="25%">
+            <span class="etiquette">Emploi occupé</span>
+            <span class="valeur">{{ $contrat?->poste ?: '—' }}</span>
         </td>
-        <td>
-            <span class="etiquette">Catégorie &amp; échelon</span>
-            {{ $contrat?->echelonApplique()?->nomComplet() ?? '—' }}
+        <td width="25%">
+            <span class="etiquette">Classification</span>
+            <span class="valeur">
+                {{ $contrat?->echelon?->categorie?->libelle ?? '—' }}{{ $contrat?->echelon?->libelle ? ' · '.$contrat->echelon->libelle : '' }}
+            </span>
         </td>
-        <td>
-            <span class="etiquette">Quotité</span>
-            {{ $contrat?->quotite ?? 100 }} %
+        <td width="25%">
+            <span class="etiquette">Nature du contrat</span>
+            <span class="valeur">{{ $contrat ? (\App\Models\Contrat::TYPES[$contrat->type] ?? '—') : '—' }}</span>
+        </td>
+        <td width="25%">
+            <span class="etiquette">Entrée · Quotité</span>
+            <span class="valeur">
+                {{ $contrat?->date_debut?->format('d/m/Y') ?? '—' }}{{ $contrat ? ' · '.(int) $contrat->quotite.' %' : '' }}
+            </span>
         </td>
     </tr>
 </table>
 
-<table class="lignes">
+<table class="decompte">
     <tr>
-        <th width="56%">Désignation</th>
-        <th width="22%">Base ou taux</th>
-        <th width="22%" class="nombre">Montant</th>
+        <th width="46%">Désignation</th>
+        <th width="30%">Base de calcul</th>
+        <th width="24%" class="nombre">Montant</th>
     </tr>
 
+    <tr class="rubrique"><td colspan="3">Rémunération</td></tr>
     <tr>
-        <td><strong>Salaire de base</strong></td>
-        <td class="regle">
-            {{ $contrat?->echelonApplique()?->nomComplet() ?? '' }}
-            @if (($contrat?->quotite ?? 100) < 100) · quotité {{ $contrat->quotite }} % @endif
+        <td>Salaire de base</td>
+        <td class="base">
+            {{ $contrat?->echelon ? 'Échelon '.($contrat->echelon->libelle ?: $contrat->echelon->numero) : 'Contrat' }}{{ $contrat && (int) $contrat->quotite !== 100 ? ' · quotité '.(int) $contrat->quotite.' %' : '' }}
         </td>
-        <td class="nombre"><strong>{{ $fcfa($bulletin->salaire_base) }}</strong></td>
+        <td class="nombre">{{ $fcfa($bulletin->salaire_base) }}</td>
     </tr>
 
-    @if ($detail['indemnites'] ?? [])
-        <tr class="section"><td colspan="3">Indemnités</td></tr>
-        @foreach ($detail['indemnites'] as $ligne)
-            <tr>
-                <td>{{ $ligne['libelle'] }}</td>
-                <td class="regle">
-                    {{ $regle($ligne) }}
-                    {{ ($ligne['source'] ?? '') === 'ajustement' ? ' · exceptionnel ce mois' : '' }}
-                </td>
-                <td class="nombre">{{ $fcfa($ligne['montant']) }}</td>
-            </tr>
-        @endforeach
-        <tr class="total">
-            <td colspan="2">Total des indemnités</td>
-            <td class="nombre">{{ $fcfa($bulletin->total_indemnites) }}</td>
+    @forelse ($indemnites as $ligne)
+        <tr>
+            <td>{{ $ligne['libelle'] }}</td>
+            <td class="base">{{ $assiette($ligne) }}</td>
+            <td class="nombre">{{ $fcfa($ligne['montant']) }}</td>
         </tr>
-    @endif
+    @empty
+        <tr class="rien"><td colspan="3">Aucune indemnité sur la période.</td></tr>
+    @endforelse
 
-    @if ($detail['retenues'] ?? [])
-        <tr class="section"><td colspan="3">Retenues</td></tr>
-        @foreach ($detail['retenues'] as $ligne)
-            <tr>
-                <td>{{ $ligne['libelle'] }}</td>
-                <td class="regle">
-                    {{ $regle($ligne) }}
-                    {{ ($ligne['source'] ?? '') === 'ajustement' ? ' · exceptionnel ce mois' : '' }}
-                </td>
-                <td class="nombre">− {{ $fcfa($ligne['montant']) }}</td>
-            </tr>
-        @endforeach
-        <tr class="total">
-            <td colspan="2">Total des retenues</td>
-            <td class="nombre">− {{ $fcfa($bulletin->total_retenues) }}</td>
+    <tr class="soustotal">
+        <td colspan="2">Salaire brut</td>
+        <td class="nombre">{{ $fcfa($brut) }}</td>
+    </tr>
+
+    <tr class="rubrique"><td colspan="3">Retenues</td></tr>
+    @forelse ($retenues as $ligne)
+        <tr>
+            <td>{{ $ligne['libelle'] }}</td>
+            <td class="base">{{ $assiette($ligne) }}</td>
+            <td class="nombre">− {{ $fcfa($ligne['montant']) }}</td>
         </tr>
-    @endif
+    @empty
+        <tr class="rien"><td colspan="3">Aucune retenue sur la période.</td></tr>
+    @endforelse
 
-    <tr class="net">
-        <td colspan="2">Net à payer</td>
-        <td class="nombre">{{ $fcfa($bulletin->salaire_net) }}</td>
+    <tr class="soustotal">
+        <td colspan="2">Total des retenues</td>
+        <td class="nombre">− {{ $fcfa($bulletin->total_retenues) }}</td>
     </tr>
 </table>
 
-<div class="pied">
-    {{ $mention }}<br>
-    @if ($bulletin->statut === 'paye')
-        Payé le {{ $bulletin->paye_le?->format('d/m/Y') ?? '—' }}.
-    @else
-        Validé le {{ $bulletin->valide_le?->format('d/m/Y') ?? '—' }} ; le versement suit.
+<table class="net">
+    <tr>
+        <td width="50%" style="padding: 0 8px 0 0;">
+            <table class="recapitulatif">
+                <tr>
+                    <td>Salaire brut</td>
+                    <td class="nombre">{{ $fcfa($brut) }}</td>
+                </tr>
+                <tr>
+                    <td>Total des retenues</td>
+                    <td class="nombre">− {{ $fcfa($bulletin->total_retenues) }}</td>
+                </tr>
+                @if ($bulletin->paye_le)
+                    <tr>
+                        <td>Mis en paiement le</td>
+                        <td class="nombre">{{ $bulletin->paye_le->format('d/m/Y') }}</td>
+                    </tr>
+                @endif
+            </table>
+        </td>
+        <td width="50%" class="net-bande">
+            <div class="net-libelle">Net à payer</div>
+            <div class="net-montant">{{ $fcfa($bulletin->salaire_net) }}</div>
+        </td>
+    </tr>
+</table>
+
+<table class="signature">
+    <tr>
+        <td width="55%">
+            <div class="cadre-signature">{{ $employeur?->signataire ?: "Pour l'employeur" }}</div>
+        </td>
+        <td width="45%" class="nombre" style="color: #9ca3af; font-size: 7.5px;">
+            Établi le {{ $bulletin->updated_at?->format('d/m/Y') ?? now()->format('d/m/Y') }}
+        </td>
+    </tr>
+</table>
+
+<div class="mentions">
+    {{ $mention }}
+    @if ($employeur?->banque)
+        <br>Règlement par {{ $employeur->banque }}{{ $employeur->compte_bancaire ? ' · compte '.$employeur->compte_bancaire : '' }}.
     @endif
+    <br>Dans votre intérêt et pour vous aider à faire valoir vos droits, conservez ce bulletin sans limitation de durée.
 </div>
-
-@if ($employeur?->signataire)
-    <div class="signature" align="right">
-        Pour {{ $employeur->sigle }}<br>
-        <strong>{{ $employeur->signataire }}</strong>
-    </div>
-@endif
 
 </body>
 </html>

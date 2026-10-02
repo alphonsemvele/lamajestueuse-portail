@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
-import { type FormEvent } from 'react';
+import { type FormEvent, useState } from 'react';
+import ApercuPdf from '@/components/apercu-pdf';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select } from '@/components/ui';
@@ -54,6 +55,8 @@ export default function MesBulletins({ bulletins, filtres, annees, identite, enT
             { preserveState: true, preserveScroll: true, replace: true, only: ['bulletins', 'filtres'] },
         );
 
+    const [apercu, setApercu] = useState<Bulletin | null>(null);
+
     const [q, setQ] = useRechercheInstantanee(filtres.q, (terme) => chercher({ q: terme }));
 
     const soumettre = (event: FormEvent) => {
@@ -99,14 +102,25 @@ export default function MesBulletins({ bulletins, filtres, annees, identite, enT
                                 </p>
                             </div>
 
-                            <a
-                                href={routes.mesBulletins.pdf(dernier.id)}
-                                className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
-                                style={{ backgroundColor: enTete.couleur }}
-                            >
-                                <Icon name="upload" className="h-4 w-4 rotate-180" />
-                                Télécharger en PDF
-                            </a>
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setApercu(dernier)}
+                                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90"
+                                    style={{ backgroundColor: enTete.couleur }}
+                                >
+                                    <Icon name="document" className="h-4 w-4" />
+                                    Consulter mon bulletin
+                                </button>
+
+                                <a
+                                    href={routes.mesBulletins.pdf(dernier.id)}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-ink-200 px-4 py-2.5 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:text-ink-200 dark:hover:bg-white/5"
+                                >
+                                    <Icon name="download" className="h-4 w-4" />
+                                    Télécharger
+                                </a>
+                            </div>
                         </div>
                     </Card>
                 )}
@@ -189,19 +203,41 @@ export default function MesBulletins({ bulletins, filtres, annees, identite, enT
                                 {bulletin.statut === 'paye' ? `Payé ${bulletin.payeLe ?? ''}` : 'Validé'}
                             </span>
 
-                            <a
-                                href={routes.mesBulletins.pdf(bulletin.id)}
-                                title={`Télécharger le bulletin de ${bulletin.periode}`}
-                                className="rounded-lg border border-ink-200 p-2 text-ink-500 transition hover:bg-ink-50 hover:text-ink-800 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
-                            >
-                                <Icon name="upload" className="h-4 w-4 rotate-180" />
-                            </a>
+                            <div className="flex gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setApercu(bulletin)}
+                                    title={`Consulter le bulletin de ${bulletin.periode}`}
+                                    aria-label={`Consulter le bulletin de ${bulletin.periode}`}
+                                    className="rounded-lg border border-ink-200 p-2 text-ink-500 transition hover:bg-ink-50 hover:text-ink-800 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
+                                >
+                                    <Icon name="document" className="h-4 w-4" />
+                                </button>
+
+                                <a
+                                    href={routes.mesBulletins.pdf(bulletin.id)}
+                                    title={`Télécharger le bulletin de ${bulletin.periode}`}
+                                    aria-label={`Télécharger le bulletin de ${bulletin.periode}`}
+                                    className="rounded-lg border border-ink-200 p-2 text-ink-500 transition hover:bg-ink-50 hover:text-ink-800 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
+                                >
+                                    <Icon name="download" className="h-4 w-4" />
+                                </a>
+                            </div>
                         </Card>
                     ))}
                 </div>
 
                 <Pagination page={bulletins} />
             </div>
+            {apercu && (
+                <ApercuPdf
+                    titre={`Bulletin de ${apercu.periode}`}
+                    sousTitre={apercu.employeur}
+                    source={routes.mesBulletins.pdf(apercu.id, true)}
+                    telechargement={routes.mesBulletins.pdf(apercu.id)}
+                    onFermer={() => setApercu(null)}
+                />
+            )}
         </PortalLayout>
     );
 }

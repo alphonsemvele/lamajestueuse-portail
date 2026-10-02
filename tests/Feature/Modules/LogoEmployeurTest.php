@@ -163,12 +163,7 @@ class LogoEmployeurTest extends TestCase
     {
         $bulletin = Bulletin::first() ?? $this->bulletinDe();
 
-        $methode = new \ReflectionMethod(
-            \App\Http\Controllers\Modules\MesBulletinsController::class,
-            'enTeteDeLEmployeur'
-        );
-
-        $enTete = $methode->invoke(app(\App\Http\Controllers\Modules\MesBulletinsController::class), $bulletin);
+        $enTete = app(\App\Services\BulletinPdf::class)->enTete($bulletin);
 
         if ($enTete['logo'] === null) {
             return null;

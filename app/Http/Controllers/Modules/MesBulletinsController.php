@@ -4,16 +4,15 @@ namespace App\Http\Controllers\Modules;
 
 use App\Http\Controllers\Concerns\ServesModule;
 use App\Http\Controllers\Controller;
-use App\Models\Application;
 use App\Models\Bulletin;
 use App\Models\User;
-use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\BulletinPdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response as ReponseInertia;
-use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Mes bulletins de paie : chacun consulte et telecharge les siens.
@@ -62,94 +61,22 @@ class MesBulletinsController extends Controller
         ]);
     }
 
-    /** Le bulletin en PDF, pret a imprimer ou a joindre a un dossier. */
-    public function telecharger(Request $request, Bulletin $bulletin): Response
+    /**
+     * Le bulletin en PDF, a l'ecran ou enregistre.
+     *
+     * `?apercu=1` le sert en ligne, pour la previsualisation ; sans ce
+     * drapeau le navigateur propose de l'enregistrer.
+     */
+    public function telecharger(Request $request, Bulletin $bulletin, BulletinPdf $pdf): SymfonyResponse
     {
         $this->autoriserAcces($request->user());
 
-        // Un bulletin ne se telecharge que par son titulaire, et seulement
-        // une fois valide.
+        // Un bulletin ne se consulte que par son titulaire, et seulement une
+        // fois valide.
         abort_unless($bulletin->agent?->user_id === $request->user()->id, 403);
         abort_unless(in_array($bulletin->statut, self::VISIBLES, true), 404);
 
-        $bulletin->load(['agent.user', 'employeur', 'contrat.echelon.categorie']);
-
-        $pdf = Pdf::loadView('pdf.bulletin', [
-            'bulletin' => $bulletin,
-            'enTete' => $this->enTeteDeLEmployeur($bulletin),
-            'employeur' => $bulletin->employeur,
-            'contrat' => $bulletin->contrat,
-            'agent' => $bulletin->agent,
-            'mention' => "Document remis à titre d'information. Conservez-le : il fait foi de votre rémunération.",
-        ])->setPaper('a4');
-
-        return $pdf->download(sprintf(
-            'bulletin-%s-%04d-%02d.pdf',
-            str_replace(['/', ' '], '-', (string) ($request->user()->matricule ?: $bulletin->agent_id)),
-            $bulletin->annee,
-            $bulletin->mois,
-        ));
-    }
-
-    /**
-     * L'en-tete du bulletin : c'est l'employeur qui edite la fiche de paie,
-     * donc c'est son identite qui s'affiche.
-     *
-     * Le logo se cherche en trois temps : celui de l'employeur d'abord, puis
-     * celui de l'institut auquel il est rattache, enfin celui du module. Le
-     * premier trouve l'emporte.
-     *
-     * @return array{nom: string, logo: ?string, couleur: string, groupe: bool}
-     */
-    private function enTeteDeLEmployeur(Bulletin $bulletin): array
-    {
-        $employeur = $bulletin->employeur;
-
-        if ($employeur === null) {
-            return $this->enTeteDuGroupe();
-        }
-
-        $institut = $employeur->application;
-
-        return [
-            'nom' => $employeur->nom,
-            'logo' => $this->premierLogo([
-                $employeur->logo,
-                $institut?->logo,
-                $this->logoDuModule(),
-            ]),
-            'couleur' => $institut?->color ?: '#0f766e',
-            'groupe' => false,
-        ];
-    }
-
-    /** @return array{nom: string, logo: ?string, couleur: string, groupe: bool} */
-    private function enTeteDuGroupe(): array
-    {
-        return [
-            'nom' => 'LA MAJESTUEUSE',
-            'logo' => $this->fichierEnBase64($this->logoDuModule()),
-            'couleur' => '#0f766e',
-            'groupe' => true,
-        ];
-    }
-
-    /** Le premier chemin de la liste qui donne reellement une image. */
-    private function premierLogo(array $chemins): ?string
-    {
-        foreach ($chemins as $chemin) {
-            if ($encode = $this->fichierEnBase64($chemin)) {
-                return $encode;
-            }
-        }
-
-        return null;
-    }
-
-    /** Le logo porte par la tuile du module, dernier recours commun. */
-    private function logoDuModule(): ?string
-    {
-        return Application::where('module_key', self::MODULE)->value('logo');
+        return $pdf->reponse($bulletin, $request->boolean('apercu'));
     }
 
     /**

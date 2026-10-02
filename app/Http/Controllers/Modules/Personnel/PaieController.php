@@ -9,6 +9,7 @@ use App\Models\Bulletin;
 use App\Models\Contrat;
 use App\Models\Employeur;
 use App\Models\User;
+use App\Services\BulletinPdf;
 use App\Services\CourrielsPortail;
 use App\Services\PaieService;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,7 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 /**
  * Paie du mois : preparation des bulletins, ajustements exceptionnels, puis
@@ -386,6 +388,27 @@ class PaieController extends Controller
         ]);
 
         $bulletin->delete();
+    }
+
+    /**
+     * Le bulletin en PDF, tel que le salarie le recevra.
+     *
+     * `?apercu=1` le sert en ligne pour la previsualisation ; sans ce drapeau
+     * le navigateur propose de l'enregistrer. Le document est le meme des
+     * deux cotes : c'est BulletinPdf qui le fabrique.
+     */
+    public function pdf(Request $request, Bulletin $bulletin, BulletinPdf $pdf): SymfonyResponse
+    {
+        $this->autoriserAcces($request->user());
+        $this->verifierEntite($request, $bulletin->employeur_id);
+
+        return $pdf->reponse(
+            $bulletin,
+            $request->boolean('apercu'),
+            $bulletin->statut === 'brouillon'
+                ? 'Bulletin provisoire : il peut encore etre recalcule avant validation.'
+                : null,
+        );
     }
 
     public function annoter(Request $request, Bulletin $bulletin): RedirectResponse

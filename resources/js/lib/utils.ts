@@ -57,7 +57,7 @@ export const routes = {
     },
     mesBulletins: {
         index: '/mes-bulletins',
-        pdf: (id: number) => `/mes-bulletins/${id}/pdf`,
+        pdf: (id: number, apercu = false) => `/mes-bulletins/${id}/pdf${apercu ? '?apercu=1' : ''}`,
     },
     badges: {
         index: '/badges',
@@ -101,6 +101,8 @@ export const routes = {
         bulletinNote: (id: number) => `/personnel/paie/bulletins/${id}/note`,
         bulletinSupprimer: (id: number) => `/personnel/paie/bulletins/${id}`,
         bulletinRelancer: (id: number) => `/personnel/paie/bulletins/${id}/relancer`,
+        bulletinPdf: (id: number, apercu = false) =>
+            `/personnel/paie/bulletins/${id}/pdf${apercu ? '?apercu=1' : ''}`,
         ajustements: (contrat: number) => `/personnel/contrats/${contrat}/ajustements`,
         ajustement: (id: number) => `/personnel/ajustements/${id}`,
         employeurs: '/personnel/employeurs',

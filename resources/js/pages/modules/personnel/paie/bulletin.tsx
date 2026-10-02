@@ -1,5 +1,6 @@
 import { Link, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
+import ApercuPdf from '@/components/apercu-pdf';
 import Icon from '@/components/icon';
 import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
@@ -55,7 +56,11 @@ function Ligne({ ligne, signe }: { ligne: LigneDetail; signe: '+' | '−' }) {
                 <p className="truncate text-sm text-ink-800 dark:text-ink-100">{ligne.libelle}</p>
                 <p className="text-[11px] text-ink-400">
                     {ligne.type === 'pourcentage'
-                        ? `${ligne.valeur} % de ${ligne.assietteLibelle ?? 'le salaire de base'}`
+                        ? `${ligne.valeur} % ${
+                              (ligne.assietteLibelle ?? 'le salaire de base') === 'le salaire de base'
+                                  ? 'du salaire de base'
+                                  : `de ${ligne.assietteLibelle}`
+                          }`
                         : 'montant fixe'}
                     {ligne.source === 'ajustement' && ' · exceptionnel ce mois'}
                 </p>
@@ -76,6 +81,7 @@ function Ligne({ ligne, signe }: { ligne: LigneDetail; signe: '+' | '−' }) {
 export default function DetailBulletin({ bulletin, contrat, employeur, agent, ajustements, peutGerer }: Props) {
     const { errors } = usePage<SharedProps & { errors: Record<string, string> }>().props;
     const [ouvert, setOuvert] = useState(false);
+    const [apercu, setApercu] = useState(false);
 
     const action = useForm({});
     const modifiable = bulletin.statut === 'brouillon';
@@ -285,6 +291,13 @@ export default function DetailBulletin({ bulletin, contrat, employeur, agent, aj
                                 </Bouton>
                             )}
                             <Bouton
+                                variante="secondaire"
+                                icon="document"
+                                onClick={() => setApercu(true)}
+                            >
+                                Aperçu PDF
+                            </Bouton>
+                            <Bouton
                                 variante="danger"
                                 icon="trash"
                                 onClick={() => {
@@ -422,6 +435,15 @@ export default function DetailBulletin({ bulletin, contrat, employeur, agent, aj
                     </div>
                 </form>
             </Modale>
+            {apercu && (
+                <ApercuPdf
+                    titre={`Bulletin de ${bulletin.periode}`}
+                    sousTitre={`${bulletin.agent ?? ''} · ${bulletin.employeur ?? ''}`}
+                    source={routes.personnel.bulletinPdf(bulletin.id, true)}
+                    telechargement={routes.personnel.bulletinPdf(bulletin.id)}
+                    onFermer={() => setApercu(false)}
+                />
+            )}
         </PersonnelLayout>
     );
 }

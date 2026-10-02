@@ -1,5 +1,7 @@
 import { Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { type FormEvent } from 'react';
+import ApercuPdf from '@/components/apercu-pdf';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select } from '@/components/ui';
@@ -36,6 +38,7 @@ interface Props {
  * bulletin ancien par agent, par employeur ou par année.
  */
 export default function RegistreBulletins({ bulletins, filtres, employeurs, annees, peutGerer }: Props) {
+    const [apercu, setApercu] = useState<BulletinLigne | null>(null);
     // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
     const [q, setQ] = useRechercheInstantanee(filtres.q, (terme) => chercher({ q: terme }));
 
@@ -161,6 +164,16 @@ export default function RegistreBulletins({ bulletins, filtres, employeurs, anne
                                             <Icon name="chevron-right" className="h-3.5 w-3.5" />
                                         </Link>
 
+                                        <button
+                                            type="button"
+                                            onClick={() => setApercu(bulletin)}
+                                            title="Aperçu du bulletin en PDF"
+                                            aria-label={`Aperçu du bulletin de ${bulletin.agent ?? 'cet agent'}`}
+                                            className="rounded-lg p-1.5 text-ink-400 transition hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-teal-500/10 dark:hover:text-teal-300"
+                                        >
+                                            <Icon name="document" className="h-4 w-4" />
+                                        </button>
+
                                         {peutGerer && (
                                             <button
                                                 type="button"
@@ -181,6 +194,15 @@ export default function RegistreBulletins({ bulletins, filtres, employeurs, anne
 
                 <Pagination page={bulletins} />
             </Card>
+            {apercu && (
+                <ApercuPdf
+                    titre={`Bulletin de ${apercu.periode}`}
+                    sousTitre={`${apercu.agent ?? ''} · ${apercu.employeur ?? ''}`}
+                    source={routes.personnel.bulletinPdf(apercu.id, true)}
+                    telechargement={routes.personnel.bulletinPdf(apercu.id)}
+                    onFermer={() => setApercu(null)}
+                />
+            )}
         </PersonnelLayout>
     );
 }

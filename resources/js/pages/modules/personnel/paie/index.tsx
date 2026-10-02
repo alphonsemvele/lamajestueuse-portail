@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
+import ApercuPdf from '@/components/apercu-pdf';
 import Icon from '@/components/icon';
 import { Alert, Card, Select } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
@@ -49,6 +50,7 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
         );
 
     const [enCours, setEnCours] = useState(false);
+    const [apercu, setApercu] = useState<BulletinLigne | null>(null);
 
     const generer = (mode: 'complet' | 'manquants' = 'complet') =>
         router.post(
@@ -331,6 +333,16 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                                             <Icon name="chevron-right" className="h-3.5 w-3.5" />
                                         </Link>
 
+                                        <button
+                                            type="button"
+                                            onClick={() => setApercu(bulletin)}
+                                            title="Aperçu du bulletin en PDF"
+                                            aria-label={`Aperçu du bulletin de ${bulletin.agent ?? 'cet agent'}`}
+                                            className="rounded-lg p-1.5 text-ink-400 transition hover:bg-teal-50 hover:text-teal-700 dark:hover:bg-teal-500/10 dark:hover:text-teal-300"
+                                        >
+                                            <Icon name="document" className="h-4 w-4" />
+                                        </button>
+
                                         {peutGerer && (
                                             <button
                                                 type="button"
@@ -350,6 +362,15 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                     </Tableau>
                 )}
             </Card>
+            {apercu && (
+                <ApercuPdf
+                    titre={`Bulletin de ${MOIS[periode.mois - 1]} ${periode.annee}`}
+                    sousTitre={`${apercu.agent ?? ''} · ${apercu.employeur ?? ''}`}
+                    source={routes.personnel.bulletinPdf(apercu.id, true)}
+                    telechargement={routes.personnel.bulletinPdf(apercu.id)}
+                    onFermer={() => setApercu(null)}
+                />
+            )}
         </PersonnelLayout>
     );
 }

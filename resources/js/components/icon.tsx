@@ -4,6 +4,8 @@ import { cn } from '@/lib/utils';
 const paths: Record<string, string> = {
     'academic': `<path d="M22 10 12 5 2 10l10 5 10-5Z"/><path d="M6 12v5c0 1 2.7 3 6 3s6-2 6-3v-5"/><path d="M22 10v6"/>`,
     'school': `<path d="M14 22v-4a2 2 0 1 0-4 0v4"/><path d="m2 9 10-7 10 7"/><path d="M4 10v11a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V10"/>`,
+    'id-card': `<rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2.2"/><path d="M4.8 16.2a3.6 3.6 0 0 1 6.4 0"/><path d="M14.5 10h4"/><path d="M14.5 14h3"/>`,
+    'book': `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`,
     'briefcase': `<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M2 13h20"/>`,
     'heart': `<path d="M19 14c1.5-1.5 3-3.3 3-5.5A5.5 5.5 0 0 0 12 5.7 5.5 5.5 0 0 0 2 8.5c0 2.2 1.5 4 3 5.5l7 7Z"/>`,
     'users': `<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>`,

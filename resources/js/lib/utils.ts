@@ -55,6 +55,10 @@ export const routes = {
         destroy: (slug: string) => `/informations/${slug}`,
         visibility: (slug: string) => `/informations/${slug}/visibilite`,
     },
+    tutoriels: {
+        index: '/tutoriels',
+        show: (cle: string) => `/tutoriels/${cle}`,
+    },
     profil: {
         index: '/mon-profil',
         diplomes: '/mon-profil/diplomes',

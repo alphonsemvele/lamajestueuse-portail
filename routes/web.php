@@ -18,6 +18,7 @@ use App\Http\Controllers\Modules\BadgeController;
 use App\Http\Controllers\Modules\DirectoryController;
 use App\Http\Controllers\Modules\MesBulletinsController;
 use App\Http\Controllers\Modules\ProfilController;
+use App\Http\Controllers\Modules\TutorielController;
 use App\Http\Controllers\Modules\InformationController;
 use App\Http\Controllers\Modules\Personnel\PaieController;
 use App\Http\Controllers\Modules\Personnel\PersonnelController;
@@ -34,6 +35,17 @@ Route::get('/locale/{locale}', LocaleController::class)->name('locale.switch');
  * le formulaire d'inscription.
  */
 Route::get('/support', SupportController::class)->name('support');
+
+/*
+ * Tutoriels : comment se servir du portail, module par module.
+ *
+ * Publics : on doit pouvoir lire comment s'inscrire avant d'avoir un compte.
+ * Ils restent une tuile du portail pour ceux qui sont connectes.
+ */
+Route::prefix('tutoriels')->name('tutoriels.')->group(function () {
+    Route::get('/', [TutorielController::class, 'index'])->name('index');
+    Route::get('/{cle}', [TutorielController::class, 'show'])->name('show');
+});
 
 /*
  * L'unique page de connexion de tout l'ecosysteme La Majestueuse.

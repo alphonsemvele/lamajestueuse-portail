@@ -35,6 +35,17 @@ return [
         'manage_roles' => [],
     ],
 
+    'tutoriels' => [
+        'name' => 'Tutoriels',
+        'description' => "Apprendre à se servir du portail, module par module.",
+        'route' => 'tutoriels.index',
+        'admin_route' => null,
+        'icon' => 'book',
+        'color' => '#b45309',
+        'ouvert_a_tous' => true,
+        'manage_roles' => [],
+    ],
+
     'informations' => [
         'name' => "Centre d'information",
         'description' => "Actualités, annonces et affichage du groupe.",

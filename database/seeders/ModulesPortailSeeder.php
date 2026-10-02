@@ -95,6 +95,23 @@ class ModulesPortailSeeder extends Seeder
             ],
         );
 
+        // Tutoriels : ouvert a tous, juste apres le profil.
+        Application::updateOrCreate(
+            ['module_key' => 'tutoriels'],
+            [
+                'name' => 'Tutoriels',
+                'slug' => 'tutoriels',
+                'description' => 'Apprendre à se servir du portail, module par module.',
+                'type' => 'module',
+                'url' => null,
+                'category_id' => $categorie?->id,
+                'icon' => 'book',
+                'color' => '#b45309',
+                'is_active' => true,
+                'sort_order' => 1,
+            ],
+        );
+
         // Mes bulletins de paie : chacun consulte les siens.
         Application::updateOrCreate(
             ['module_key' => 'bulletins'],

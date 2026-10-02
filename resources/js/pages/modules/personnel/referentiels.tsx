@@ -898,6 +898,32 @@ function Profils({
         tousEchelons.find((echelon) => String(echelon.id) === formulaire.data.echelon_id)?.salaire ?? 0,
     );
 
+    /*
+     * Les échelons proposés suivent la catégorie choisie. Celui déjà retenu
+     * reste offert même s'il n'en relève pas : un profil ancien peut porter
+     * cette incohérence, et la modifier ne doit pas la faire disparaître en
+     * silence.
+     */
+    const echelonsOfferts = formulaire.data.categorie_rh_id
+        ? tousEchelons.filter(
+              (echelon) =>
+                  String(echelon.categorieId) === formulaire.data.categorie_rh_id ||
+                  String(echelon.id) === formulaire.data.echelon_id,
+          )
+        : tousEchelons;
+
+    /** Change la catégorie, et lâche l'échelon s'il n'en relève pas. */
+    const choisirCategorie = (valeur: string) => {
+        const retenu = tousEchelons.find((echelon) => String(echelon.id) === formulaire.data.echelon_id);
+        const garde = !valeur || !retenu || String(retenu.categorieId) === valeur;
+
+        formulaire.setData((actuel) => ({
+            ...actuel,
+            categorie_rh_id: valeur,
+            echelon_id: garde ? actuel.echelon_id : '',
+        }));
+    };
+
     /** Le libellé d'une ligne cochée, pour nommer les assiettes offertes. */
     const nomDe = (cle: string) => {
         const [sens, id] = cle.split(':');
@@ -1133,7 +1159,7 @@ function Profils({
                         <Champ libelle="Catégorie" erreur={formulaire.errors.categorie_rh_id}>
                             <Select
                                 value={formulaire.data.categorie_rh_id}
-                                onChange={(event) => formulaire.setData('categorie_rh_id', event.target.value)}
+                                onChange={(event) => choisirCategorie(event.target.value)}
                             >
                                 <option value="">Aucune</option>
                                 {categories.map((categorie) => (
@@ -1143,12 +1169,23 @@ function Profils({
                                 ))}
                             </Select>
                         </Champ>
-                        <Champ libelle="Échelon de référence" erreur={formulaire.errors.echelon_id} className="sm:col-span-2">
+                        <Champ
+                            libelle="Échelon de référence"
+                            erreur={formulaire.errors.echelon_id}
+                            aide={
+                                formulaire.data.categorie_rh_id
+                                    ? 'Les échelons de la catégorie choisie.'
+                                    : 'Choisissez une catégorie pour n’en voir que ses échelons.'
+                            }
+                            className="sm:col-span-2"
+                        >
                             <Select value={formulaire.data.echelon_id} onChange={(event) => formulaire.setData('echelon_id', event.target.value)}>
                                 <option value="">Aucun</option>
-                                {tousEchelons.map((echelon) => (
+                                {echelonsOfferts.map((echelon) => (
                                     <option key={echelon.id} value={echelon.id}>
-                                        {echelon.categorie} · échelon {echelon.numero} — {fcfa(echelon.salaire)}
+                                        {/* La catégorie n'est rappelée que si la liste n'y est pas déjà limitée. */}
+                                        {formulaire.data.categorie_rh_id ? '' : `${echelon.categorie} · `}
+                                        échelon {echelon.libelle || echelon.numero} — {fcfa(echelon.salaire)}
                                     </option>
                                 ))}
                             </Select>

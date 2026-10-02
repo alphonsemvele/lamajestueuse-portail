@@ -55,6 +55,14 @@ export const routes = {
         destroy: (slug: string) => `/informations/${slug}`,
         visibility: (slug: string) => `/informations/${slug}/visibilite`,
     },
+    profil: {
+        index: '/mon-profil',
+        diplomes: '/mon-profil/diplomes',
+        diplome: (id: number) => `/mon-profil/diplomes/${id}`,
+        documents: '/mon-profil/documents',
+        document: (id: number) => `/mon-profil/documents/${id}`,
+        documentRetrait: (id: number) => `/mon-profil/documents/${id}`,
+    },
     mesBulletins: {
         index: '/mes-bulletins',
         pdf: (id: number, apercu = false) => `/mes-bulletins/${id}/pdf${apercu ? '?apercu=1' : ''}`,
@@ -88,6 +96,7 @@ export const routes = {
         documents: (user: number) => `/personnel/dossier/${user}/documents`,
         rattachement: (user: number) => `/personnel/dossier/${user}/rattachement`,
         document: (id: number) => `/personnel/documents/${id}`,
+        trancherPiece: (genre: 'diplome' | 'document', id: number) => `/personnel/pieces/${genre}/${id}`,
         evenement: (id: number) => `/personnel/carriere/${id}`,
         paie: '/personnel/paie',
         bulletins: '/personnel/bulletins',

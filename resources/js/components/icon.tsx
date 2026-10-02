@@ -29,6 +29,7 @@ const paths: Record<string, string> = {
     'plus': `<path d="M12 5v14M5 12h14"/>`,
     'pencil': `<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>`,
     'trash': `<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>`,
+    'close': `<path d="M18 6 6 18"/><path d="m6 6 12 12"/>`,
     'check': `<path d="m20 6-11 11-5-5"/>`,
     'clock': `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
     'login': `<path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="m10 17 5-5-5-5"/><path d="M15 12H3"/>`,

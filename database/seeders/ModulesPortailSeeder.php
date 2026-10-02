@@ -75,6 +75,26 @@ class ModulesPortailSeeder extends Seeder
     {
         $categorie = Category::firstWhere('slug', 'ressources-humaines');
 
+        /*
+         * Mon profil : ouvert a tous et pose en tete du tableau de bord.
+         * Son logo n'est pas fixe — c'est la photo de celui qui regarde.
+         */
+        Application::updateOrCreate(
+            ['module_key' => 'profil'],
+            [
+                'name' => 'Mon profil',
+                'slug' => 'mon-profil',
+                'description' => 'Vos informations, votre parcours et vos pièces.',
+                'type' => 'module',
+                'url' => null,
+                'category_id' => $categorie?->id,
+                'icon' => 'user',
+                'color' => '#0f766e',
+                'is_active' => true,
+                'sort_order' => 0,
+            ],
+        );
+
         // Mes bulletins de paie : chacun consulte les siens.
         Application::updateOrCreate(
             ['module_key' => 'bulletins'],

@@ -17,6 +17,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Modules\BadgeController;
 use App\Http\Controllers\Modules\DirectoryController;
 use App\Http\Controllers\Modules\MesBulletinsController;
+use App\Http\Controllers\Modules\ProfilController;
 use App\Http\Controllers\Modules\InformationController;
 use App\Http\Controllers\Modules\Personnel\PaieController;
 use App\Http\Controllers\Modules\Personnel\PersonnelController;
@@ -72,6 +73,20 @@ Route::middleware('auth')->group(function () {
         Route::put('/{post}', [InformationController::class, 'update'])->name('update');
         Route::delete('/{post}', [InformationController::class, 'destroy'])->name('destroy');
         Route::post('/{post}/visibilite', [InformationController::class, 'toggleVisibility'])->name('visibility');
+    });
+
+    /*
+     * Mon profil : ce que chacun voit de lui-meme. Ouvert a tout le
+     * personnel, en lecture seule — hors les pieces qu'on y depose, qui
+     * attendent alors la validation du service du personnel.
+     */
+    Route::prefix('mon-profil')->name('profil.')->group(function () {
+        Route::get('/', [ProfilController::class, 'index'])->name('index');
+        Route::post('/diplomes', [ProfilController::class, 'soumettreDiplome'])->name('diplomes.store');
+        Route::delete('/diplomes/{diplome}', [ProfilController::class, 'retirerDiplome'])->name('diplomes.destroy');
+        Route::post('/documents', [ProfilController::class, 'soumettreDocument'])->name('documents.store');
+        Route::get('/documents/{document}', [ProfilController::class, 'telechargerDocument'])->name('documents.telecharger');
+        Route::delete('/documents/{document}', [ProfilController::class, 'retirerDocument'])->name('documents.destroy');
     });
 
     /*
@@ -134,6 +149,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/dossier/{user}/documents', [PersonnelController::class, 'storeDocument'])->name('documents.store');
         Route::get('/documents/{document}', [PersonnelController::class, 'telechargerDocument'])->name('documents.telecharger');
         Route::delete('/documents/{document}', [PersonnelController::class, 'destroyDocument'])->name('documents.destroy');
+        // La RH tranche ce que l'agent a soumis depuis « Mon profil ».
+        Route::put('/pieces/{genre}/{piece}', [PersonnelController::class, 'trancherPiece'])->name('pieces.trancher');
 
         Route::post('/dossier/{user}/carriere', [PersonnelController::class, 'storeEvenement'])->name('evenements.store');
         Route::delete('/carriere/{evenement}', [PersonnelController::class, 'destroyEvenement'])->name('evenements.destroy');

@@ -1,0 +1,328 @@
+<?php
+
+namespace Tests\Feature\Modules;
+
+use App\Models\Agent;
+use App\Models\Application;
+use App\Models\CategorieRh;
+use App\Models\Contrat;
+use App\Models\Diplome;
+use App\Models\DocumentAgent;
+use App\Models\Echelon;
+use App\Models\Employeur;
+use App\Models\Indemnite;
+use App\Models\ProfilSalaire;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+/**
+ * Mon profil : ce que chacun voit de lui-meme, et ce qu'il peut soumettre
+ * au service du personnel.
+ */
+class MonProfilTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Application $module;
+
+    private Application $institut;
+
+    private Employeur $employeur;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('local');
+
+        $this->module = Application::factory()->module('profil')->create(['name' => 'Mon profil']);
+        Application::factory()->module('personnel')->create(['name' => 'Personnel & paie']);
+
+        $this->institut = Application::factory()->create(['name' => 'IUM']);
+        $this->employeur = Employeur::create([
+            'nom' => 'Institut Universitaire', 'sigle' => 'IUM',
+            'application_id' => $this->institut->id, 'actif' => true,
+        ]);
+    }
+
+    private function moi(): User
+    {
+        $moi = User::factory()->create(['lastname' => 'NKOA', 'status' => 'active']);
+        $moi->applications()->attach($this->institut, ['poste' => 'Chargée de scolarité']);
+
+        return $moi;
+    }
+
+    // ------------------------------------------------------------ l'acces
+
+    public function test_le_module_est_ouvert_a_tout_le_personnel(): void
+    {
+        // Aucune attribution : la tuile se pose d'elle-meme.
+        $this->actingAs($this->moi())->get(route('profil.index'))->assertOk();
+    }
+
+    public function test_un_visiteur_ne_voit_pas_mon_profil(): void
+    {
+        $this->get(route('profil.index'))->assertRedirect(route('login'));
+    }
+
+    public function test_la_tuile_porte_ma_photo(): void
+    {
+        $moi = $this->moi();
+        $moi->update(['avatar' => 'utilisateurs/photos/moi.png']);
+
+        $this->actingAs($moi)->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(function (Assert $page) use ($moi) {
+                $tuile = collect($page->toArray()['props']['apps'])->firstWhere('moduleKey', 'profil');
+
+                $this->assertNotNull($tuile, 'La tuile « Mon profil » devrait être posée.');
+                $this->assertSame($moi->avatarUrl(), $tuile['photoDeProfil']);
+            });
+    }
+
+    public function test_la_tuile_s_affiche_en_premier(): void
+    {
+        $this->actingAs($this->moi())->get(route('dashboard'))
+            ->assertInertia(function (Assert $page) {
+                $apps = collect($page->toArray()['props']['apps']);
+
+                $this->assertSame('profil', $apps->first()['moduleKey']);
+            });
+    }
+
+    // ------------------------------------------------------ ce que je vois
+
+    public function test_je_vois_mon_identite_et_mes_instituts(): void
+    {
+        $moi = $this->moi();
+
+        $this->actingAs($moi)->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('identite.matricule', $moi->matricule)
+                ->has('instituts', 1)
+                ->where('instituts.0.nom', 'IUM')
+                ->where('instituts.0.poste', 'Chargée de scolarité'));
+    }
+
+    public function test_je_vois_mon_profil_de_salaire(): void
+    {
+        $moi = $this->moi();
+        $categorie = CategorieRh::create(['libelle' => 'Catégorie 7', 'actif' => true]);
+        $echelon = Echelon::create([
+            'categorie_rh_id' => $categorie->id,
+            'numero' => 1, 'libelle' => 'A', 'salaire' => 200000, 'actif' => true,
+        ]);
+
+        $profil = ProfilSalaire::create(['nom' => 'Comptable', 'echelon_id' => $echelon->id, 'actif' => true]);
+        $profil->indemnites()->attach(
+            Indemnite::create(['libelle' => 'Transport', 'imposable' => true, 'actif' => true])->id,
+            ['type_calcul' => 'fixe', 'valeur' => 30000],
+        );
+
+        Contrat::create([
+            'agent_id' => Agent::create(['user_id' => $moi->id])->id,
+            'employeur_id' => $this->employeur->id,
+            'type' => 'cdi', 'poste' => 'Comptable', 'date_debut' => '2026-01-01',
+            'quotite' => 100, 'profil_salaire_id' => $profil->id, 'echelon_id' => $echelon->id,
+            'statut' => 'actif',
+        ]);
+
+        $this->actingAs($moi)->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('remuneration.profil', 'Comptable')
+                ->where('remuneration.categorie', 'Catégorie 7')
+                ->where('remuneration.echelon', 'A')
+                ->where('remuneration.salaireBase', 200000)
+                ->has('remuneration.indemnites', 1)
+                ->has('affectations', 1));
+    }
+
+    public function test_sans_contrat_la_remuneration_est_vide(): void
+    {
+        $this->actingAs($this->moi())->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('remuneration', null)
+                ->where('dossier.ouvert', false));
+    }
+
+    public function test_je_ne_vois_que_mes_propres_pieces(): void
+    {
+        $moi = $this->moi();
+        $autre = Agent::create(['user_id' => User::factory()->create()->id]);
+        $autre->diplomes()->create(['intitule' => 'Doctorat du voisin']);
+
+        $this->actingAs($moi)->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page->has('diplomes', 0));
+    }
+
+    // -------------------------------------------------- ce que je soumets
+
+    public function test_je_declare_un_diplome_qui_attend_la_validation(): void
+    {
+        $moi = $this->moi();
+
+        $this->actingAs($moi)->post(route('profil.diplomes.store'), [
+            'intitule' => 'Licence en gestion',
+            'niveau' => 'Licence',
+            'annee_obtention' => 2019,
+        ])->assertSessionHasNoErrors();
+
+        $diplome = Diplome::firstOrFail();
+
+        $this->assertSame('en_attente', $diplome->statut);
+        $this->assertSame($moi->id, $diplome->soumis_par);
+        // Le dossier nait au premier depot.
+        $this->assertSame($moi->id, $diplome->agent->user_id);
+    }
+
+    public function test_je_depose_une_piece_qui_attend_la_validation(): void
+    {
+        $moi = $this->moi();
+
+        $this->actingAs($moi)->post(route('profil.documents.store'), [
+            'type' => 'cv',
+            'fichier' => UploadedFile::fake()->create('CV.pdf', 120, 'application/pdf'),
+        ])->assertSessionHasNoErrors();
+
+        $piece = DocumentAgent::firstOrFail();
+
+        $this->assertSame('en_attente', $piece->statut);
+        $this->assertSame($moi->id, $piece->soumis_par);
+        Storage::disk('local')->assertExists($piece->fichier);
+    }
+
+    public function test_je_retire_ce_que_j_ai_soumis_tant_qu_il_attend(): void
+    {
+        $moi = $this->moi();
+        $this->actingAs($moi)->post(route('profil.diplomes.store'), ['intitule' => 'Erreur de saisie']);
+
+        $diplome = Diplome::firstOrFail();
+
+        $this->actingAs($moi)->delete(route('profil.diplomes.destroy', $diplome))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(0, Diplome::count());
+    }
+
+    public function test_je_ne_retire_plus_ce_qui_a_ete_valide(): void
+    {
+        $moi = $this->moi();
+        $this->actingAs($moi)->post(route('profil.diplomes.store'), ['intitule' => 'Licence']);
+
+        $diplome = Diplome::firstOrFail();
+        $diplome->update(['statut' => 'valide']);
+
+        $this->actingAs($moi)->delete(route('profil.diplomes.destroy', $diplome))
+            ->assertForbidden();
+
+        $this->assertSame(1, Diplome::count());
+    }
+
+    public function test_je_ne_retire_pas_la_piece_d_un_autre(): void
+    {
+        $moi = $this->moi();
+        $voisin = $this->moi();
+        $this->actingAs($voisin)->post(route('profil.diplomes.store'), ['intitule' => 'Licence']);
+
+        $this->actingAs($moi)->delete(route('profil.diplomes.destroy', Diplome::firstOrFail()))
+            ->assertForbidden();
+    }
+
+    public function test_je_telecharge_ma_piece_mais_pas_celle_d_un_autre(): void
+    {
+        $moi = $this->moi();
+        $voisin = $this->moi();
+
+        $this->actingAs($moi)->post(route('profil.documents.store'), [
+            'type' => 'cv', 'fichier' => UploadedFile::fake()->create('CV.pdf', 100, 'application/pdf'),
+        ]);
+
+        $piece = DocumentAgent::firstOrFail();
+
+        $this->actingAs($moi)->get(route('profil.documents.telecharger', $piece))->assertOk();
+        $this->actingAs($voisin)->get(route('profil.documents.telecharger', $piece))->assertForbidden();
+    }
+
+    // ------------------------------------------------- ce que la RH tranche
+
+    private function gestionnaire(): User
+    {
+        $rh = User::factory()->create(['status' => 'active']);
+        $rh->applications()->attach(
+            Application::where('module_key', 'personnel')->firstOrFail(),
+            ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])],
+        );
+        $rh->employeursRh()->attach($this->employeur);
+
+        return $rh;
+    }
+
+    public function test_la_rh_valide_un_diplome_soumis(): void
+    {
+        $moi = $this->moi();
+        $this->actingAs($moi)->post(route('profil.diplomes.store'), ['intitule' => 'Licence']);
+        $diplome = Diplome::firstOrFail();
+
+        $rh = $this->gestionnaire();
+        $this->actingAs($rh)->put(route('personnel.pieces.trancher', ['diplome', $diplome->id]), [
+            'decision' => 'valide',
+        ])->assertSessionHasNoErrors();
+
+        $diplome->refresh();
+        $this->assertSame('valide', $diplome->statut);
+        $this->assertSame($rh->id, $diplome->decide_par);
+        $this->assertNotNull($diplome->decide_le);
+    }
+
+    public function test_un_refus_porte_son_motif_jusqu_au_profil_de_l_agent(): void
+    {
+        $moi = $this->moi();
+        $this->actingAs($moi)->post(route('profil.diplomes.store'), ['intitule' => 'Licence']);
+
+        $this->actingAs($this->gestionnaire())
+            ->put(route('personnel.pieces.trancher', ['diplome', Diplome::firstOrFail()->id]), [
+                'decision' => 'refuse',
+                'motif_refus' => 'Copie illisible : redéposez-la.',
+            ]);
+
+        $this->actingAs($moi)->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('diplomes.0.statut', 'refuse')
+                ->where('diplomes.0.motifRefus', 'Copie illisible : redéposez-la.'));
+    }
+
+    public function test_un_employe_ordinaire_ne_tranche_rien(): void
+    {
+        $moi = $this->moi();
+        $this->actingAs($moi)->post(route('profil.diplomes.store'), ['intitule' => 'Licence']);
+
+        $this->actingAs($moi)
+            ->put(route('personnel.pieces.trancher', ['diplome', Diplome::firstOrFail()->id]), [
+                'decision' => 'valide',
+            ])->assertForbidden();
+    }
+
+    /** Ce que la RH saisit elle-meme est vrai par construction. */
+    public function test_une_piece_saisie_par_la_rh_est_validee_d_emblee(): void
+    {
+        $moi = $this->moi();
+        $agent = Agent::create(['user_id' => $moi->id]);
+        Contrat::create([
+            'agent_id' => $agent->id, 'employeur_id' => $this->employeur->id,
+            'type' => 'cdi', 'poste' => 'Comptable', 'date_debut' => '2026-01-01',
+            'quotite' => 100, 'statut' => 'actif',
+        ]);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.documents.store', $moi), [
+            'type' => 'contrat',
+            'fichier' => UploadedFile::fake()->create('contrat.pdf', 100, 'application/pdf'),
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('valide', DocumentAgent::firstOrFail()->statut);
+    }
+}

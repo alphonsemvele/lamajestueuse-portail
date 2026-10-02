@@ -24,6 +24,17 @@
 
 return [
 
+    'profil' => [
+        'name' => 'Mon profil',
+        'description' => "Vos informations, votre parcours et vos pièces.",
+        'route' => 'profil.index',
+        'admin_route' => null,
+        'icon' => 'user',
+        'color' => '#0f766e',
+        'ouvert_a_tous' => true,
+        'manage_roles' => [],
+    ],
+
     'informations' => [
         'name' => "Centre d'information",
         'description' => "Actualités, annonces et affichage du groupe.",

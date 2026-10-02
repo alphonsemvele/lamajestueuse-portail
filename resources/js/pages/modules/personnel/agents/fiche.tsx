@@ -53,6 +53,10 @@ interface Diplome {
     etablissement: string | null;
     anneeObtention: number | null;
     pieceFournie: boolean;
+    statut: 'en_attente' | 'valide' | 'refuse';
+    statutLibelle: string;
+    soumisParLAgent: boolean;
+    motifRefus: string | null;
 }
 
 interface Contrat {
@@ -94,6 +98,10 @@ interface Document {
     typeLibelle: string;
     libelle: string;
     nomOrigine: string;
+    statut: 'en_attente' | 'valide' | 'refuse';
+    statutLibelle: string;
+    soumisParLAgent: boolean;
+    motifRefus: string | null;
     extension: string;
     poids: string;
     note: string | null;
@@ -701,12 +709,19 @@ function Diplomes({ agent, diplomes, niveaux, peutGerer }: { agent: Agent; diplo
                                 <td className="px-3 py-2.5 text-ink-600 dark:text-ink-300">{diplome.etablissement ?? '—'}</td>
                                 <td className="px-3 py-2.5 tabular-nums text-ink-600 dark:text-ink-300">{diplome.anneeObtention ?? '—'}</td>
                                 <td className="px-3 py-2.5">
-                                    {diplome.pieceFournie ? (
-                                        <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-                                            <Icon name="check" className="h-3.5 w-3.5" /> fournie
-                                        </span>
-                                    ) : (
-                                        <span className="text-xs text-amber-700 dark:text-amber-300">à réclamer</span>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        {diplome.pieceFournie ? (
+                                            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                                                <Icon name="check" className="h-3.5 w-3.5" /> fournie
+                                            </span>
+                                        ) : (
+                                            <span className="text-xs text-amber-700 dark:text-amber-300">à réclamer</span>
+                                        )}
+
+                                        <Decision genre="diplome" piece={diplome} peutGerer={peutGerer} />
+                                    </div>
+                                    {diplome.motifRefus && (
+                                        <p className="mt-0.5 text-[11px] text-red-600">Motif : {diplome.motifRefus}</p>
                                     )}
                                 </td>
                                 {peutGerer && (
@@ -1262,6 +1277,76 @@ const TONS_FICHIER: Record<string, string> = {
     xlsx: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300',
 };
 
+/**
+ * Trancher une pièce soumise par l'agent depuis « Mon profil ».
+ *
+ * Tant qu'elle attend, la RH valide ou refuse. Refusée, le motif saisi
+ * s'affiche sur le profil de l'intéressé : il sait ce qu'on lui demande.
+ */
+function Decision({
+    genre,
+    piece,
+    peutGerer,
+}: {
+    genre: 'diplome' | 'document';
+    piece: { id: number; statut: string; statutLibelle: string; soumisParLAgent: boolean; motifRefus: string | null };
+    peutGerer: boolean;
+}) {
+    const formulaire = useForm({ decision: 'valide', motif_refus: '' });
+
+    const trancher = (decision: 'valide' | 'refuse') => {
+        const motif = decision === 'refuse' ? (prompt('Motif du refus (visible par l’agent) :') ?? '').trim() : '';
+
+        if (decision === 'refuse' && motif === '') return;
+
+        formulaire.transform(() => ({ decision, motif_refus: motif }));
+        formulaire.put(routes.personnel.trancherPiece(genre, piece.id), { preserveScroll: true });
+    };
+
+    // Ce que la RH a saisi elle-même ne porte aucune mention : c'est le cas
+    // ordinaire, et l'annoter n'apprendrait rien.
+    if (piece.statut === 'valide' && !piece.soumisParLAgent) return null;
+
+    const tons: Record<string, string> = {
+        en_attente: 'bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300',
+        valide: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300',
+        refuse: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300',
+    };
+
+    return (
+        <div className="flex shrink-0 items-center gap-1.5">
+            <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-medium', tons[piece.statut])}>
+                {piece.statutLibelle}
+            </span>
+
+            {peutGerer && piece.statut === 'en_attente' && (
+                <>
+                    <button
+                        type="button"
+                        onClick={() => trancher('valide')}
+                        disabled={formulaire.processing}
+                        title="Valider cette pièce"
+                        aria-label="Valider cette pièce"
+                        className="rounded-lg p-1.5 text-ink-400 transition hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-500/10"
+                    >
+                        <Icon name="check" className="h-4 w-4" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => trancher('refuse')}
+                        disabled={formulaire.processing}
+                        title="Refuser cette pièce"
+                        aria-label="Refuser cette pièce"
+                        className="rounded-lg p-1.5 text-ink-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                    >
+                        <Icon name="close" className="h-4 w-4" />
+                    </button>
+                </>
+            )}
+        </div>
+    );
+}
+
 function Documents({
     agent,
     documents,
@@ -1373,6 +1458,8 @@ function Documents({
                                             <Icon name="upload" className="h-4 w-4 rotate-180" />
                                         </a>
                                     )}
+
+                                    <Decision genre="document" piece={piece} peutGerer={peutGerer} />
 
                                     {peutGerer && (
                                         <button

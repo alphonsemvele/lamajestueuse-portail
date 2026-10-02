@@ -10,6 +10,24 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
+    /**
+     * La tuile « Mon profil » porte la photo de celui qui la regarde.
+     *
+     * C'est la seule tuile dont le visuel change d'une personne a l'autre :
+     * on s'y reconnait avant meme de lire son nom.
+     *
+     * @param  array<string, mixed>  $tuile
+     * @return array<string, mixed>
+     */
+    private function avecPhotoDeProfil(array $tuile, $user): array
+    {
+        if (($tuile['moduleKey'] ?? null) !== 'profil') {
+            return $tuile;
+        }
+
+        return $tuile + ['photoDeProfil' => $user->avatarUrl(), 'initiales' => $user->initials()];
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -28,6 +46,9 @@ class DashboardController extends Controller
             ->concat(Application::ouvertesATous()->load('category'))
             ->unique('id')
             ->sortBy([['sort_order', 'asc'], ['name', 'asc']])
+            // « Mon profil » ouvre toujours le tableau de bord, quel que soit
+            // l'ordre donne aux tuiles : on se trouve avant de chercher.
+            ->sortBy(fn ($application) => $application->module_key === 'profil' ? 0 : 1)
             ->values();
 
         $search = trim((string) $request->query('q'));
@@ -50,7 +71,8 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard', [
             // Les modules du portail prennent place parmi les applications.
-            'apps' => $applications->whereIn('type', ['application', 'module'])->values()->map->toUiArray()->all(),
+            'apps' => $applications->whereIn('type', ['application', 'module'])->values()
+                ->map(fn ($application) => $this->avecPhotoDeProfil($application->toUiArray(), $user))->all(),
             'quickLinks' => $applications->where('type', 'quick_link')->values()->map->toUiArray()->all(),
             'categories' => $user->applications()->with('category')->get()
                 ->pluck('category')->filter()->unique('id')->values()

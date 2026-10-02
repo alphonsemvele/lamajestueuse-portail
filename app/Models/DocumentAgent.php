@@ -14,12 +14,21 @@ class DocumentAgent extends Model
 {
     protected $table = 'documents_agent';
 
+    /** Memes etats que les diplomes : ce que l'agent depose attend la RH. */
+    public const STATUTS = Diplome::STATUTS;
+
     protected $fillable = [
         'agent_id', 'type', 'libelle', 'fichier', 'nom_origine',
         'type_mime', 'taille', 'note', 'depose_par',
+        'statut', 'soumis_par', 'decide_par', 'decide_le', 'motif_refus',
     ];
 
-    protected $casts = ['taille' => 'integer'];
+    protected $casts = ['taille' => 'integer', 'decide_le' => 'datetime'];
+
+    public function scopeEnAttente($query)
+    {
+        return $query->where('statut', 'en_attente');
+    }
 
     /** Le dossier type d'un agent, dans l'ordre ou on le constitue. */
     public const TYPES = [
@@ -82,6 +91,11 @@ class DocumentAgent extends Model
             'deposePar' => $this->deposePar?->fullName(),
             'deposeLe' => $this->created_at?->format('d/m/Y'),
             'manquant' => ! $this->existe(),
+            'statut' => $this->statut,
+            'statutLibelle' => self::STATUTS[$this->statut] ?? $this->statut,
+            'soumisParLAgent' => $this->soumis_par !== null,
+            'motifRefus' => $this->motif_refus,
+            'decideLe' => $this->decide_le?->format('d/m/Y'),
         ];
     }
 }

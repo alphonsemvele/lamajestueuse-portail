@@ -54,7 +54,17 @@ export default function AppCard({ application, variant = 'app' }: { application:
                         className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-md ring-1 ring-ink-900/5 dark:bg-ink-800 dark:ring-white/10"
                         style={{ color: application.color }}
                     >
-                        {application.logoUrl ? (
+                        {/*
+                          * « Mon profil » porte la photo de celui qui regarde :
+                          * elle remplit la pastille au lieu de s'y poser comme
+                          * un logo, et les initiales prennent le relais quand
+                          * aucune photo n'a été déposée.
+                          */}
+                        {application.photoDeProfil ? (
+                            <img src={application.photoDeProfil} alt="" className="h-full w-full object-cover" />
+                        ) : application.initiales ? (
+                            <span className="text-sm font-semibold">{application.initiales}</span>
+                        ) : application.logoUrl ? (
                             <img src={application.logoUrl} alt="" className="h-full w-full object-contain p-1" />
                         ) : (
                             <Icon name={application.icon} className="h-5 w-5" />

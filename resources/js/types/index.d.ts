@@ -42,6 +42,9 @@ export interface Application {
     logo: string | null;
     coverUrl: string | null;
     logoUrl: string | null;
+    /** « Mon profil » seulement : la photo de celui qui regarde. */
+    photoDeProfil?: string | null;
+    initiales?: string | null;
     isActive: boolean;
     opensNewTab: boolean;
     sortOrder: number;

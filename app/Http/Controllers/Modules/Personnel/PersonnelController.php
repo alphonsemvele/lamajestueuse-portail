@@ -680,6 +680,8 @@ class PersonnelController extends Controller
         $fichier = $request->file('fichier');
 
         $this->dossierDe($user)->documents()->create([
+            // Depose par la RH : vrai par construction.
+            'statut' => 'valide',
             'type' => $donnees['type'],
             'libelle' => ($donnees['libelle'] ?? null) ?: DocumentAgent::TYPES[$donnees['type']],
             'fichier' => $fichier->store('personnel/documents', DocumentAgent::DISQUE),
@@ -691,6 +693,42 @@ class PersonnelController extends Controller
         ]);
 
         return back()->with('status', __('Pièce ajoutée au dossier.'));
+    }
+
+    /**
+     * Tranche une piece soumise par l'agent : diplome ou document.
+     *
+     * Validee, elle rejoint le dossier comme si la RH l'avait saisie.
+     * Refusee, elle y reste avec son motif, visible de l'interesse : il sait
+     * ce qu'on attend de lui, au lieu de la voir disparaitre sans mot dire.
+     */
+    public function trancherPiece(Request $request, string $genre, int $piece): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        abort_unless(in_array($genre, ['diplome', 'document'], true), 404);
+
+        $modele = $genre === 'diplome'
+            ? Diplome::findOrFail($piece)
+            : DocumentAgent::findOrFail($piece);
+
+        $this->verifierAgent($request, $modele->agent);
+
+        $donnees = $request->validate([
+            'decision' => ['required', Rule::in(['valide', 'refuse'])],
+            'motif_refus' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $modele->update([
+            'statut' => $donnees['decision'],
+            'decide_par' => $request->user()->id,
+            'decide_le' => now(),
+            'motif_refus' => $donnees['decision'] === 'refuse' ? ($donnees['motif_refus'] ?? null) : null,
+        ]);
+
+        return back()->with('status', $donnees['decision'] === 'valide'
+            ? __('Pièce validée : elle rejoint le dossier.')
+            : __('Pièce refusée : l’agent en est informé sur son profil.'));
     }
 
     /** Sert le fichier, sous son nom d'origine, apres controle du perimetre. */

@@ -177,36 +177,24 @@ class PaieController extends Controller
             return back()->withErrors(['paie' => $e->getMessage()]);
         }
 
-        // Un contrat sans echelon ne peut pas produire de bulletin : la RH
-        // doit le completer, et doit donc l'apprendre.
-        $alerte = $total['sans_remuneration'] > 0
-            ? trans_choice(
-                '{1}1 contrat n’a ni échelon ni profil de salaire : son bulletin n’a pas été préparé.'
-                .'|[2,*]:n contrats n’ont ni échelon ni profil de salaire : leurs bulletins n’ont pas été préparés.',
-                $total['sans_remuneration'],
-                ['n' => $total['sans_remuneration']],
-            )
-            : null;
-
         if ($seulementLesManquants) {
-            $retour = back()->with('status', trans_choice(
+            return back()->with('status', trans_choice(
                 '{0}Aucun bulletin ne manquait : rien n’a changé.'
                 .'|{1}1 bulletin ajouté ; les :intacts autres sont restés intacts.'
                 .'|[2,*]:crees bulletins ajoutés ; les :intacts autres sont restés intacts.',
                 $total['crees'],
                 ['crees' => $total['crees'], 'intacts' => $total['ignores']],
             ));
-
-            return $alerte ? $retour->withErrors(['paie' => $alerte]) : $retour;
         }
 
-        $retour = back()->with('status', trans_choice(
+        // Les contrats sans remuneration sont comptes par le service, mais
+        // ne sont pas annonces : la RH les voit a l'ecran du personnel, et
+        // une alerte a chaque preparation n'apportait rien.
+        return back()->with('status', trans_choice(
             '{0}Aucun bulletin à préparer.|[1,*]:crees bulletin(s) préparé(s), :recalcules recalculé(s), :ignores déjà figé(s).',
             $total['crees'] + $total['recalcules'] + $total['ignores'],
             ['crees' => $total['crees'], 'recalcules' => $total['recalcules'], 'ignores' => $total['ignores']],
         ));
-
-        return $alerte ? $retour->withErrors(['paie' => $alerte]) : $retour;
     }
 
     public function recalculer(Request $request, Bulletin $bulletin, PaieService $paie): RedirectResponse

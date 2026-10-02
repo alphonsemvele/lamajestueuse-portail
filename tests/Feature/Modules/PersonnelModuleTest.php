@@ -635,16 +635,20 @@ class PersonnelModuleTest extends TestCase
         $this->assertSame(1, Bulletin::count());
     }
 
-    public function test_la_preparation_signale_les_contrats_sans_remuneration(): void
+    /**
+     * Un contrat sans remuneration est simplement passe : il ne declenche
+     * aucune alerte, la RH le voit a l'ecran du personnel.
+     */
+    public function test_la_preparation_passe_les_contrats_sans_remuneration(): void
     {
         $this->contrat($this->agent('MBALLA'), ['echelon_id' => null, 'profil_salaire_id' => null]);
         $this->contrat($this->agent('NKOA'));
 
         $this->actingAs($this->gestionnaire())->post(route('personnel.paie.generer'), [
             'mois' => 9, 'annee' => 2026,
-        ])->assertSessionHasErrors('paie');
+        ])->assertSessionHasNoErrors();
 
-        // Celui qui a un echelon est bien prepare.
+        // Seul celui qui a un echelon est prepare.
         $this->assertSame(1, Bulletin::count());
     }
 

@@ -67,15 +67,45 @@ class RegistrationTest extends TestCase
     }
 
     /** Sans l'un ni l'autre, personne ne pourrait se connecter. */
-    public function test_il_faut_au_moins_un_identifiant(): void
+    /**
+     * Rien n'est exige a l'inscription hors le prenom et le mot de passe :
+     * tout le reste se complete ensuite, par l'interesse ou par la RH.
+     */
+    public function test_une_inscription_sans_identifiant_est_acceptee(): void
     {
-        $reponse = $this->post(route('register'), $this->payload(['matricule' => '', 'email' => '']));
+        $this->post(route('register'), $this->payload(['matricule' => '', 'email' => '']))
+            ->assertSessionHasNoErrors();
 
-        $reponse->assertSessionHasErrors(['matricule', 'email']);
+        $compte = User::where('lastname', 'ABENA')->firstOrFail();
 
-        $erreurs = session('errors');
-        $this->assertStringContainsString('connecterez', $erreurs->first('matricule'));
-        $this->assertSame(0, User::where('lastname', 'ABENA')->count());
+        $this->assertNull($compte->matricule);
+        $this->assertNull($compte->email);
+    }
+
+    public function test_seuls_le_prenom_et_le_mot_de_passe_restent_exiges(): void
+    {
+        $this->from(route('register'))->post(route('register'), [])
+            ->assertSessionHasErrors(['name', 'password']);
+
+        $this->assertDatabaseCount('users', 0);
+    }
+
+    public function test_une_inscription_reduite_au_minimum_passe(): void
+    {
+        $this->post(route('register'), [
+            'name' => 'Célestin',
+            'password' => 'MotDePasse2026!',
+            'password_confirmation' => 'MotDePasse2026!',
+        ])->assertSessionHasNoErrors();
+
+        $compte = User::firstOrFail();
+
+        $this->assertSame('Célestin', $compte->name);
+        $this->assertNull($compte->lastname);
+        $this->assertNull($compte->sexe);
+        $this->assertNull($compte->phone);
+        $this->assertNull($compte->avatar);
+        $this->assertSame('pending', $compte->status);
     }
 
     public function test_les_messages_de_validation_sont_en_francais(): void
@@ -93,8 +123,7 @@ class RegistrationTest extends TestCase
         // Sans traduction française, Laravel renverrait la clé « validation.unique ».
         $this->assertStringNotContainsString('validation.', $erreurs->first('matricule'));
         $this->assertStringContainsString('matricule', mb_strtolower($erreurs->first('matricule')));
-        $this->assertStringNotContainsString('validation.', $erreurs->first('photo'));
-        $reponse->assertSessionHasErrors(['matricule', 'photo']);
+        $reponse->assertSessionHasErrors('matricule');
     }
 
     public function test_le_formulaire_dinscription_est_public(): void
@@ -218,7 +247,7 @@ class RegistrationTest extends TestCase
             ->assertSessionHasErrors('email');
     }
 
-    public function test_la_photo_de_profil_est_obligatoire(): void
+    public function test_la_photo_de_profil_est_facultative(): void
     {
         $ifpm = Application::factory()->create();
 
@@ -230,9 +259,9 @@ class RegistrationTest extends TestCase
 
         $this->from(route('register'))
             ->post(route('register'), $payload)
-            ->assertSessionHasErrors('photo');
+            ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseCount('users', 0);
+        $this->assertNull(User::firstOrFail()->avatar);
     }
 
     public function test_la_photo_est_enregistree_et_servie(): void
@@ -280,7 +309,7 @@ class RegistrationTest extends TestCase
         $this->assertSame('pending', $user->status);
     }
 
-    public function test_un_poste_est_exige_pour_chaque_institut_coche(): void
+    public function test_le_poste_declare_reste_libre_pour_chaque_institut(): void
     {
         $ifpm = Application::factory()->create();
         $ndazoa = Application::factory()->create();
@@ -290,9 +319,12 @@ class RegistrationTest extends TestCase
                 'instituts' => [$ifpm->id, $ndazoa->id],
                 'postes' => [$ifpm->id => 'Enseignante'],
             ]))
-            ->assertSessionHasErrors("postes.{$ndazoa->id}");
+            ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseCount('users', 0);
+        $compte = User::firstOrFail();
+
+        $this->assertSame('Enseignante', $compte->applications->firstWhere('id', $ifpm->id)->pivot->poste);
+        $this->assertNull($compte->applications->firstWhere('id', $ndazoa->id)->pivot->poste);
     }
 
     public function test_un_institut_inactif_ne_peut_pas_etre_choisi(): void

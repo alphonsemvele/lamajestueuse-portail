@@ -123,7 +123,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                 <h2 className="text-sm font-semibold uppercase tracking-[0.09em] text-ink-500">{t('Identité')}</h2>
 
                                 <div className="mt-5">
-                                    <Label required>{t('Photo de profil')}</Label>
+                                    <Label>{t('Photo de profil')}</Label>
                                     <div className="mt-2">
                                         <PhotoField
                                             preview={photoPreview}
@@ -151,7 +151,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         <Erreur message={errors.name} />
                                     </div>
                                     <div>
-                                        <Label htmlFor="lastname" required>
+                                        <Label htmlFor="lastname">
                                             {t('Nom de famille')}
                                         </Label>
                                         <Input id="lastname" className="mt-2" value={data.lastname} onChange={(e) => setData('lastname', e.target.value)} maxLength={80} />
@@ -159,7 +159,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                     </div>
 
                                     <div>
-                                        <Label required>{t('Sexe')}</Label>
+                                        <Label>{t('Sexe')}</Label>
                                         <div className="mt-2 grid grid-cols-2 gap-2.5">
                                             {(
                                                 [
@@ -221,7 +221,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                                         )}
                                     </div>
                                     <div>
-                                        <Label htmlFor="phone" required>
+                                        <Label htmlFor="phone">
                                             {t('Numéro de téléphone')}
                                         </Label>
                                         <Input
@@ -291,7 +291,7 @@ export default function Register({ instituts }: { instituts: Application[] }) {
 
                                                 {selected && (
                                                     <div className="border-t border-ink-200/70 px-4 py-3.5 dark:border-white/10">
-                                                        <Label htmlFor={`poste-${institut.id}`} required>
+                                                        <Label htmlFor={`poste-${institut.id}`}>
                                                             {t('Votre poste à :institut', { institut: institut.name })}
                                                         </Label>
                                                         <Input

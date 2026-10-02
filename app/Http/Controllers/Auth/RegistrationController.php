@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Concerns\HandlesMediaUploads;
-use App\Mail\Compte\InscriptionRecue;
-use App\Services\CourrielsPortail;
 use App\Http\Controllers\Controller;
+use App\Mail\Compte\InscriptionRecue;
 use App\Models\AccessLog;
 use App\Models\Application;
 use App\Models\User;
+use App\Services\CourrielsPortail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -39,61 +39,54 @@ class RegistrationController extends Controller
     {
         $instituts = $this->instituts();
 
+        /*
+         * L'inscription ne demande rien d'autre que le prenom et le mot de
+         * passe : le prenom parce qu'il faut bien nommer la demande dans la
+         * liste de l'administrateur, le mot de passe parce qu'il n'y a pas
+         * de compte sans lui. Tout le reste se complete ensuite, par
+         * l'interesse ou par le service du personnel.
+         *
+         * Matricule et adresse restent uniques quand ils sont donnes : ils
+         * servent a se connecter.
+         */
         $data = $request->validate([
             'name' => ['required', 'string', 'max:80'],
-            'lastname' => ['required', 'string', 'max:80'],
-            'sexe' => ['required', Rule::in(['M', 'F'])],
-            /*
-             * Matricule et adresse sont l'un et l'autre facultatifs — un
-             * nouvel arrivant n'a pas encore de matricule, et tout le
-             * personnel n'a pas d'adresse professionnelle — mais il en faut
-             * au moins un : c'est avec lui qu'on se connecte.
-             */
-            'matricule' => ['nullable', 'required_without:email', 'string', 'max:40', 'unique:users,matricule'],
-            'email' => ['nullable', 'required_without:matricule', 'email', 'max:150', 'unique:users,email'],
-            'phone' => ['required', 'string', 'max:40'],
+            'lastname' => ['nullable', 'string', 'max:80'],
+            'sexe' => ['nullable', Rule::in(['M', 'F'])],
+            'matricule' => ['nullable', 'string', 'max:40', 'unique:users,matricule'],
+            'email' => ['nullable', 'email', 'max:150', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:40'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            // Photo de profil exigee : elle identifie l'employe dans le portail.
-            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
-            // Facultatif : l'administrateur attribue les accès à la validation.
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             'instituts' => ['nullable', 'array'],
             'instituts.*' => [Rule::in($instituts->pluck('id')->all())],
             'postes' => ['nullable', 'array'],
         ], [
             'instituts.*.in' => __("Cet institut n'est pas disponible."),
-            'photo.required' => __('Une photo de profil est obligatoire.'),
-            'matricule.required_without' => __('Indiquez votre matricule ou votre adresse professionnelle : c’est avec l’un des deux que vous vous connecterez.'),
-            'email.required_without' => __('Indiquez votre adresse professionnelle ou votre matricule : c’est avec l’un des deux que vous vous connecterez.'),
         ]);
 
         $choisis = $data['instituts'] ?? [];
 
-        // Un poste reste exige pour chaque institut effectivement coche.
+        // Le poste declare pour chaque institut reste libre : la RH le pose
+        // au contrat, et la fiche le reprend alors.
         $request->validate(
             collect($choisis)
-                ->mapWithKeys(fn ($id) => ["postes.{$id}" => ['required', 'string', 'max:120']])
-                ->all(),
-            collect($choisis)
-                ->mapWithKeys(fn ($id) => [
-                    "postes.{$id}.required" => __('Précisez votre poste à :institut.', [
-                        'institut' => $instituts->firstWhere('id', (int) $id)?->name,
-                    ]),
-                ])
+                ->mapWithKeys(fn ($id) => ["postes.{$id}" => ['nullable', 'string', 'max:120']])
                 ->all()
         );
 
         $user = User::create([
             'name' => $data['name'],
-            'lastname' => $data['lastname'],
-            'sexe' => $data['sexe'],
+            'lastname' => $data['lastname'] ?? null,
+            'sexe' => $data['sexe'] ?? null,
             // Vide plutot que chaine vide : le matricule est unique en base.
             'matricule' => ($data['matricule'] ?? null) ?: null,
             'email' => ($data['email'] ?? null) ?: null,
-            'phone' => $data['phone'],
+            'phone' => $data['phone'] ?? null,
             'password' => $data['password'],
-            'avatar' => $request->file('photo')->store('utilisateurs/photos', 'public'),
+            'avatar' => $request->file('photo')?->store('utilisateurs/photos', 'public'),
             // Poste et entite ne sont renseignes que si un institut a ete choisi.
-            'poste' => $choisis ? $request->input("postes.{$choisis[0]}") : null,
+            'poste' => $choisis ? ($request->input("postes.{$choisis[0]}") ?: null) : null,
             'entite' => $choisis ? $instituts->firstWhere('id', (int) $choisis[0])?->name : null,
             'role' => 'employee',
             'status' => 'pending',

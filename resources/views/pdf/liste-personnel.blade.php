@@ -45,9 +45,25 @@
         .pied .droite { text-align: right; }
         /* dompdf sait compter les pages tout seul : pas besoin de script. */
         .pied .droite:after { content: "Page " counter(page); }
+
+        /* La barre n'existe que dans le navigateur, et jamais sur le papier. */
+        .barre { margin-bottom: 14px; padding: 10px 12px; background: #f1f5f9;
+                 border-radius: 8px; font-size: 11px; color: #475569; }
+        .barre button { background: #0f766e; color: #fff; border: 0; border-radius: 6px;
+                        padding: 7px 12px; font-size: 11px; font-weight: 600; cursor: pointer;
+                        margin-right: 10px; }
+        @media print { .barre { display: none; } }
     </style>
 </head>
 <body>
+
+@if ($navigateur ?? false)
+    {{-- Servie dans le navigateur : on y ajoute de quoi imprimer. --}}
+    <div class="barre">
+        <button type="button" onclick="window.print()">Imprimer ou enregistrer en PDF</button>
+        <span>Dans la fenêtre d’impression, choisissez « Enregistrer au format PDF ».</span>
+    </div>
+@endif
 
 <table class="entete">
     <tr>

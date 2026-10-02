@@ -153,6 +153,26 @@ class ListePersonnelPdfTest extends TestCase
         $this->assertStringContainsString('celestin.nsoe2@lamajestueuse.com', $html);
     }
 
+    /**
+     * Chemin de secours : la meme liste dans le navigateur, qui l'imprime
+     * lui-meme. Elle ne depend pas du moteur PDF du serveur.
+     */
+    public function test_elle_s_ouvre_aussi_en_page_imprimable(): void
+    {
+        $this->membre('Célestin', 'NSOE');
+
+        $reponse = $this->actingAs($this->admin())
+            ->get(route('admin.users.liste', ['format' => 'html']))
+            ->assertOk();
+
+        $this->assertStringContainsString('text/html', $reponse->headers->get('content-type'));
+        $reponse->assertSee('LISTE DU PERSONNEL', false);
+        $reponse->assertSee('NSOE', false);
+        $reponse->assertSee('celestin.nsoe@lamajestueuse.com', false);
+        // De quoi lancer l'impression depuis la page.
+        $reponse->assertSee('window.print()', false);
+    }
+
     public function test_un_employe_ordinaire_n_obtient_pas_la_liste(): void
     {
         $this->actingAs(User::factory()->create())

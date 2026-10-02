@@ -182,6 +182,16 @@ export default function UsersIndex({
                     <Icon name="download" className="h-4 w-4" />
                     {t('Liste du personnel')}
                 </a>
+                {/* Chemin de secours : la liste dans le navigateur, qui l'imprime lui-meme. */}
+                <a
+                    href={`${routes.admin.listePersonnel()}?format=html`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={t('Ouvrir la liste dans un onglet, pour l’imprimer ou l’enregistrer en PDF')}
+                    className="btn-ghost px-2.5"
+                >
+                    <Icon name="external" className="h-4 w-4" />
+                </a>
                 <button
                     type="button"
                     onClick={() => setApercuListe(true)}

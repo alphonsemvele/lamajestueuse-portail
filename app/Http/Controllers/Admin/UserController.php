@@ -315,6 +315,11 @@ class UserController extends Controller
 
     private function fabriquerLaListe(Request $request, BulletinPdf $pdf): SymfonyResponse
     {
+        // `?format=html` sert la meme liste dans le navigateur, qui
+        // l'imprime ou l'enregistre en PDF lui-meme. C'est un chemin de
+        // secours : il ne depend pas du moteur PDF du serveur.
+        $navigateur = $request->query('format') === 'html';
+
         $personnel = User::duPersonnel()
             ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
             ->orderByRaw('LOWER(name) ASC')
@@ -322,13 +327,21 @@ class UserController extends Controller
 
         $this->proposerLesAdresses($personnel);
 
-        $document = Pdf::setOptions($pdf->optionsDocument())->loadView('pdf.liste-personnel', [
+        $donnees = [
             'personnel' => $personnel,
             'editeLe' => now()->translatedFormat('j F Y'),
             'couleur' => '#0f766e',
             'logo' => $pdf->logoDuGroupe(),
             'perimetre' => 'Ensemble du groupe La Majestueuse',
-        ])->setPaper('a4');
+        ];
+
+        if ($navigateur) {
+            return response()->view('pdf.liste-personnel', $donnees + ['navigateur' => true]);
+        }
+
+        $document = Pdf::setOptions($pdf->optionsDocument())
+            ->loadView('pdf.liste-personnel', $donnees)
+            ->setPaper('a4');
 
         $nom = 'personnel-la-majestueuse-'.now()->format('Y-m-d').'.pdf';
 

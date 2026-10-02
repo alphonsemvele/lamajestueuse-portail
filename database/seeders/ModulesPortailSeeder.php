@@ -79,7 +79,7 @@ class ModulesPortailSeeder extends Seeder
          * Mon profil : ouvert a tous et pose en tete du tableau de bord.
          * Son logo n'est pas fixe — c'est la photo de celui qui regarde.
          */
-        Application::updateOrCreate(
+        $this->poserTuile(
             ['module_key' => 'profil'],
             [
                 'name' => 'Mon profil',
@@ -96,7 +96,7 @@ class ModulesPortailSeeder extends Seeder
         );
 
         // Tutoriels : ouvert a tous, juste apres le profil.
-        Application::updateOrCreate(
+        $this->poserTuile(
             ['module_key' => 'tutoriels'],
             [
                 'name' => 'Tutoriels',
@@ -113,12 +113,12 @@ class ModulesPortailSeeder extends Seeder
         );
 
         // Mes bulletins de paie : chacun consulte les siens.
-        Application::updateOrCreate(
+        $this->poserTuile(
             ['module_key' => 'bulletins'],
             [
                 'name' => 'Mon bulletin de paie',
                 'slug' => 'mes-bulletins',
-                'description' => "Consulter et télécharger ses bulletins de paie.",
+                'description' => 'Consulter et télécharger ses bulletins de paie.',
                 'type' => 'module',
                 'url' => null,
                 'category_id' => $categorie?->id,
@@ -131,12 +131,12 @@ class ModulesPortailSeeder extends Seeder
 
         // Badges : ouvert a tout le personnel, il se pose de lui-meme sur les
         // tableaux de bord ; la tuile suffit a l'existence du module.
-        Application::updateOrCreate(
+        $this->poserTuile(
             ['module_key' => 'badges'],
             [
                 'name' => 'Badges',
                 'slug' => 'badges',
-                'description' => "Demander son badge professionnel et suivre sa fabrication.",
+                'description' => 'Demander son badge professionnel et suivre sa fabrication.',
                 'type' => 'module',
                 'url' => null,
                 'category_id' => $categorie?->id,
@@ -147,12 +147,12 @@ class ModulesPortailSeeder extends Seeder
             ],
         );
 
-        return Application::updateOrCreate(
+        return $this->poserTuile(
             ['module_key' => 'personnel'],
             [
                 'name' => 'Personnel & paie',
                 'slug' => 'personnel-paie',
-                'description' => "Dossiers du personnel, carrière, contrats et paie mensuelle du groupe.",
+                'description' => 'Dossiers du personnel, carrière, contrats et paie mensuelle du groupe.',
                 'type' => 'module',
                 'url' => null,
                 'category_id' => $categorie?->id,
@@ -162,6 +162,34 @@ class ModulesPortailSeeder extends Seeder
                 'sort_order' => 7,
             ],
         );
+    }
+
+    /**
+     * Pose la tuile d'un module sans defaire ce que l'administration a regle.
+     *
+     * Le deploiement rejoue ce seeder a chaque mise en ligne. Avec un
+     * updateOrCreate, il remettait `is_active` a vrai : une tuile desactivee
+     * depuis /admin/applications reapparaissait a la mise a jour suivante,
+     * et le nom, la couleur ou l'ordre choisis repartaient avec.
+     *
+     * A la creation, tout est pose. Ensuite, seuls les traits structurels
+     * sont maintenus — le type, la route interne, l'absence d'URL — parce
+     * qu'ils decrivent ce qu'est le module, pas la facon de le presenter.
+     *
+     * @param  array<string, mixed>  $cle
+     * @param  array<string, mixed>  $valeurs
+     */
+    private function poserTuile(array $cle, array $valeurs): Application
+    {
+        $tuile = Application::where($cle)->first();
+
+        if ($tuile === null) {
+            return Application::create($cle + $valeurs);
+        }
+
+        $tuile->fill(collect($valeurs)->only(['type', 'url'])->all())->save();
+
+        return $tuile;
     }
 
     /** Un employeur par institut : chacun a sa CNPS et signe ses bulletins. */
@@ -182,5 +210,4 @@ class ModulesPortailSeeder extends Seeder
             );
         }
     }
-
 }

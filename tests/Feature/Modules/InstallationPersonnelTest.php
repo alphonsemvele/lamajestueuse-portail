@@ -134,6 +134,54 @@ class InstallationPersonnelTest extends TestCase
      * ce qu'IUM apportait d'autre : indemnités, retenues et profils salaire
      * ne sont jamais supprimés — seuls catégories et échelons sont adaptés.
      */
+    /**
+     * Le deploiement rejoue ce seeder : il ne doit pas defaire les reglages
+     * de l'administration.
+     */
+    public function test_une_tuile_desactivee_le_reste_apres_une_mise_a_jour(): void
+    {
+        $this->installer();
+
+        $tuile = Application::where('module_key', 'tutoriels')->firstOrFail();
+        $tuile->update(['is_active' => false]);
+
+        $this->installer();
+
+        $this->assertFalse((bool) $tuile->fresh()->is_active);
+    }
+
+    public function test_un_nom_une_couleur_et_un_ordre_choisis_sont_conserves(): void
+    {
+        $this->installer();
+
+        $tuile = Application::where('module_key', 'badges')->firstOrFail();
+        $tuile->update(['name' => 'Cartes professionnelles', 'color' => '#123456', 'sort_order' => 42]);
+
+        $this->installer();
+
+        $tuile->refresh();
+
+        $this->assertSame('Cartes professionnelles', $tuile->name);
+        $this->assertSame('#123456', $tuile->color);
+        $this->assertSame(42, (int) $tuile->sort_order);
+    }
+
+    /** Ce qui decrit le module, lui, reste maintenu. */
+    public function test_les_traits_structurels_sont_maintenus(): void
+    {
+        $this->installer();
+
+        $tuile = Application::where('module_key', 'badges')->firstOrFail();
+        $tuile->update(['type' => 'application', 'url' => 'https://ailleurs.example']);
+
+        $this->installer();
+
+        $tuile->refresh();
+
+        $this->assertSame('module', $tuile->type);
+        $this->assertNull($tuile->url);
+    }
+
     public function test_l_installation_pose_la_grille_officielle(): void
     {
         $this->installer();

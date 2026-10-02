@@ -58,7 +58,7 @@ return [
                     "Certains modules, comme les badges ou votre profil, sont ouverts à tout le personnel : ils apparaissent sans qu'on ait à vous les attribuer.",
                     "Si un module vous manque, demandez-le à l'administration du portail.",
                 ],
-                'capture' => 'images/support/07-applications.jpg',
+                'capture' => 'images/tutoriels/portail/tableau-de-bord.jpg',
             ],
         ],
     ],

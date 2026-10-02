@@ -1,8 +1,9 @@
 Captures du tutoriel « Demander son badge ».
 
-Déposez ici les images, sous ces noms exacts :
+Déjà en place :
+  01-tuile.jpg      la tuile « Badges » sur le tableau de bord ✓
 
-  01-tuile.jpg      la tuile « Badges » sur le tableau de bord
+Restent à déposer, sous ces noms exacts :
   02-nom.jpg        le champ du nom à faire figurer sur la carte
   03-institut.jpg   le choix de l'institut, quand il y en a plusieurs
   04-photo.jpg      l'ajout d'une photo pour le badge
@@ -10,7 +11,8 @@ Déposez ici les images, sous ces noms exacts :
   06-suivi.jpg      le suivi de la demande et son état
   07-remise.jpg     la demande passée à « imprimée »
 
-Format : JPG ou PNG, largeur 1200 à 1600 points, prises à l'écran.
+Format : JPG ou PNG, prises à l'écran. La largeur importe peu, elles sont
+redimensionnées à l'affichage ; visez tout de même moins de 500 Ko.
 
 Une image absente n'est pas affichée : le tutoriel reste lisible sans elle,
 et la capture apparaît dès que le fichier est déposé. Rien d'autre à faire.

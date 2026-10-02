@@ -66,9 +66,42 @@ export default function Tutoriel({ tutoriel, prealables, module }: Props) {
                     </div>
                 </div>
 
+                {/*
+                  * Sur un écran étroit, le sommaire complet s'empilerait avant
+                  * le contenu : il faudrait faire défiler dix entrées pour
+                  * atteindre l'étape. Il s'y réduit donc à une rangée de
+                  * pastilles, qui tient sur une ligne et se parcourt du doigt.
+                  */}
+                <div className="-mx-5 overflow-x-auto px-5 lg:hidden">
+                    <ol className="flex w-max gap-1.5 pb-1">
+                        {etapes.map((item, rang) => (
+                            <li key={`chip-${item.section}-${item.titre}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => setCourante(rang)}
+                                    aria-label={`Étape ${rang + 1} : ${item.titre}`}
+                                    aria-current={rang === courante}
+                                    className={cn(
+                                        'flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold transition',
+                                        rang === courante
+                                            ? 'bg-teal-600 text-white'
+                                            : rang < courante
+                                              ? 'bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-300'
+                                              : 'bg-ink-100 text-ink-500 dark:bg-white/10 dark:text-ink-400',
+                                        // La rupture entre prérequis et module se lit à l'espace.
+                                        rang === debutDuModule && 'ml-4',
+                                    )}
+                                >
+                                    {rang < courante ? '✓' : rang + 1}
+                                </button>
+                            </li>
+                        ))}
+                    </ol>
+                </div>
+
                 <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
                     {/* Le sommaire : on saute où l'on veut, on ne subit pas l'ordre. */}
-                    <nav className="lg:sticky lg:top-24 lg:self-start">
+                    <nav className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
                         <ol className="space-y-1">
                             {etapes.map((item, rang) => (
                                 <li key={`${item.section}-${item.titre}`}>

@@ -148,6 +148,41 @@ class RattachementEmployeurTest extends TestCase
         $this->assertNull($membre->fresh()->employeur_id);
     }
 
+    /**
+     * Aucune cle etrangere ne tient ce lien : c'est l'application qui libere
+     * les rattaches quand l'employeur disparait.
+     */
+    public function test_supprimer_un_employeur_libere_ceux_qu_il_rattachait(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+        $membre->update(['employeur_id' => $this->employeurGsbm->id]);
+
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+
+        $this->actingAs($admin)
+            ->delete(route('personnel.employeurs.destroy', $this->employeurGsbm))
+            ->assertSessionHasNoErrors();
+
+        $membre->refresh();
+        $this->assertNull($membre->employeur_id);
+
+        // Il retombe sur la deduction, sans rester accroche a une entite morte.
+        $this->assertSame($this->employeurIum->id, $membre->employeurDeRattachement()?->id);
+    }
+
+    /** Une reference devenue orpheline ne fait pas tomber la fiche. */
+    public function test_un_rattachement_orphelin_rend_simplement_rien(): void
+    {
+        $membre = $this->membre([$this->ium->id, $this->gsbm->id]);
+        $membre->update(['employeur_id' => 9999]);
+
+        $this->assertNull($membre->fresh()->employeurDeRattachement());
+
+        $this->actingAs($this->gestionnaire())
+            ->get(route('personnel.agents.show', $membre))
+            ->assertOk();
+    }
+
     public function test_un_lecteur_ne_rattache_rien(): void
     {
         $membre = $this->membre([$this->ium->id]);

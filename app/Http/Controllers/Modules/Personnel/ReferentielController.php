@@ -12,6 +12,7 @@ use App\Models\Employeur;
 use App\Models\Indemnite;
 use App\Models\ProfilSalaire;
 use App\Models\Retenue;
+use App\Models\User;
 use App\Services\PaieService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -148,6 +149,12 @@ class ReferentielController extends Controller
         }
 
         $this->deleteUploaded($employeur->logo);
+
+        // Aucune cle etrangere ne tient ce lien : on libere nous-memes ceux
+        // que cet employeur rattachait, sans quoi leur fiche garderait un
+        // rattachement vers une entite disparue.
+        User::where('employeur_id', $employeur->id)->update(['employeur_id' => null]);
+
         $employeur->delete();
 
         return back()->with('status', __('Employeur supprimé.'));

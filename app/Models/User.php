@@ -87,7 +87,10 @@ class User extends Authenticatable
      */
     public function employeurDeRattachement(): ?Employeur
     {
-        if ($this->employeur_id) {
+        // Un choix qui ne mene plus nulle part vaut absence de choix : sans
+        // cle etrangere pour l'empecher, une entite peut disparaitre sous le
+        // rattachement, et la personne ne doit pas disparaitre avec elle.
+        if ($this->employeur_id && $this->employeur) {
             return $this->employeur;
         }
 
@@ -116,7 +119,7 @@ class User extends Authenticatable
      */
     public function rattachementATrancher(): bool
     {
-        return $this->employeur_id === null && count($this->employeursPossibles()) > 1;
+        return $this->employeur === null && count($this->employeursPossibles()) > 1;
     }
 
     public function scopeDuPerimetreRh(Builder $query, ?array $employeurs): Builder
@@ -133,8 +136,12 @@ class User extends Authenticatable
             // quels que soient ses instituts.
             ->whereIn('employeur_id', $employeurs)
             ->orWhereHas('agent.contrats', fn ($c) => $c->whereIn('employeur_id', $employeurs))
+            // A defaut de choix — ou quand celui-ci ne mene plus nulle part —
+            // c'est l'institut rattache qui designe l'entite.
             ->orWhere(fn ($ni) => $ni
-                ->whereNull('employeur_id')
+                ->where(fn ($sans) => $sans
+                    ->whereNull('employeur_id')
+                    ->orWhereNotIn('employeur_id', Employeur::select('id')))
                 ->whereHas('applications', fn ($a) => $a->whereIn('applications.id', $applications))));
     }
 

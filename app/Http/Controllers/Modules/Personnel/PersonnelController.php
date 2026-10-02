@@ -15,10 +15,8 @@ use App\Models\EvenementCarriere;
 use App\Models\ProfilSalaire;
 use App\Models\User;
 use App\Services\AttributionMatricules;
-use App\Services\BulletinPdf;
 use App\Services\CourrielsPortail;
 use App\Services\PaieService;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -29,7 +27,6 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -290,96 +287,6 @@ class PersonnelController extends Controller
      * en cours. Separateur point-virgule et BOM, pour qu'Excel l'ouvre bien
      * en francais.
      */
-    /** Le domaine des adresses professionnelles du groupe. */
-    public const DOMAINE = '@lamajestueuse.com';
-
-    /**
-     * Propose une adresse professionnelle a qui n'en a pas.
-     *
-     * Elle se deduit du nom : prenom.nom@lamajestueuse.com, sans accent ni
-     * espace. Deux homonymes recevraient la meme : le second se voit alors
-     * numerote. Rien n'est enregistre — c'est une proposition, que la liste
-     * distingue des adresses reelles.
-     *
-     * @param  Collection<int, User>  $personnel
-     */
-    private function proposerLesAdresses($personnel): void
-    {
-        $prises = $personnel->pluck('email')->filter()
-            ->map(fn ($adresse) => mb_strtolower($adresse))->all();
-
-        foreach ($personnel as $membre) {
-            if (filled($membre->email)) {
-                $membre->adresseProposee = null;
-
-                continue;
-            }
-
-            $base = collect([$membre->name, $membre->lastname])
-                ->filter()
-                ->map(fn ($part) => Str::slug($part))
-                ->filter()
-                ->implode('.');
-
-            if ($base === '') {
-                $membre->adresseProposee = null;
-
-                continue;
-            }
-
-            $adresse = $base.self::DOMAINE;
-            $suffixe = 1;
-
-            while (in_array(mb_strtolower($adresse), $prises, true)) {
-                $adresse = $base.(++$suffixe).self::DOMAINE;
-            }
-
-            $prises[] = mb_strtolower($adresse);
-            $membre->adresseProposee = $adresse;
-        }
-    }
-
-    /**
-     * La liste du personnel en PDF : nom, prenom, matricule.
-     *
-     * Classee par ordre alphabetique, c'est la liste qu'on imprime pour un
-     * appel, un emargement ou une transmission. L'export CSV, lui, porte
-     * tout le detail : ici on ne veut que les noms.
-     *
-     * `?apercu=1` la sert en ligne pour la previsualiser.
-     */
-    public function listePdf(Request $request, BulletinPdf $pdf): SymfonyResponse
-    {
-        $this->autoriserAcces($request->user());
-
-        $perimetre = $this->perimetre($request);
-
-        $personnel = User::duPersonnel()
-            ->duPerimetreRh($perimetre)
-            ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
-            ->orderByRaw('LOWER(name) ASC')
-            ->get(['id', 'name', 'lastname', 'matricule', 'email']);
-
-        $this->proposerLesAdresses($personnel);
-
-        $entites = Employeur::when($perimetre !== null, fn ($q) => $q->whereIn('id', $perimetre))
-            ->orderBy('sigle')->pluck('sigle');
-
-        $document = Pdf::setOptions($pdf->optionsDocument())->loadView('pdf.liste-personnel', [
-            'personnel' => $personnel,
-            'editeLe' => now()->translatedFormat('j F Y'),
-            'couleur' => '#0f766e',
-            'logo' => $pdf->logoDuGroupe(),
-            'perimetre' => $perimetre === null
-                ? 'Ensemble du groupe La Majestueuse'
-                : 'Entités suivies : '.$entites->implode(', '),
-        ])->setPaper('a4');
-
-        $nom = 'personnel-la-majestueuse-'.now()->format('Y-m-d').'.pdf';
-
-        return $request->boolean('apercu') ? $document->stream($nom) : $document->download($nom);
-    }
-
     public function exporter(Request $request, AttributionMatricules $attribution): StreamedResponse
     {
         $this->autoriserGestion($request->user());

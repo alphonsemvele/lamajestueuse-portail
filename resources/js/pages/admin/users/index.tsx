@@ -1,6 +1,7 @@
 import { Link, router } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
+import ApercuPdf from '@/components/apercu-pdf';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card } from '@/components/ui';
@@ -39,6 +40,7 @@ export default function UsersIndex({
 
     // Attribution des matricules : la sélection porte sur la page affichée.
     const [coches, setCoches] = useState<number[]>([]);
+    const [apercuListe, setApercuListe] = useState(false);
     const [remplacer, setRemplacer] = useState(false);
 
     const idsPage = users.data.map((user) => user.id);
@@ -169,6 +171,12 @@ export default function UsersIndex({
                 >
                     <Icon name="key" className="h-4 w-4" />
                     {t('Sans matricule')} ({sansMatriculeCount})
+                </button>
+
+                {/* La liste imprimable : noms, matricules et adresses. */}
+                <button type="button" onClick={() => setApercuListe(true)} className="btn-ghost">
+                    <Icon name="document" className="h-4 w-4" />
+                    {t('Liste du personnel')}
                 </button>
 
                 <Link href={routes.admin.userCreate} className="btn-primary">
@@ -410,6 +418,15 @@ export default function UsersIndex({
             </Card>
 
             <Pagination page={users} />
+            {apercuListe && (
+                <ApercuPdf
+                    titre={t('Liste du personnel')}
+                    sousTitre={t('Nom, prénom, matricule et adresse professionnelle')}
+                    source={routes.admin.listePersonnel(true)}
+                    telechargement={routes.admin.listePersonnel()}
+                    onFermer={() => setApercuListe(false)}
+                />
+            )}
         </AdminLayout>
     );
 }

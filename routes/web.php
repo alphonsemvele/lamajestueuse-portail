@@ -136,7 +136,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/matricules/prochain', [PersonnelController::class, 'prochainMatricule'])->name('matricules.prochain');
         Route::post('/matricules', [PersonnelController::class, 'attribuerMatricules'])->name('matricules.attribuer');
         Route::get('/export', [PersonnelController::class, 'exporter'])->name('export');
-        Route::get('/liste', [PersonnelController::class, 'listePdf'])->name('liste');
         Route::get('/dossier/{user}', [PersonnelController::class, 'show'])->name('agents.show');
         Route::put('/dossier/{user}', [PersonnelController::class, 'update'])->name('agents.update');
 
@@ -222,6 +221,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::resource('applications', ApplicationController::class)->except('show');
 
     // Avant la ressource : « users/matricules » n'est pas un identifiant.
+    // La liste du personnel en PDF : noms, matricules et adresses.
+    Route::get('users/liste', [UserController::class, 'listePdf'])->name('users.liste');
     Route::post('users/matricules', [UserController::class, 'attribuerMatricules'])->name('users.matricules');
     Route::post('users/{user}/valider', [UserController::class, 'approve'])->name('users.approve');
     Route::post('users/{user}/refuser', [UserController::class, 'reject'])->name('users.reject');

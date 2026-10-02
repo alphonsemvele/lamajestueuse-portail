@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Feature\Modules;
+namespace Tests\Feature\Admin;
 
 use App\Models\Application;
 use App\Models\Employeur;
@@ -50,7 +50,7 @@ class ListePersonnelPdfTest extends TestCase
     /** Le rendu HTML du meme modele, pour lire ce que le PDF contient. */
     private function rendu(User $admin): string
     {
-        $this->actingAs($admin)->get(route('personnel.liste'))->assertOk();
+        $this->actingAs($admin)->get(route('admin.users.liste'))->assertOk();
 
         $personnel = User::duPersonnel()
             ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
@@ -58,10 +58,10 @@ class ListePersonnelPdfTest extends TestCase
             ->get(['id', 'name', 'lastname', 'matricule', 'email']);
 
         $methode = new \ReflectionMethod(
-            \App\Http\Controllers\Modules\Personnel\PersonnelController::class,
+            \App\Http\Controllers\Admin\UserController::class,
             'proposerLesAdresses'
         );
-        $methode->invoke(app(\App\Http\Controllers\Modules\Personnel\PersonnelController::class), $personnel);
+        $methode->invoke(app(\App\Http\Controllers\Admin\UserController::class), $personnel);
 
         return view('pdf.liste-personnel', [
             'personnel' => $personnel,
@@ -76,7 +76,7 @@ class ListePersonnelPdfTest extends TestCase
     {
         $this->membre('Célestin', 'NSOE');
 
-        $reponse = $this->actingAs($this->admin())->get(route('personnel.liste'))->assertOk();
+        $reponse = $this->actingAs($this->admin())->get(route('admin.users.liste'))->assertOk();
 
         $this->assertStringContainsString('application/pdf', $reponse->headers->get('content-type'));
         $this->assertStringContainsString('attachment', (string) $reponse->headers->get('content-disposition'));
@@ -87,7 +87,7 @@ class ListePersonnelPdfTest extends TestCase
         $this->membre('Célestin', 'NSOE');
 
         $reponse = $this->actingAs($this->admin())
-            ->get(route('personnel.liste', ['apercu' => 1]))->assertOk();
+            ->get(route('admin.users.liste', ['apercu' => 1]))->assertOk();
 
         $this->assertStringContainsString('inline', (string) $reponse->headers->get('content-disposition'));
     }
@@ -156,28 +156,33 @@ class ListePersonnelPdfTest extends TestCase
     public function test_un_employe_ordinaire_n_obtient_pas_la_liste(): void
     {
         $this->actingAs(User::factory()->create())
-            ->get(route('personnel.liste'))
+            ->get(route('admin.users.liste'))
             ->assertForbidden();
     }
 
-    public function test_un_gestionnaire_ne_liste_que_ses_entites(): void
+    /** Seuls ceux marques comme personnel figurent sur la liste. */
+    public function test_un_compte_hors_personnel_n_y_figure_pas(): void
     {
-        $autreInstitut = Application::factory()->create(['name' => 'GSBM']);
-        $autre = Employeur::create([
-            'nom' => 'Groupe Scolaire', 'sigle' => 'GSBM',
-            'application_id' => $autreInstitut->id, 'actif' => true,
-        ]);
-
         $this->membre('Marie', 'MBALLA');
-        $ailleurs = User::factory()->create(['name' => 'Alvine', 'lastname' => 'ZOA']);
-        $ailleurs->applications()->attach($autreInstitut);
 
+        $technique = User::factory()->create([
+            'name' => 'Compte', 'lastname' => 'TECHNIQUE', 'dans_le_personnel' => false,
+        ]);
+        $technique->applications()->attach($this->institut);
+
+        $html = $this->rendu($this->admin());
+
+        $this->assertStringContainsString('MBALLA', $html);
+        $this->assertStringNotContainsString('TECHNIQUE', $html);
+    }
+
+    public function test_un_gestionnaire_rh_n_y_a_pas_acces(): void
+    {
         $gestionnaire = User::factory()->create();
         $gestionnaire->applications()->attach($this->module, ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])]);
         $gestionnaire->employeursRh()->attach($this->employeur);
 
-        $this->actingAs($gestionnaire)->get(route('personnel.liste'))->assertOk();
-
-        unset($autre, $ailleurs);
+        // La liste releve de l'administration du portail, pas du module RH.
+        $this->actingAs($gestionnaire)->get(route('admin.users.liste'))->assertForbidden();
     }
 }

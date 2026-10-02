@@ -2,7 +2,6 @@ import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import ChampMotDePasse from '@/components/champ-mot-de-passe';
-import ApercuPdf from '@/components/apercu-pdf';
 import Icon from '@/components/icon';
 import Pagination from '@/components/pagination';
 import { Card, ErrorSummary, Input, Select } from '@/components/ui';
@@ -80,7 +79,6 @@ export default function ListePersonnel({
     // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
     const [q, setQ] = useRechercheInstantanee(filtres.q, (terme) => chercher({ q: terme }));
     const [nouvelle, setNouvelle] = useState(false);
-    const [apercuListe, setApercuListe] = useState(false);
 
     // Attribution des matricules : on montre d'abord qui recevrait quoi.
     const [matricules, setMatricules] = useState<{ dernier: string | null; personnes: APourvoir[] } | null>(null);
@@ -261,18 +259,8 @@ export default function ListePersonnel({
                             >
                                 {chargement ? 'Lecture…' : 'Matricules'}
                             </Bouton>
-                            <button
-                                type="button"
-                                onClick={() => setApercuListe(true)}
-                                title="La liste des noms et matricules, en PDF"
-                                className="inline-flex items-center justify-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200 dark:hover:bg-white/10"
-                            >
-                                <Icon name="document" className="h-4 w-4" />
-                                Liste PDF
-                            </button>
                             <a
                                 href={routes.personnel.export}
-                                title="Tout le détail, en tableur"
                                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200 dark:hover:bg-white/10"
                             >
                                 <Icon name="upload" className="h-4 w-4 rotate-180" />
@@ -585,15 +573,6 @@ export default function ListePersonnel({
                     </div>
                 </form>
             </Modale>
-            {apercuListe && (
-                <ApercuPdf
-                    titre="Liste du personnel"
-                    sousTitre="Nom, prénom, matricule et adresse professionnelle"
-                    source={routes.personnel.listePdf(true)}
-                    telechargement={routes.personnel.listePdf()}
-                    onFermer={() => setApercuListe(false)}
-                />
-            )}
         </PersonnelLayout>
     );
 }

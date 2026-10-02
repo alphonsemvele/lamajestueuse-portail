@@ -734,6 +734,62 @@ class PersonnelModuleTest extends TestCase
                 ->where('repartition.brouillon', 1));
     }
 
+    /**
+     * C'est la meme personne qui arrete le montant et qui paie : l'etape de
+     * validation separee n'est plus imposee.
+     */
+    public function test_un_brouillon_se_paie_sans_passer_par_la_validation(): void
+    {
+        $contrat = $this->contrat();
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+        $bulletin = Bulletin::firstOrFail();
+        $this->assertSame('brouillon', $bulletin->statut);
+
+        $gestionnaire = $this->gestionnaire();
+        $this->actingAs($gestionnaire)
+            ->post(route('personnel.paie.payer', $bulletin))
+            ->assertSessionHasNoErrors();
+
+        $bulletin->refresh();
+        $this->assertSame('paye', $bulletin->statut);
+
+        // La trace reste complete : les deux horodatages sont remplis.
+        $this->assertNotNull($bulletin->valide_le);
+        $this->assertNotNull($bulletin->paye_le);
+        $this->assertSame($gestionnaire->id, $bulletin->valide_par);
+        $this->assertSame($gestionnaire->id, $bulletin->paye_par);
+
+        unset($contrat);
+    }
+
+    public function test_un_net_negatif_bloque_toujours_le_paiement_direct(): void
+    {
+        $contrat = $this->contrat();
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+        $bulletin = Bulletin::firstOrFail();
+        $bulletin->update(['salaire_net' => -1000]);
+
+        $this->actingAs($this->gestionnaire())
+            ->post(route('personnel.paie.payer', $bulletin))
+            ->assertSessionHasErrors('paie');
+
+        $this->assertSame('brouillon', $bulletin->fresh()->statut);
+
+        unset($contrat);
+    }
+
+    public function test_un_bulletin_deja_paye_ne_se_repaie_pas(): void
+    {
+        $this->contrat();
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+        $bulletin = Bulletin::firstOrFail();
+        $bulletin->update(['statut' => 'paye']);
+
+        $this->actingAs($this->gestionnaire())
+            ->post(route('personnel.paie.payer', $bulletin))
+            ->assertSessionHasErrors('paie');
+    }
+
     public function test_le_traitement_en_lot_valide_puis_paie(): void
     {
         $this->contrat();

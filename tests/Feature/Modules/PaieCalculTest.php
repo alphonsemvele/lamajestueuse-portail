@@ -265,10 +265,41 @@ class PaieCalculTest extends TestCase
         $this->assertTrue($bulletin->estFige());
     }
 
-    public function test_on_ne_paie_pas_un_bulletin_non_valide(): void
+    /**
+     * Le brouillon se paie d'un coup : la validation se joue au passage, et
+     * les deux horodatages sont poses, pour que la trace reste complete.
+     */
+    public function test_un_brouillon_se_paie_directement(): void
     {
         $this->contrat();
         $this->paie->genererMois($this->employeur, 9, 2026);
+
+        $gestionnaire = User::factory()->create();
+        $paye = $this->paie->payer(Bulletin::first(), $gestionnaire->id);
+
+        $this->assertSame('paye', $paye->statut);
+        $this->assertSame($gestionnaire->id, $paye->valide_par);
+        $this->assertSame($gestionnaire->id, $paye->paye_par);
+        $this->assertNotNull($paye->valide_le);
+        $this->assertNotNull($paye->paye_le);
+    }
+
+    public function test_on_ne_paie_pas_deux_fois_le_meme_bulletin(): void
+    {
+        $this->contrat();
+        $this->paie->genererMois($this->employeur, 9, 2026);
+        $paye = $this->paie->payer(Bulletin::first());
+
+        $this->expectException(RuntimeException::class);
+        $this->paie->payer($paye);
+    }
+
+    /** Le controle du net negatif tient aussi sur le chemin direct. */
+    public function test_un_net_negatif_refuse_le_paiement_direct(): void
+    {
+        $this->contrat();
+        $this->paie->genererMois($this->employeur, 9, 2026);
+        Bulletin::query()->update(['salaire_net' => -500]);
 
         $this->expectException(RuntimeException::class);
         $this->paie->payer(Bulletin::first());
@@ -278,7 +309,7 @@ class PaieCalculTest extends TestCase
     {
         $this->contrat();
         $this->paie->genererMois($this->employeur, 9, 2026);
-        $bulletin = $this->paie->payer($this->paie->valider(Bulletin::first()));
+        $bulletin = $this->paie->payer(Bulletin::first());
 
         $this->expectException(RuntimeException::class);
         $this->paie->recalculer($bulletin);

@@ -179,10 +179,23 @@ class PaieService
         return $bulletin->refresh();
     }
 
+    /**
+     * Met le bulletin en paiement.
+     *
+     * Un brouillon se paie directement : c'est la meme personne qui arrete le
+     * montant et qui ordonne le versement, l'etape de validation separee ne
+     * protegeait de rien. Elle se joue au passage — le controle du net
+     * negatif compris — et les deux horodatages se remplissent d'un coup, de
+     * sorte que la trace reste complete.
+     */
     public function payer(Bulletin $bulletin, ?int $par = null): Bulletin
     {
-        if ($bulletin->statut !== 'valide') {
-            throw new RuntimeException('Un bulletin doit être validé avant d’être payé.');
+        if ($bulletin->statut === 'paye') {
+            throw new RuntimeException('Ce bulletin est déjà payé.');
+        }
+
+        if ($bulletin->statut === 'brouillon') {
+            $this->valider($bulletin, $par);
         }
 
         $bulletin->update(['statut' => 'paye', 'paye_par' => $par, 'paye_le' => now()]);

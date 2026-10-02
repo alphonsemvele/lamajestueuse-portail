@@ -255,11 +255,16 @@ export default function DetailBulletin({ bulletin, contrat, employeur, agent, aj
                                     </Bouton>
                                 </>
                             )}
-                            {bulletin.statut === 'valide' && (
+                            {bulletin.statut !== 'paye' && (
                                 <Bouton
                                     icon="wallet"
                                     onClick={() => action.post(routes.personnel.bulletinPayer(bulletin.id), { preserveScroll: true })}
                                     disabled={action.processing}
+                                    title={
+                                        bulletin.statut === 'brouillon'
+                                            ? 'Le brouillon est validé au passage : pas besoin de valider d’abord.'
+                                            : undefined
+                                    }
                                 >
                                     Marquer payé
                                 </Bouton>

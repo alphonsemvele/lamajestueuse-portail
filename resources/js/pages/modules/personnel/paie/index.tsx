@@ -199,7 +199,8 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                     <p className="mt-2 text-xs text-ink-500 dark:text-ink-400">
                         La préparation crée les brouillons manquants et recalcule ceux qui existent. Les bulletins
                         validés ou payés ne bougent plus — pour les refaire, supprimez-les puis relancez la
-                        préparation. Les ajustements du mois sont conservés et se réappliquent.
+                        préparation. Les ajustements du mois sont conservés et se réappliquent. « Marquer payés »
+                        s'applique directement à un brouillon : la validation se fait au passage.
                     </p>
                 )}
             </Card>

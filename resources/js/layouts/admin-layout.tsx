@@ -38,13 +38,20 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
         <div className="flex min-h-dvh bg-ink-50 dark:bg-ink-950">
             <Head title={title} />
 
+            {/*
+              * La barre tient toute la hauteur de l'écran et n'accompagne pas
+              * le défilement de la page : seule la liste des rubriques défile,
+              * de sorte que « Retour au portail » et « Se déconnecter »
+              * restent sous les yeux. En absolute dans une barre sans hauteur
+              * propre, ils se retrouvaient hors de l'écran.
+              */}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-72 shrink-0 border-r border-ink-200 bg-white transition-transform dark:border-white/10 dark:bg-ink-900 lg:static lg:translate-x-0',
+                    'fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col border-r border-ink-200 bg-white transition-transform dark:border-white/10 dark:bg-ink-900 lg:sticky lg:top-0 lg:h-dvh lg:translate-x-0',
                     mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
                 )}
             >
-                <div className="flex h-16 items-center gap-2.5 border-b border-ink-100 px-5 dark:border-white/10">
+                <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-ink-100 px-5 dark:border-white/10">
                     <Logo size="sm" />
                     <div className="leading-tight">
                         <p className="text-sm font-semibold text-ink-900 dark:text-white">La Majestueuse</p>
@@ -52,7 +59,7 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
                     </div>
                 </div>
 
-                <nav className="space-y-1 p-4">
+                <nav className="flex-1 space-y-1 overflow-y-auto p-4">
                     {nav.map(([href, icon, label, isActive]) => (
                         <Link
                             key={href}
@@ -71,7 +78,7 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
                     ))}
                 </nav>
 
-                <div className="absolute inset-x-0 bottom-0 space-y-2 border-t border-ink-100 p-4 dark:border-white/10">
+                <div className="shrink-0 space-y-2 border-t border-ink-100 p-4 dark:border-white/10">
                     <Link href={routes.dashboard} className="btn-ghost w-full">
                         <Icon name="arrow-right" className="h-4 w-4 rotate-180" />
                         {t('Retour au portail')}
@@ -102,10 +109,17 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
 
                     <ThemeToggle />
 
-                    <span className="hidden items-center gap-2.5 rounded-full border border-ink-200 py-1.5 pl-1.5 pr-3.5 dark:border-white/10 sm:flex">
+                    {/* L'avatar mène à « Mon profil » : il ne faisait rien. */}
+                    <Link
+                        href={routes.profil.index}
+                        title={t('Voir mon profil')}
+                        className="flex items-center gap-2.5 rounded-full border border-ink-200 py-1.5 pl-1.5 pr-1.5 transition hover:bg-ink-50 dark:border-white/10 dark:hover:bg-white/5 sm:pr-3.5"
+                    >
                         <Avatar url={auth.user?.avatarUrl} initials={auth.user?.initials ?? ''} className="h-7 w-7 text-[11px]" />
-                        <span className="text-[13px] font-medium text-ink-700 dark:text-ink-200">{auth.user?.fullName}</span>
-                    </span>
+                        <span className="hidden text-[13px] font-medium text-ink-700 dark:text-ink-200 sm:inline">
+                            {auth.user?.fullName}
+                        </span>
+                    </Link>
                 </header>
 
                 <main className="flex-1 space-y-6 p-4 sm:p-6 lg:p-8">

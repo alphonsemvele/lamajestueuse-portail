@@ -147,6 +147,15 @@ export default function PortalLayout({ title, categories = [], filters, alerts =
                                         {auth.user?.poste && <p className="mt-1 text-[11px] text-ink-400">{auth.user.poste}</p>}
                                     </div>
 
+                                    <Link
+                                        href={routes.profil.index}
+                                        onClick={() => setMenuOpen(false)}
+                                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-ink-700 transition hover:bg-ink-50 dark:text-ink-200 dark:hover:bg-white/5"
+                                    >
+                                        <Icon name="user" className="h-4 w-4 text-ink-400" />
+                                        {t('Mon profil')}
+                                    </Link>
+
                                     {auth.user?.isAdmin && (
                                         <Link
                                             href={routes.admin.dashboard}

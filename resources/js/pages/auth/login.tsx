@@ -22,8 +22,15 @@ export default function Login() {
     const t = useT();
     const { flash } = usePage<SharedProps>().props;
 
+    /*
+     * On se connecte presque toujours par matricule : le champ part donc de
+     * « LM- » et il n'y a que les chiffres a taper. Qui prefere son adresse
+     * professionnelle commence a ecrire, et le prefixe s'efface de lui-meme.
+     */
+    const PREFIXE = 'LM-';
+
     const { data, setData, post, processing, errors } = useForm({
-        username: '',
+        username: PREFIXE,
         password: '',
         remember: false as boolean,
     });
@@ -38,9 +45,32 @@ export default function Login() {
      * montre le matricule reconstitué, sans toucher au champ — le serveur
      * reste seul juge, et il essaie aussi les autres années de recrutement.
      */
-    const matriculeDevine = /^\d{1,4}$/.test(data.username.trim())
-        ? `LM-${String(new Date().getFullYear()).slice(-2)}${data.username.trim().padStart(4, '0')}`
-        : null;
+    /**
+     * Ce que le champ garde de la frappe.
+     *
+     * Tant qu'on tape des chiffres, le préfixe reste. Dès qu'une lettre ou
+     * une arobase arrive juste après, c'est qu'on saisit une adresse : le
+     * préfixe s'efface plutôt que de parasiter la saisie.
+     */
+    const saisirIdentifiant = (valeur: string) => {
+        if (!valeur.startsWith(PREFIXE)) return valeur;
+
+        const reste = valeur.slice(PREFIXE.length);
+
+        return /^\d*$/.test(reste) ? valeur : reste;
+    };
+
+    /*
+     * Saisie courte : on montre le matricule que le portail reconstituera,
+     * sans toucher au champ — le serveur reste seul juge, et il essaie aussi
+     * les autres années de recrutement.
+     */
+    const chiffres = data.username.trim().replace(PREFIXE, '');
+
+    const matriculeDevine =
+        /^\d{1,4}$/.test(chiffres) && data.username.trim() !== `${PREFIXE}${chiffres}`.slice(0, PREFIXE.length)
+            ? `${PREFIXE}${String(new Date().getFullYear()).slice(-2)}${chiffres.padStart(4, '0')}`
+            : null;
 
     const hour = new Date().getHours();
     const greeting = hour < 12 ? t('Bonjour') : hour < 18 ? t('Bon après-midi') : t('Bonsoir');
@@ -137,8 +167,16 @@ export default function Login() {
                                         autoFocus
                                         autoComplete="username"
                                         value={data.username}
-                                        onChange={(event) => setData('username', event.target.value)}
-                                        placeholder={t('adresse professionnelle ou matricule')}
+                                        onChange={(event) => setData('username', saisirIdentifiant(event.target.value))}
+                                        onFocus={(event) => {
+                                            // Le curseur se pose apres le prefixe, jamais dedans.
+                                            if (event.target.value === PREFIXE) {
+                                                requestAnimationFrame(() =>
+                                                    event.target.setSelectionRange(PREFIXE.length, PREFIXE.length),
+                                                );
+                                            }
+                                        }}
+                                        placeholder={t('matricule ou adresse professionnelle')}
                                         className={cn('field-input pl-10', errors.username && 'border-red-400 focus:border-red-500 focus:ring-red-500/15')}
                                     />
 
@@ -154,7 +192,7 @@ export default function Login() {
                                     )}
                                 </div>
                                 <p className="mt-1.5 text-xs text-ink-400">
-                                    {t('Votre adresse professionnelle, ou les 4 chiffres de votre matricule : LM-26 se complète tout seul.')}
+                                    {t('Tapez les chiffres de votre matricule — ou effacez pour saisir votre adresse professionnelle.')}
                                 </p>
                             </div>
 

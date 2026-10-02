@@ -68,6 +68,29 @@ class MatriculeCourtTest extends TestCase
         $this->assertGuest();
     }
 
+    /** Le champ arrive prerempli « LM- » : la saisie courte en tient compte. */
+    public function test_le_prefixe_deja_tape_ne_gene_pas(): void
+    {
+        $annee = substr((string) date('Y'), -2);
+        $personne = $this->compte('LM-'.$annee.'0147');
+
+        $this->connecter('LM-0147')->assertSessionHasNoErrors();
+        $this->assertAuthenticatedAs($personne);
+    }
+
+    public function test_le_prefixe_seul_demande_le_numero(): void
+    {
+        $this->compte('LM-260147');
+
+        $this->connecter('LM-')->assertSessionHasErrors('username');
+        $this->assertGuest();
+
+        $this->assertStringContainsString(
+            'Indiquez votre matricule',
+            session('errors')->first('username'),
+        );
+    }
+
     public function test_le_matricule_entier_fonctionne_toujours(): void
     {
         $personne = $this->compte('LM-220147');

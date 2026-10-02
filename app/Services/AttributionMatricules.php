@@ -108,11 +108,16 @@ class AttributionMatricules
     {
         $saisi = trim($saisi);
 
-        if (! preg_match('/^\d{1,'.self::LONGUEUR.'}$/', $saisi)) {
+        // Le champ de connexion arrive prerempli « LM- » : on accepte donc
+        // aussi bien « 0147 » que « LM-0147 », et l'on garde « LM-260147 »
+        // tel quel puisqu'il est deja complet.
+        $court = preg_replace('/^'.preg_quote(self::PREFIXE, '/').'/', '', $saisi);
+
+        if (! preg_match('/^\d{1,'.self::LONGUEUR.'}$/', (string) $court)) {
             return $saisi;
         }
 
-        $chiffres = str_pad($saisi, self::LONGUEUR, '0', STR_PAD_LEFT);
+        $chiffres = str_pad((string) $court, self::LONGUEUR, '0', STR_PAD_LEFT);
         $cetteAnnee = $this->formater((int) date('Y'), (int) $chiffres);
 
         if (User::where('matricule', $cetteAnnee)->exists()) {

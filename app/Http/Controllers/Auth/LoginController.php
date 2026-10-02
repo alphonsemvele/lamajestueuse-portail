@@ -40,6 +40,15 @@ class LoginController extends Controller
 
         // Quatre chiffres suffisent : le prefixe et l'annee se completent.
         if ($field === 'matricule') {
+            // Le champ arrive prerempli « LM- » : envoye tel quel, c'est qu'on
+            // a oublie de taper son numero. On le dit, plutot que d'annoncer
+            // des identifiants incorrects.
+            if (trim($credentials['username']) === AttributionMatricules::PREFIXE) {
+                throw ValidationException::withMessages([
+                    'username' => __('Indiquez votre matricule ou votre adresse professionnelle.'),
+                ]);
+            }
+
             $credentials['username'] = app(AttributionMatricules::class)->completer($credentials['username']);
         }
 

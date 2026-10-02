@@ -98,9 +98,13 @@ class PaieService
      * Un bulletin deja valide ou paye n'est jamais touche ; un brouillon est
      * recalcule, pour tenir compte d'un ajustement saisi entre-temps.
      *
+     * `$seulementLesManquants` ne cree que ce qui manque et laisse les
+     * brouillons en place : de quoi ajouter un arrivant apres coup sans
+     * defaire le travail deja fait sur le reste du mois.
+     *
      * @return array{crees: int, recalcules: int, ignores: int}
      */
-    public function genererMois(Employeur $employeur, int $mois, int $annee): array
+    public function genererMois(Employeur $employeur, int $mois, int $annee, bool $seulementLesManquants = false): array
     {
         $this->verifierPeriode($mois, $annee);
 
@@ -116,12 +120,12 @@ class PaieService
 
         $resultat = ['crees' => 0, 'recalcules' => 0, 'ignores' => 0];
 
-        DB::transaction(function () use ($contrats, $employeur, $mois, $annee, &$resultat) {
+        DB::transaction(function () use ($contrats, $employeur, $mois, $annee, $seulementLesManquants, &$resultat) {
             foreach ($contrats as $contrat) {
                 $existant = Bulletin::where('contrat_id', $contrat->id)
                     ->where('mois', $mois)->where('annee', $annee)->first();
 
-                if ($existant && $existant->statut !== 'brouillon') {
+                if ($existant && ($seulementLesManquants || $existant->statut !== 'brouillon')) {
                     $resultat['ignores']++;
 
                     continue;

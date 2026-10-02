@@ -790,6 +790,74 @@ class PersonnelModuleTest extends TestCase
             ->assertSessionHasErrors('paie');
     }
 
+    /**
+     * Un arrivant enregistre apres coup : on complete le mois sans defaire le
+     * travail deja fait sur les bulletins en place.
+     */
+    public function test_preparer_le_reste_n_ajoute_que_les_manquants(): void
+    {
+        $premier = $this->contrat();
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+
+        // Le brouillon en place porte une correction saisie a la main.
+        $dejaLa = Bulletin::firstOrFail();
+        $dejaLa->update(['salaire_net' => 123456, 'note' => 'Corrigé à la main']);
+
+        // Un second contrat arrive ensuite.
+        $arrivant = $this->contrat($this->agent('ESSOMBA'));
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.paie.generer'), [
+            'mois' => 9, 'annee' => 2026, 'mode' => 'manquants',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame(2, Bulletin::count());
+
+        // Le bulletin de l'arrivant est la...
+        $this->assertDatabaseHas('bulletins', ['contrat_id' => $arrivant->id, 'mois' => 9, 'annee' => 2026]);
+
+        // ...et celui qui existait n'a pas bouge.
+        $dejaLa->refresh();
+        $this->assertSame(123456.0, (float) $dejaLa->salaire_net);
+        $this->assertSame('Corrigé à la main', $dejaLa->note);
+
+        unset($premier);
+    }
+
+    public function test_la_preparation_complete_recalcule_les_brouillons(): void
+    {
+        $this->contrat();
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+        Bulletin::query()->update(['salaire_net' => 1]);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.paie.generer'), [
+            'mois' => 9, 'annee' => 2026, 'mode' => 'complet',
+        ])->assertSessionHasNoErrors();
+
+        // Le mode complet remet le brouillon d'aplomb.
+        $this->assertSame(200000.0, (float) Bulletin::firstOrFail()->salaire_net);
+    }
+
+    public function test_preparer_le_reste_ne_touche_pas_un_bulletin_paye(): void
+    {
+        $this->contrat();
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+        Bulletin::query()->update(['statut' => 'paye', 'salaire_net' => 999]);
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.paie.generer'), [
+            'mois' => 9, 'annee' => 2026, 'mode' => 'manquants',
+        ]);
+
+        $this->assertSame(1, Bulletin::count());
+        $this->assertSame(999.0, (float) Bulletin::firstOrFail()->salaire_net);
+    }
+
+    public function test_un_mode_inconnu_est_refuse(): void
+    {
+        $this->actingAs($this->gestionnaire())->post(route('personnel.paie.generer'), [
+            'mois' => 9, 'annee' => 2026, 'mode' => 'tout-effacer',
+        ])->assertSessionHasErrors('mode');
+    }
+
     public function test_le_traitement_en_lot_valide_puis_paie(): void
     {
         $this->contrat();

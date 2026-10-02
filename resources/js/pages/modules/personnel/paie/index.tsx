@@ -50,10 +50,10 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
 
     const [enCours, setEnCours] = useState(false);
 
-    const generer = () =>
+    const generer = (mode: 'complet' | 'manquants' = 'complet') =>
         router.post(
             routes.personnel.paieGenerer,
-            { mois: periode.mois, annee: periode.annee, employeur_id: filtres.employeur ?? '' },
+            { mois: periode.mois, annee: periode.annee, employeur_id: filtres.employeur ?? '', mode },
             { preserveScroll: true, onStart: () => setEnCours(true), onFinish: () => setEnCours(false) },
         );
 
@@ -188,7 +188,18 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                                     Vider la période
                                 </Bouton>
                             )}
-                            <Bouton icon="refresh" onClick={generer} disabled={enCours}>
+                            {masse.bulletins > 0 && (
+                                <Bouton
+                                    variante="secondaire"
+                                    icon="plus"
+                                    onClick={() => generer('manquants')}
+                                    disabled={enCours}
+                                    title="N'ajoute que les bulletins manquants. Les brouillons déjà préparés ne sont pas recalculés."
+                                >
+                                    Préparer le reste
+                                </Bouton>
+                            )}
+                            <Bouton icon="refresh" onClick={() => generer('complet')} disabled={enCours}>
                                 {enCours ? 'Préparation…' : 'Préparer les bulletins'}
                             </Bouton>
                         </div>
@@ -201,6 +212,14 @@ export default function PaieDuMois({ periode, bulletins, filtres, employeurs, ma
                         validés ou payés ne bougent plus — pour les refaire, supprimez-les puis relancez la
                         préparation. Les ajustements du mois sont conservés et se réappliquent. « Marquer payés »
                         s'applique directement à un brouillon : la validation se fait au passage.
+                        {masse.bulletins > 0 && (
+                            <>
+                                {' '}
+                                <strong className="font-medium">« Préparer le reste »</strong> n'ajoute que les
+                                bulletins manquants — pour un arrivant enregistré après coup — et laisse intacts
+                                les brouillons déjà préparés.
+                            </>
+                        )}
                     </p>
                 )}
             </Card>

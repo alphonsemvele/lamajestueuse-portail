@@ -136,11 +136,15 @@ class PaieController extends Controller
             'mois' => ['required', 'integer', 'min:1', 'max:12'],
             'annee' => ['required', 'integer', 'min:2000', 'max:'.(date('Y') + 1)],
             'employeur_id' => ['nullable', 'exists:employeurs,id'],
+            // « manquants » ne cree que ce qui manque et laisse les
+            // brouillons deja prepares tels quels.
+            'mode' => ['nullable', Rule::in(['complet', 'manquants'])],
         ]);
 
         // `nullable` ne renvoie pas la cle quand le champ est absent : sans
         // employeur designe, on prepare la paie de tout le groupe.
         $choisi = $donnees['employeur_id'] ?? null;
+        $seulementLesManquants = ($donnees['mode'] ?? 'complet') === 'manquants';
 
         $perimetre = $this->perimetre($request);
 
@@ -158,12 +162,26 @@ class PaieController extends Controller
 
         try {
             foreach ($employeurs as $employeur) {
-                foreach ($paie->genererMois($employeur, $donnees['mois'], $donnees['annee']) as $cle => $valeur) {
+                $prepares = $paie->genererMois(
+                    $employeur, $donnees['mois'], $donnees['annee'], $seulementLesManquants
+                );
+
+                foreach ($prepares as $cle => $valeur) {
                     $total[$cle] += $valeur;
                 }
             }
         } catch (RuntimeException $e) {
             return back()->withErrors(['paie' => $e->getMessage()]);
+        }
+
+        if ($seulementLesManquants) {
+            return back()->with('status', trans_choice(
+                '{0}Aucun bulletin ne manquait : rien n’a changé.'
+                .'|{1}1 bulletin ajouté ; les :intacts autres sont restés intacts.'
+                .'|[2,*]:crees bulletins ajoutés ; les :intacts autres sont restés intacts.',
+                $total['crees'],
+                ['crees' => $total['crees'], 'intacts' => $total['ignores']],
+            ));
         }
 
         return back()->with('status', trans_choice(

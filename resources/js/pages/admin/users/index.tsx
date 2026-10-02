@@ -173,10 +173,23 @@ export default function UsersIndex({
                     {t('Sans matricule')} ({sansMatriculeCount})
                 </button>
 
-                {/* La liste imprimable : noms, matricules et adresses. */}
-                <button type="button" onClick={() => setApercuListe(true)} className="btn-ghost">
-                    <Icon name="document" className="h-4 w-4" />
+                {/*
+                  * Le telechargement d'abord : c'est le geste attendu, et il
+                  * emprunte le chemin le plus court. L'apercu reste a cote
+                  * pour qui veut verifier avant d'imprimer.
+                  */}
+                <a href={routes.admin.listePersonnel()} className="btn-ghost">
+                    <Icon name="download" className="h-4 w-4" />
                     {t('Liste du personnel')}
+                </a>
+                <button
+                    type="button"
+                    onClick={() => setApercuListe(true)}
+                    title={t('Aperçu avant impression')}
+                    aria-label={t('Aperçu de la liste du personnel')}
+                    className="btn-ghost px-2.5"
+                >
+                    <Icon name="document" className="h-4 w-4" />
                 </button>
 
                 <Link href={routes.admin.userCreate} className="btn-primary">

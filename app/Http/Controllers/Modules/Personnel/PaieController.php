@@ -412,18 +412,37 @@ class PaieController extends Controller
      * le navigateur propose de l'enregistrer. Le document est le meme des
      * deux cotes : c'est BulletinPdf qui le fabrique.
      */
-    public function pdf(Request $request, Bulletin $bulletin, BulletinPdf $pdf): SymfonyResponse
+    public function pdf(Request $request, Bulletin $bulletin, BulletinPdf $pdf): SymfonyResponse|RedirectResponse
     {
         $this->autoriserAcces($request->user());
         $this->verifierEntite($request, $bulletin->employeur_id);
 
-        return $pdf->reponse(
-            $bulletin,
-            $request->boolean('apercu'),
-            $bulletin->statut === 'brouillon'
-                ? 'Bulletin provisoire : il peut encore etre recalcule avant validation.'
-                : null,
-        );
+        try {
+            return $pdf->reponse(
+                $bulletin,
+                $request->boolean('apercu'),
+                $bulletin->statut === 'brouillon'
+                    ? 'Bulletin provisoire : il peut encore etre recalcule avant validation.'
+                    : null,
+            );
+        } catch (\Throwable $erreur) {
+            // Une panne du moteur rendait une page blanche d'erreur serveur,
+            // qui n'apprend rien. On la journalise et on la ramene a l'ecran.
+            Log::error('Bulletin PDF impossible à produire', [
+                'bulletin' => $bulletin->id,
+                'erreur' => $erreur::class,
+                'message' => $erreur->getMessage(),
+                'fichier' => $erreur->getFile().':'.$erreur->getLine(),
+            ]);
+
+            return back()->withErrors([
+                'paie' => $request->user()?->isAdmin()
+                    ? __('Le bulletin n’a pas pu être produit : :detail', [
+                        'detail' => $erreur::class.' — '.$erreur->getMessage(),
+                    ])
+                    : __('Le bulletin n’a pas pu être produit. Signalez-le à l’administration du portail.'),
+            ]);
+        }
     }
 
     public function annoter(Request $request, Bulletin $bulletin): RedirectResponse

@@ -14,6 +14,7 @@ use App\Services\CourrielsPortail;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -307,7 +308,12 @@ class UserController extends Controller
      *
      * `?apercu=1` la sert en ligne pour la previsualiser.
      */
-    public function listePdf(Request $request, BulletinPdf $pdf): SymfonyResponse
+    public function listePdf(Request $request, BulletinPdf $pdf): SymfonyResponse|RedirectResponse
+    {
+        return $this->sansPageBlanche($request, fn () => $this->fabriquerLaListe($request, $pdf));
+    }
+
+    private function fabriquerLaListe(Request $request, BulletinPdf $pdf): SymfonyResponse
     {
         $personnel = User::duPersonnel()
             ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
@@ -327,6 +333,36 @@ class UserController extends Controller
         $nom = 'personnel-la-majestueuse-'.now()->format('Y-m-d').'.pdf';
 
         return $request->boolean('apercu') ? $document->stream($nom) : $document->download($nom);
+    }
+
+    /**
+     * Enveloppe la fabrication d'un PDF.
+     *
+     * Une panne du moteur rendait une page blanche d'erreur serveur, qui
+     * n'apprend rien a personne. On journalise la cause et on la ramene a
+     * l'ecran : l'administrateur voit le detail technique, les autres un
+     * message clair. Sans cela, diagnostiquer demande l'acces aux journaux
+     * du serveur.
+     */
+    private function sansPageBlanche(Request $request, callable $fabrique): SymfonyResponse|RedirectResponse
+    {
+        try {
+            return $fabrique();
+        } catch (\Throwable $erreur) {
+            Log::error('Document PDF impossible à produire', [
+                'erreur' => $erreur::class,
+                'message' => $erreur->getMessage(),
+                'fichier' => $erreur->getFile().':'.$erreur->getLine(),
+            ]);
+
+            return back()->withErrors([
+                'pdf' => $request->user()?->isAdmin()
+                    ? __('Le document n’a pas pu être produit : :detail', [
+                        'detail' => $erreur::class.' — '.$erreur->getMessage(),
+                    ])
+                    : __('Le document n’a pas pu être produit. Signalez-le à l’administration du portail.'),
+            ]);
+        }
     }
 
     private function validated(Request $request, ?User $user = null): array

@@ -99,6 +99,7 @@ export const routes = {
         bulletinPayer: (id: number) => `/personnel/paie/bulletins/${id}/payer`,
         bulletinNote: (id: number) => `/personnel/paie/bulletins/${id}/note`,
         bulletinSupprimer: (id: number) => `/personnel/paie/bulletins/${id}`,
+        bulletinRelancer: (id: number) => `/personnel/paie/bulletins/${id}/relancer`,
         ajustements: (contrat: number) => `/personnel/contrats/${contrat}/ajustements`,
         ajustement: (id: number) => `/personnel/ajustements/${id}`,
         employeurs: '/personnel/employeurs',

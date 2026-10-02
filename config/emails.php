@@ -8,6 +8,7 @@ use App\Mail\Compte\CompteValide;
 use App\Mail\Compte\DemandeRefusee;
 use App\Mail\Compte\InscriptionRecue;
 use App\Mail\EssaiEnvoi;
+use App\Mail\Paie\BulletinDisponible;
 
 /*
 |--------------------------------------------------------------------------
@@ -34,12 +35,12 @@ return [
         ],
         'compte-valide' => [
             'titre' => 'Compte validé',
-            'description' => "Quand un administrateur ouvre le compte depuis /admin/users.",
+            'description' => 'Quand un administrateur ouvre le compte depuis /admin/users.',
             'classe' => CompteValide::class,
         ],
         'demande-refusee' => [
             'titre' => "Demande d'inscription refusée",
-            'description' => "Quand un administrateur refuse la demande.",
+            'description' => 'Quand un administrateur refuse la demande.',
             'classe' => DemandeRefusee::class,
         ],
         'compte-cree' => [
@@ -57,13 +58,21 @@ return [
         ],
         'badge-pret' => [
             'titre' => 'Badge prêt à être retiré',
-            'description' => "Quand le guichet marque la demande imprimée.",
+            'description' => 'Quand le guichet marque la demande imprimée.',
             'classe' => BadgePret::class,
         ],
         'badge-refuse' => [
             'titre' => 'Demande de badge refusée',
-            'description' => "Quand le guichet refuse, avec le motif saisi.",
+            'description' => 'Quand le guichet refuse, avec le motif saisi.',
             'classe' => BadgeRefuse::class,
+        ],
+    ],
+
+    'Paie' => [
+        'bulletin-disponible' => [
+            'titre' => 'Bulletin de paie disponible',
+            'description' => 'Quand le service du personnel marque le bulletin payé. Le message ne porte aucun montant : il renvoie au portail.',
+            'classe' => BulletinDisponible::class,
         ],
     ],
 

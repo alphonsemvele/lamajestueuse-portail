@@ -10,6 +10,8 @@ use App\Mail\Compte\CompteValide;
 use App\Mail\Compte\DemandeRefusee;
 use App\Mail\Compte\InscriptionRecue;
 use App\Mail\CourrielDuPortail;
+use App\Mail\Paie\BulletinDisponible;
+use App\Models\Bulletin;
 use App\Models\DemandeBadge;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -75,6 +77,27 @@ class CourrielsPortail
     }
 
     /** Envoie a une personne, si elle a une adresse. */
+    /**
+     * L'annonce qui suit la mise en paiement. Sans titulaire ni periode
+     * lisible, il n'y a rien a annoncer.
+     */
+    public function pourBulletin(Bulletin $bulletin): ?CourrielDuPortail
+    {
+        $bulletin->loadMissing(['agent.user', 'employeur']);
+
+        $personne = $bulletin->agent?->user;
+
+        if ($personne === null) {
+            return null;
+        }
+
+        return new BulletinDisponible(
+            $personne->fullName(),
+            $bulletin->periode(),
+            $bulletin->employeur?->nom,
+        );
+    }
+
     public function envoyerA(?User $destinataire, CourrielDuPortail $courriel): bool
     {
         if (! $destinataire || blank($destinataire->email)) {
@@ -91,7 +114,7 @@ class CourrielsPortail
 
             return true;
         } catch (Throwable $e) {
-            Log::warning("Courriel non envoyé", [
+            Log::warning('Courriel non envoyé', [
                 'courriel' => $courriel::class,
                 'destinataire' => $adresse,
                 'erreur' => $e->getMessage(),

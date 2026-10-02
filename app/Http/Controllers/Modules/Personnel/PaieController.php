@@ -9,6 +9,7 @@ use App\Models\Bulletin;
 use App\Models\Contrat;
 use App\Models\Employeur;
 use App\Models\User;
+use App\Services\CourrielsPortail;
 use App\Services\PaieService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -211,9 +212,45 @@ class PaieController extends Controller
         return $this->agir(
             $request,
             $bulletin,
-            fn () => $paie->payer($bulletin, $request->user()->id),
+            function () use ($paie, $bulletin, $request) {
+                $paie->payer($bulletin, $request->user()->id);
+                $this->annoncerLePaiement($bulletin);
+            },
             __('Bulletin marqué payé.')
         );
+    }
+
+    /**
+     * Previent le titulaire que son bulletin est disponible.
+     *
+     * L'envoi ne porte aucun montant et ne doit jamais faire echouer la
+     * paie : CourrielsPortail avale ses propres pannes et les journalise.
+     */
+    private function annoncerLePaiement(Bulletin $bulletin): void
+    {
+        $courriels = app(CourrielsPortail::class);
+        $courriel = $courriels->pourBulletin($bulletin);
+
+        if ($courriel !== null) {
+            $courriels->envoyerA($bulletin->agent?->user, $courriel);
+        }
+    }
+
+    /** Renvoie l'annonce, quand le premier message s'est perdu. */
+    public function relancer(Request $request, Bulletin $bulletin): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+        $this->verifierEntite($request, $bulletin->employeur_id);
+
+        if ($bulletin->statut !== 'paye') {
+            return back()->withErrors([
+                'paie' => __('Ce bulletin n’est pas encore payé : il n’y a rien à annoncer.'),
+            ]);
+        }
+
+        $this->annoncerLePaiement($bulletin);
+
+        return back()->with('status', __('Message renvoyé.'));
     }
 
     /** Valide, ou met en paiement, toute une selection d'un coup. */
@@ -240,7 +277,10 @@ class PaieController extends Controller
             try {
                 match ($donnees['action']) {
                     'valider' => $paie->valider($bulletin, $request->user()->id),
-                    'payer' => $paie->payer($bulletin, $request->user()->id),
+                    'payer' => tap(
+                        $paie->payer($bulletin, $request->user()->id),
+                        fn () => $this->annoncerLePaiement($bulletin)
+                    ),
                     'supprimer' => $this->effacer($bulletin, $request->user()),
                 };
                 $faits++;

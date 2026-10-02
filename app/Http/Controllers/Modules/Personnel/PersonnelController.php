@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Modules\Personnel;
 use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Http\Controllers\Concerns\ServesModule;
 use App\Http\Controllers\Controller;
+use App\Mail\Compte\CompteCree;
 use App\Models\Agent;
 use App\Models\Contrat;
 use App\Models\Diplome;
@@ -13,17 +14,16 @@ use App\Models\Employeur;
 use App\Models\EvenementCarriere;
 use App\Models\ProfilSalaire;
 use App\Models\User;
-use App\Mail\Compte\CompteCree;
 use App\Services\AttributionMatricules;
 use App\Services\CourrielsPortail;
 use App\Services\PaieService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -120,9 +120,14 @@ class PersonnelController extends Controller
                 ->orWhere('lastname', 'like', "%{$recherche}%")
                 ->orWhere('matricule', 'like', "%{$recherche}%")
                 ->orWhere('email', 'like', "%{$recherche}%")))
-            ->when($employeur, fn ($q, $id) => $q->whereHas('agent.contrats', fn ($c) => $c
-                ->where('employeur_id', $id)->where('statut', 'actif')
-                ->when($perimetre !== null, fn ($sub) => $sub->whereIn('employeur_id', $perimetre))))
+            /*
+             * Le filtre entite se lit comme la liste elle-meme : releve de
+             * cette entite qui y a un contrat, ou qui est rattache a son
+             * institut dans le portail. Le limiter aux contrats actifs
+             * rendait une liste vide tant qu'aucun contrat n'etait saisi,
+             * alors que les personnes etaient bien rattachees a l'inscription.
+             */
+            ->when($employeur, fn ($q, $id) => $q->duPerimetreRh([(int) $id]))
             ->when($statut === 'sans_contrat', fn ($q) => $q->whereDoesntHave('agent.contrats', fn ($c) => $c
                 ->where('statut', 'actif')
                 ->when($perimetre !== null, fn ($sub) => $sub->whereIn('employeur_id', $perimetre))))

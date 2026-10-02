@@ -514,6 +514,58 @@ class PersonnelModuleTest extends TestCase
     // ---------------------------------------------------------- contrats
 
     /** Le contrat part du poste déclaré à l'inscription, pour cet institut. */
+    /**
+     * Le filtre entite doit se lire comme la liste : rattache a l'institut
+     * suffit, sans attendre qu'un contrat soit saisi.
+     */
+    public function test_le_filtre_entite_trouve_les_rattaches_sans_contrat(): void
+    {
+        // Rattache a l'institut a l'inscription, aucun contrat.
+        $membre = User::factory()->create(['lastname' => 'NKOA']);
+        $membre->applications()->attach($this->institut);
+
+        $this->actingAs($this->gestionnaire())
+            ->get(route('personnel.agents', ['employeur' => $this->employeur->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('agents.data', 1)
+                ->where('agents.data.0.nom', fn ($nom) => str_contains((string) $nom, 'NKOA')));
+    }
+
+    public function test_le_filtre_entite_trouve_aussi_par_le_contrat(): void
+    {
+        $agent = $this->agent('MBALLA');
+        $this->contrat($agent);
+
+        $this->actingAs($this->gestionnaire())
+            ->get(route('personnel.agents', ['employeur' => $this->employeur->id]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
+    }
+
+    public function test_le_filtre_entite_ecarte_ceux_d_une_autre_entite(): void
+    {
+        $autreInstitut = Application::factory()->create(['name' => 'GSBM']);
+        $autre = Employeur::create([
+            'nom' => 'Groupe Scolaire', 'sigle' => 'GSBM', 'application_id' => $autreInstitut->id,
+        ]);
+
+        $ailleurs = User::factory()->create(['lastname' => 'ESSOMBA']);
+        $ailleurs->applications()->attach($autreInstitut);
+
+        $ici = User::factory()->create(['lastname' => 'NKOA']);
+        $ici->applications()->attach($this->institut);
+
+        // L'administrateur voit tout : son perimetre ne masque rien.
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+
+        $this->actingAs($admin)
+            ->get(route('personnel.agents', ['employeur' => $autre->id]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('agents.data', 1)
+                ->where('agents.data.0.nom', fn ($nom) => str_contains((string) $nom, 'ESSOMBA')));
+    }
+
     public function test_la_fiche_propose_le_poste_declare(): void
     {
         $membre = User::factory()->create(['lastname' => 'NKOA', 'poste' => 'Agent polyvalent']);

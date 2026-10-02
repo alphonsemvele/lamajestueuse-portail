@@ -273,6 +273,17 @@ export default function DetailBulletin({ bulletin, contrat, employeur, agent, aj
                                     Marquer payé
                                 </Bouton>
                             )}
+                            {bulletin.statut === 'paye' && (
+                                <Bouton
+                                    variante="secondaire"
+                                    icon="mail"
+                                    onClick={() => action.post(routes.personnel.bulletinRelancer(bulletin.id), { preserveScroll: true })}
+                                    disabled={action.processing}
+                                    title="Renvoie au salarié l’annonce que son bulletin est disponible. Le message ne porte aucun montant."
+                                >
+                                    Renvoyer le message
+                                </Bouton>
+                            )}
                             <Bouton
                                 variante="danger"
                                 icon="trash"

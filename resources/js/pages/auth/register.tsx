@@ -71,10 +71,6 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                 <div className="mx-auto flex h-16 max-w-4xl items-center gap-3 px-5">
                     <Link href={routes.login} className="flex items-center gap-2.5">
                         <Logo size="sm" />
-                        <span className="leading-tight">
-                            <span className="block text-[15px] font-semibold text-ink-900 dark:text-white">La Majestueuse</span>
-                            <span className="block text-[10px] uppercase tracking-[0.14em] text-ink-400">{t('Portail entreprise')}</span>
-                        </span>
                     </Link>
                     <div className="ml-auto flex items-center gap-2">
                         <LocaleSwitch />

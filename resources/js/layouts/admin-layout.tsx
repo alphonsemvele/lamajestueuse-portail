@@ -53,10 +53,6 @@ export default function AdminLayout({ title, heading, subheading, children }: Pr
             >
                 <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-ink-100 px-5 dark:border-white/10">
                     <Logo size="sm" />
-                    <div className="leading-tight">
-                        <p className="text-sm font-semibold text-ink-900 dark:text-white">La Majestueuse</p>
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-ink-400">{t('Administration')}</p>
-                    </div>
                 </div>
 
                 <nav className="flex-1 space-y-1 overflow-y-auto p-4">

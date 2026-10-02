@@ -46,11 +46,8 @@ export default function PortalLayout({ title, categories = [], filters, alerts =
             <header className="sticky top-0 z-40 border-b border-ink-200/70 bg-white/85 backdrop-blur-md dark:border-white/10 dark:bg-ink-950/85">
                 <div className="mx-auto flex h-16 max-w-[1600px] items-center gap-3 px-4 sm:gap-5 sm:px-6 lg:px-8">
                     <Link href={routes.dashboard} className="flex shrink-0 items-center gap-2.5">
+                        {/* Le logo porte la marque : rien a ecrire a cote. */}
                         <Logo size="sm" />
-                        <span className="hidden leading-tight sm:block">
-                            <span className="block text-[15px] font-semibold text-ink-900 dark:text-white">La Majestueuse</span>
-                            <span className="block text-[10px] uppercase tracking-[0.14em] text-ink-400">{t('Portail entreprise')}</span>
-                        </span>
                     </Link>
 
                     {/* Sortie du module : le tableau de bord, lui, n'en a pas besoin. */}

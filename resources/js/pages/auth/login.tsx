@@ -122,13 +122,8 @@ export default function Login() {
             <section className="hidden lg:block lg:w-[56%]">
                 <HeroCarousel slides={slides} interval={6500}>
                     <div className="relative flex h-full flex-col justify-between p-12 xl:p-16">
-                        <div className="flex items-center gap-3">
-                            {/* Le logo porte deja la raison sociale : inutile de la repeter. */}
-                            <Logo size="lg" complet className="drop-shadow-lg" />
-                            <p className="self-end pb-1 text-xs uppercase tracking-[0.16em] text-white/55">
-                                {t('Portail entreprise')}
-                            </p>
-                        </div>
+                        {/* Le logo porte la marque : rien a ecrire a cote. */}
+                        <Logo size="lg" complet className="drop-shadow-lg" />
 
                         <div className="max-w-xl">
                             <h1 className="text-4xl font-semibold leading-[1.08] tracking-tight text-white xl:text-5xl">
@@ -167,12 +162,8 @@ export default function Login() {
                 </div>
 
                 <div className="w-full max-w-md">
-                    <div className="mb-8 flex items-center gap-3 lg:hidden">
-                        <Logo size="sm" />
-                        <div className="leading-tight">
-                            <p className="font-semibold text-ink-900 dark:text-white">La Majestueuse</p>
-                            <p className="text-[11px] uppercase tracking-[0.14em] text-ink-400">{t('Portail entreprise')}</p>
-                        </div>
+                    <div className="mb-8 lg:hidden">
+                        <Logo size="md" complet />
                     </div>
 
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-brand-600 dark:text-brand-400">{greeting}</p>

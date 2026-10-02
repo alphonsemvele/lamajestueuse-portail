@@ -15,11 +15,12 @@
 
         /* en-tête */
         .entete td { vertical-align: middle; }
-        .titre { font-size: 17px; font-weight: bold; color: #111827; letter-spacing: .2px; }
-        .sousTitre { font-size: 10px; color: #374151; margin-top: 2px; }
-        .sous { font-size: 8.5px; color: #9ca3af; margin-top: 3px; line-height: 1.6; }
+        /* Les deux lignes du titre pesent pareil : c'est un seul intitule. */
+        .titre { font-size: 14.5px; font-weight: bold; color: #111827; letter-spacing: .2px; line-height: 1.35; }
+        .titre .portail { color: {{ $couleur }}; }
+        .sous { font-size: 8.5px; color: #9ca3af; margin-top: 5px; }
         .compte { text-align: right; }
-        .compte .nombre { font-size: 26px; font-weight: bold; color: {{ $couleur }}; line-height: 1; }
+        .compte .nombre { font-size: 24px; font-weight: bold; color: {{ $couleur }}; line-height: 1; }
         .compte .mot { font-size: 7.5px; text-transform: uppercase; letter-spacing: .8px; color: #9ca3af; }
         .filet { height: 3px; background: {{ $couleur }}; margin: 11px 0 0; }
 
@@ -65,17 +66,19 @@
 
 <table class="entete">
     <tr>
-        <td width="12%">
+        <td width="11%">
             @if ($logo)
                 <img src="{{ $logo }}" style="height: 42px;" alt="">
             @endif
         </td>
-        <td width="63%">
-            <div class="titre">LISTE DU PERSONNEL</div>
-            <div class="sousTitre">inscrit dans le portail web LA MAJESTUEUSE</div>
+        <td width="73%">
+            <div class="titre">
+                LISTE DU PERSONNEL<br>
+                <span class="portail">INSCRIT DANS LE PORTAIL WEB LA MAJESTUEUSE</span>
+            </div>
             <div class="sous">Arrêtée au {{ $editeLe }}</div>
         </td>
-        <td width="25%" class="compte">
+        <td width="16%" class="compte">
             <div class="nombre">{{ $personnel->count() }}</div>
             <div class="mot">{{ $personnel->count() > 1 ? 'personnes' : 'personne' }}</div>
         </td>

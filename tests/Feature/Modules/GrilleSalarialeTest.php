@@ -165,6 +165,26 @@ class GrilleSalarialeTest extends TestCase
         $this->assertDatabaseHas('categories_rh', ['id' => $demo->id, 'actif' => false]);
     }
 
+    public function test_un_echelon_garde_hors_grille_est_range_derriere_les_colonnes(): void
+    {
+        $categorie = CategorieRh::create(['libelle' => 'Catégorie 1', 'actif' => true]);
+        $echelon = Echelon::create([
+            'categorie_rh_id' => $categorie->id,
+            'numero' => 2, 'libelle' => 'A (temps partiel)', 'salaire' => 40000, 'actif' => true,
+        ]);
+        ProfilSalaire::create([
+            'nom' => 'Chauffeur (temps partiel)',
+            'categorie_rh_id' => $categorie->id,
+            'echelon_id' => $echelon->id,
+            'actif' => true,
+        ]);
+
+        $this->poser();
+
+        // Derriere F, et non laisse au numero de garage.
+        $this->assertSame(7, (int) $echelon->fresh()->numero);
+    }
+
     public function test_rejouer_le_seeder_ne_change_rien(): void
     {
         $this->poser();

@@ -149,10 +149,16 @@ class GrilleSalarialeSeeder extends Seeder
             'categories_retirees' => 0, 'categories_desactivees' => 0,
         ];
 
-        foreach (Echelon::whereNotIn('id', $gardes['echelons'])->get() as $echelon) {
+        $gardes_a_ranger = [];
+
+        foreach (Echelon::whereNotIn('id', $gardes['echelons'])->orderBy('numero')->get() as $echelon) {
             if ($echelon->contrats()->exists() || $echelon->profils()->exists()) {
                 $echelon->update(['actif' => false]);
                 $bilan['echelons_desactives']++;
+
+                if (in_array($echelon->categorie_rh_id, $gardes['categories'], true)) {
+                    $gardes_a_ranger[$echelon->categorie_rh_id][] = $echelon;
+                }
 
                 continue;
             }
@@ -160,6 +166,8 @@ class GrilleSalarialeSeeder extends Seeder
             $echelon->delete();
             $bilan['echelons_retires']++;
         }
+
+        $this->ranger($gardes_a_ranger);
 
         foreach (CategorieRh::whereNotIn('id', $gardes['categories'])->get() as $categorie) {
             if ($categorie->echelons()->exists() || $this->porteUnProfil($categorie)) {
@@ -174,6 +182,24 @@ class GrilleSalarialeSeeder extends Seeder
         }
 
         return $bilan;
+    }
+
+    /**
+     * Ramene les echelons gardes hors grille a la suite des colonnes du
+     * tableau : sans cela ils resteraient au numero de garage, et la liste
+     * afficherait un « 102 » derriere le 6.
+     *
+     * @param  array<int, list<Echelon>>  $parCategorie
+     */
+    private function ranger(array $parCategorie): void
+    {
+        foreach ($parCategorie as $echelons) {
+            $rang = count(self::ECHELONS);
+
+            foreach ($echelons as $echelon) {
+                $echelon->update(['numero' => ++$rang]);
+            }
+        }
     }
 
     private function porteUnProfil(CategorieRh $categorie): bool

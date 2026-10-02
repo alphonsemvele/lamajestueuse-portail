@@ -82,8 +82,12 @@ class ReferentielController extends Controller
                 ])->all(),
             'applications' => Application::where('type', 'application')->orderBy('name')->get()
                 ->map(fn ($a) => ['id' => $a->id, 'name' => $a->name])->all(),
+            // Tri naturel : « Catégorie 2 » passe avant « Catégorie 10 », ce
+            // qu'un tri alphabetique en base ne sait pas faire.
             'categories' => CategorieRh::with(['echelons' => fn ($q) => $q->orderBy('numero')])
-                ->orderBy('libelle')->get()
+                ->get()
+                ->sort(fn (CategorieRh $a, CategorieRh $b) => strnatcasecmp($a->libelle, $b->libelle))
+                ->values()
                 ->map(fn (CategorieRh $c) => $c->toUiArray() + [
                     'echelons' => $c->echelons->map(fn (Echelon $e) => $e->toUiArray())->all(),
                 ])->all(),

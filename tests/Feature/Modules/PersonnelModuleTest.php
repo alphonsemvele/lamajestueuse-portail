@@ -588,6 +588,47 @@ class PersonnelModuleTest extends TestCase
                 ->where('referentiels.employeurs.0.posteDeclare', 'Agent polyvalent'));
     }
 
+    /**
+     * Un contrat sans echelon ni profil n'a pas de salaire de base : son
+     * bulletin ne porterait que des zeros.
+     */
+    public function test_un_contrat_sans_remuneration_ne_produit_pas_de_bulletin(): void
+    {
+        $this->contrat($this->agent(), ['echelon_id' => null, 'profil_salaire_id' => null]);
+
+        $compte = app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+
+        $this->assertSame(0, Bulletin::count());
+        $this->assertSame(0, $compte['crees']);
+        $this->assertSame(1, $compte['sans_remuneration']);
+    }
+
+    public function test_la_preparation_signale_les_contrats_sans_remuneration(): void
+    {
+        $this->contrat($this->agent('MBALLA'), ['echelon_id' => null, 'profil_salaire_id' => null]);
+        $this->contrat($this->agent('NKOA'));
+
+        $this->actingAs($this->gestionnaire())->post(route('personnel.paie.generer'), [
+            'mois' => 9, 'annee' => 2026,
+        ])->assertSessionHasErrors('paie');
+
+        // Celui qui a un echelon est bien prepare.
+        $this->assertSame(1, Bulletin::count());
+    }
+
+    public function test_un_echelon_porte_par_le_profil_suffit(): void
+    {
+        $profil = \App\Models\ProfilSalaire::create([
+            'nom' => 'Enseignant', 'echelon_id' => $this->echelon->id, 'actif' => true,
+        ]);
+        $this->contrat($this->agent(), ['echelon_id' => null, 'profil_salaire_id' => $profil->id]);
+
+        app(\App\Services\PaieService::class)->genererMois($this->employeur, 9, 2026);
+
+        $this->assertSame(1, Bulletin::count());
+        $this->assertSame(200000.0, (float) Bulletin::firstOrFail()->salaire_base);
+    }
+
     public function test_la_date_de_debut_du_contrat_nest_pas_obligatoire(): void
     {
         $agent = $this->agent();

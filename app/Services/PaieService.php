@@ -84,7 +84,7 @@ class PaieService
      * brouillons en place : de quoi ajouter un arrivant apres coup sans
      * defaire le travail deja fait sur le reste du mois.
      *
-     * @return array{crees: int, recalcules: int, ignores: int}
+     * @return array{crees: int, recalcules: int, ignores: int, sans_remuneration: int}
      */
     public function genererMois(Employeur $employeur, int $mois, int $annee, bool $seulementLesManquants = false): array
     {
@@ -101,7 +101,7 @@ class PaieService
             ->where(fn ($q) => $q->whereNull('date_fin')->orWhereDate('date_fin', '>=', $debut))
             ->get();
 
-        $resultat = ['crees' => 0, 'recalcules' => 0, 'ignores' => 0];
+        $resultat = ['crees' => 0, 'recalcules' => 0, 'ignores' => 0, 'sans_remuneration' => 0];
 
         DB::transaction(function () use ($contrats, $employeur, $mois, $annee, $seulementLesManquants, &$resultat) {
             foreach ($contrats as $contrat) {
@@ -110,6 +110,18 @@ class PaieService
 
                 if ($existant && ($seulementLesManquants || $existant->statut !== 'brouillon')) {
                     $resultat['ignores']++;
+
+                    continue;
+                }
+
+                /*
+                 * Un contrat sans echelon — ni le sien, ni celui de son
+                 * profil — n'a pas de salaire de base : son bulletin ne
+                 * porterait que des zeros. On ne le prepare pas, et on le
+                 * signale pour que la RH complete le contrat.
+                 */
+                if ($contrat->echelonApplique() === null) {
+                    $resultat['sans_remuneration']++;
 
                     continue;
                 }

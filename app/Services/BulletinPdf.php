@@ -44,7 +44,7 @@ class BulletinPdf
     {
         $bulletin->loadMissing(['agent.user', 'employeur.application', 'contrat.echelon.categorie', 'contrat.profil']);
 
-        return Pdf::loadView('pdf.bulletin', [
+        return Pdf::setOptions($this->options())->loadView('pdf.bulletin', [
             'bulletin' => $bulletin,
             'enTete' => $this->enTete($bulletin),
             'employeur' => $bulletin->employeur,
@@ -53,6 +53,39 @@ class BulletinPdf
             'salarie' => $bulletin->agent?->user,
             'mention' => $mention ?? "Document remis a titre d'information. Conservez-le : il fait foi de votre remuneration.",
         ])->setPaper('a4');
+    }
+
+    /**
+     * Les chemins de travail de dompdf, sous storage/ et crees au besoin.
+     *
+     * Par defaut le moteur ecrit son cache de polices dans storage/fonts et
+     * ses fichiers temporaires dans le repertoire temporaire du systeme.
+     * Sur un hebergement mutualise, ni l'un ni l'autre n'est garanti : le
+     * dossier n'existe pas — storage/ ne vient jamais du depot — et le
+     * temporaire du systeme peut etre hors de portee. On les pose donc
+     * nous-memes, la ou l'application sait pouvoir ecrire.
+     *
+     * @return array<string, mixed>
+     */
+    private function options(): array
+    {
+        $polices = storage_path('app/dompdf/polices');
+        $temporaire = storage_path('app/dompdf/temporaire');
+
+        foreach ([$polices, $temporaire] as $dossier) {
+            if (! is_dir($dossier)) {
+                @mkdir($dossier, 0775, true);
+            }
+        }
+
+        return [
+            'fontDir' => is_writable($polices) ? $polices : storage_path('fonts'),
+            'fontCache' => is_writable($polices) ? $polices : storage_path('fonts'),
+            'tempDir' => is_writable($temporaire) ? $temporaire : sys_get_temp_dir(),
+            // Les images voyagent en data: URI : rien n'est lu sur le disque.
+            'isRemoteEnabled' => false,
+            'defaultFont' => 'DejaVu Sans',
+        ];
     }
 
     public function nomDuFichier(Bulletin $bulletin): string

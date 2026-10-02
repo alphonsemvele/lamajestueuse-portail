@@ -44,7 +44,8 @@ echo "▸ PHP : $("$PHP" -r 'echo PHP_VERSION;')"
 # est exclu de l'envoi pour préserver les fichiers déposés et les journaux),
 # il faut donc s'assurer qu'ils existent sur un serveur neuf.
 mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions \
-         storage/framework/views storage/logs bootstrap/cache
+         storage/framework/views storage/logs bootstrap/cache \
+         storage/app/dompdf/polices storage/app/dompdf/temporaire
 chmod -R u+rwX storage bootstrap/cache
 echo "▸ Dossiers storage/ et bootstrap/cache vérifiés"
 

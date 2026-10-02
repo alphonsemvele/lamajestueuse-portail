@@ -103,6 +103,18 @@ class PaieService
 
         $resultat = ['crees' => 0, 'recalcules' => 0, 'ignores' => 0, 'sans_remuneration' => 0];
 
+        /*
+         * Les brouillons dont le titulaire a disparu partent au passage : un
+         * compte supprime laisse derriere lui son dossier et ses bulletins,
+         * que personne ne peut plus consulter ni payer. Les bulletins valides
+         * ou payes restent, eux : ce sont des pieces.
+         */
+        Bulletin::where('employeur_id', $employeur->id)
+            ->where('mois', $mois)->where('annee', $annee)
+            ->where('statut', 'brouillon')
+            ->whereDoesntHave('agent.user')
+            ->delete();
+
         DB::transaction(function () use ($contrats, $employeur, $mois, $annee, $seulementLesManquants, &$resultat) {
             foreach ($contrats as $contrat) {
                 $existant = Bulletin::where('contrat_id', $contrat->id)

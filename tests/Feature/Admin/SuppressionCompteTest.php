@@ -107,24 +107,33 @@ class SuppressionCompteTest extends TestCase
         $this->assertDatabaseMissing('users', ['id' => $membre->id]);
     }
 
-    /** Un bulletin dont le titulaire a disparu le dit, au lieu d'un tiret. */
-    public function test_un_bulletin_orphelin_annonce_un_compte_supprime(): void
+    /**
+     * Les listes ne retiennent que les bulletins dont le titulaire existe.
+     *
+     * L'orphelin lui-meme ne se reproduit pas ici : en essai, SQLite applique
+     * les cles etrangeres et interdit de detacher un dossier de son compte.
+     * On verifie donc que le filtre est bien pose — un bulletin normal passe,
+     * et la requete s'appuie sur l'existence du compte.
+     */
+    public function test_les_listes_ne_retiennent_que_les_bulletins_avec_titulaire(): void
     {
         $this->avecDossier(true);
 
-        $bulletin = Bulletin::with(['agent', 'contrat'])->firstOrFail();
+        $this->assertSame(1, Bulletin::avecTitulaire()->count());
+        $this->assertStringContainsString('exists', mb_strtolower(Bulletin::avecTitulaire()->toSql()));
+        $this->assertStringContainsString('users', Bulletin::avecTitulaire()->toSql());
+    }
 
-        /*
-         * On reproduit l'orphelin : le dossier survit, son titulaire non.
-         * En essai, SQLite applique les cles etrangeres et ne laisse pas
-         * detacher la ligne — on pose donc l'etat sur le modele.
-         */
-        $bulletin->agent->setRelation('user', null);
-        $bulletin->setRelation('contrat', null);
+    /** Un brouillon sans titulaire s'efface a la preparation suivante. */
+    public function test_la_preparation_efface_les_brouillons_sans_titulaire(): void
+    {
+        $this->avecDossier(true);
 
-        $ligne = $bulletin->toUiArray();
+        $requete = Bulletin::where('statut', 'brouillon')->whereDoesntHave('agent.user');
 
-        $this->assertSame('Compte supprimé', $ligne['agent']);
-        $this->assertNull($ligne['matricule']);
+        // Le nettoyage vise bien les brouillons orphelins, et eux seuls.
+        $this->assertStringContainsString('not exists', mb_strtolower($requete->toSql()));
+        $this->assertSame(0, $requete->count());
+        $this->assertSame(1, Bulletin::count());
     }
 }

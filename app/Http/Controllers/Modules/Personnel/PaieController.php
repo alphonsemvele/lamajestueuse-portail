@@ -42,6 +42,7 @@ class PaieController extends Controller
         $perimetre = $this->perimetre($request);
 
         $bulletins = Bulletin::query()
+            ->avecTitulaire()
             ->with(['agent.user', 'employeur', 'contrat.agent.user'])
             ->where('mois', $mois)->where('annee', $annee)
             ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
@@ -87,6 +88,7 @@ class PaieController extends Controller
         $perimetre = $this->perimetre($request);
 
         $bulletins = Bulletin::query()
+            ->avecTitulaire()
             ->with(['agent.user', 'employeur', 'contrat.agent.user'])
             ->when($perimetre !== null, fn ($q) => $q->whereIn('employeur_id', $perimetre))
             ->when($annee, fn ($q) => $q->where('annee', (int) $annee))

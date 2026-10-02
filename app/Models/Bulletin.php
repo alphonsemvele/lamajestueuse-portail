@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -61,6 +62,18 @@ class Bulletin extends Model
     }
 
     /**
+     * Les bulletins dont le titulaire existe encore.
+     *
+     * Un compte supprime laisse derriere lui son dossier et ses bulletins —
+     * l'hebergement n'applique pas les cles etrangeres. Ces bulletins ne
+     * designent plus personne : ils n'ont rien a faire a l'ecran.
+     */
+    public function scopeAvecTitulaire(Builder $query): Builder
+    {
+        return $query->whereHas('agent.user');
+    }
+
+    /**
      * Le dossier du bulletin, ou a defaut celui de son contrat.
      *
      * Un bulletin peut avoir perdu son lien direct au dossier ; l'identite
@@ -81,9 +94,7 @@ class Bulletin extends Model
             'contratId' => $this->contrat_id,
             'agentId' => $agent?->id,
             'userId' => $agent?->user_id,
-            // Sans titulaire, on le dit : « — » laissait croire a un defaut
-            // d'affichage, alors que le compte a ete supprime.
-            'agent' => $agent?->user?->fullName() ?: ($agent ? 'Compte supprimé' : null),
+            'agent' => $agent?->user?->fullName(),
             'matricule' => $agent?->user?->matricule,
             'employeur' => $this->employeur?->sigle,
             'poste' => $this->contrat?->poste,

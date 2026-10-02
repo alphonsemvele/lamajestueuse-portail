@@ -130,6 +130,14 @@ echo "▸ Site en maintenance"
 # neuve) : on le supprime avant de le reconstruire.
 rm -f bootstrap/cache/config.php bootstrap/cache/events.php bootstrap/cache/routes-*.php
 
+# La liste des paquets découverts aussi : elle est produite par composer, qui
+# ne tourne jamais ici — vendor/ arrive tout construit. Sans cette remise à
+# zéro, un paquet ajouté depuis la dernière installation du serveur n'est
+# jamais enregistré, et ses services restent introuvables à l'exécution.
+rm -f bootstrap/cache/packages.php bootstrap/cache/services.php
+"$PHP" artisan package:discover --ansi
+echo "▸ Paquets redécouverts"
+
 # optimize met en cache configuration, routes, vues et événements.
 "$PHP" artisan optimize
 "$PHP" artisan queue:restart >/dev/null 2>&1 || true

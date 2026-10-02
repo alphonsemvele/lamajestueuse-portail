@@ -81,15 +81,33 @@ export function Modale({
         const fermer = (event: KeyboardEvent) => event.key === 'Escape' && onFermer();
         document.addEventListener('keydown', fermer);
 
-        return () => document.removeEventListener('keydown', fermer);
+        // La page derrière ne défile plus tant que le modal est ouvert : sans
+        // cela, la molette emporte le fond au lieu du formulaire.
+        const avant = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.removeEventListener('keydown', fermer);
+            document.body.style.overflow = avant;
+        };
     }, [ouverte, onFermer]);
 
     if (!ouverte) return null;
 
     return (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 py-10">
-            <div className="absolute inset-0 bg-ink-900/50 backdrop-blur-[2px]" onClick={onFermer} />
-            <div className={cn('relative w-full rounded-2xl bg-white p-6 shadow-2xl dark:bg-ink-800', large ? 'max-w-3xl' : 'max-w-lg')}>
+            {/*
+              * Le voile est fixed, pas absolute : en absolute il ne couvre
+              * qu'une hauteur d'écran et défile avec le contenu, laissant
+              * apparaître la page blanche dès qu'un modal dépasse l'écran.
+              */}
+            <div className="fixed inset-0 bg-ink-900/50 backdrop-blur-[2px]" onClick={onFermer} />
+            <div
+                className={cn(
+                    'relative z-10 my-auto w-full rounded-2xl bg-white p-6 shadow-2xl dark:bg-ink-800',
+                    large ? 'max-w-3xl' : 'max-w-lg',
+                )}
+            >
                 <div className="mb-4 flex items-start justify-between gap-4">
                     <h2 className="text-lg font-semibold text-ink-900 dark:text-white">{titre}</h2>
                     <button

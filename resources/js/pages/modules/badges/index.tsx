@@ -428,9 +428,10 @@ export default function MonBadge({
                     className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4 py-10"
                     onClick={() => setAgrandi(null)}
                 >
-                    <div className="absolute inset-0 bg-ink-900/60 backdrop-blur-[2px]" />
+                    {/* fixed, sinon le voile défile avec l'aperçu. */}
+                    <div className="fixed inset-0 bg-ink-900/60 backdrop-blur-[2px]" />
 
-                    <div className="relative flex flex-col items-center gap-4" onClick={(event) => event.stopPropagation()}>
+                    <div className="relative z-10 flex flex-col items-center gap-4" onClick={(event) => event.stopPropagation()}>
                         {envoye && (
                             <p className="max-w-[280px] text-center text-sm font-medium text-white">
                                 Demande envoyée. Voici le badge tel qu'il sera fabriqué.

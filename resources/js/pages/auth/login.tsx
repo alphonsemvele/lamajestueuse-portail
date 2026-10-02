@@ -29,6 +29,9 @@ export default function Login() {
      */
     const PREFIXE = 'LM-';
 
+    /** Par matricule, ou par adresse professionnelle. */
+    const [mode, setMode] = useState<'matricule' | 'email'>('matricule');
+
     const { data, setData, post, processing, errors } = useForm({
         username: PREFIXE,
         password: '',
@@ -53,11 +56,39 @@ export default function Login() {
      * préfixe s'efface plutôt que de parasiter la saisie.
      */
     const saisirIdentifiant = (valeur: string) => {
-        if (!valeur.startsWith(PREFIXE)) return valeur;
+        if (!valeur.startsWith(PREFIXE)) {
+            // On a quitté le matricule : l'onglet suit la saisie.
+            if (valeur !== '' && mode === 'matricule') setMode('email');
+
+            return valeur;
+        }
 
         const reste = valeur.slice(PREFIXE.length);
 
-        return /^\d*$/.test(reste) ? valeur : reste;
+        if (/^\d*$/.test(reste)) return valeur;
+
+        setMode('email');
+
+        return reste;
+    };
+
+    /**
+     * Change de mode sans détruire une saisie en cours : on ne remet le
+     * préfixe que sur un champ vide ou resté au préfixe, et on ne l'enlève
+     * que s'il n'a rien derrière lui.
+     */
+    const choisirMode = (suivant: 'matricule' | 'email') => {
+        setMode(suivant);
+
+        const valeur = data.username.trim();
+
+        if (suivant === 'matricule' && (valeur === '' || !valeur.startsWith(PREFIXE))) {
+            if (valeur === '') setData('username', PREFIXE);
+        }
+
+        if (suivant === 'email' && valeur === PREFIXE) {
+            setData('username', '');
+        }
     };
 
     /*
@@ -65,10 +96,11 @@ export default function Login() {
      * sans toucher au champ — le serveur reste seul juge, et il essaie aussi
      * les autres années de recrutement.
      */
-    const chiffres = data.username.trim().replace(PREFIXE, '');
+    const saisi = data.username.trim();
+    const chiffres = saisi.startsWith(PREFIXE) ? saisi.slice(PREFIXE.length) : saisi;
 
     const matriculeDevine =
-        /^\d{1,4}$/.test(chiffres) && data.username.trim() !== `${PREFIXE}${chiffres}`.slice(0, PREFIXE.length)
+        mode === 'matricule' && /^\d{1,4}$/.test(chiffres)
             ? `${PREFIXE}${String(new Date().getFullYear()).slice(-2)}${chiffres.padStart(4, '0')}`
             : null;
 
@@ -157,11 +189,40 @@ export default function Login() {
                     <div className="mt-7 rounded-2xl border border-ink-200/80 bg-white p-6 shadow-xl shadow-ink-900/5 dark:border-white/10 dark:bg-ink-900 sm:p-7">
                         <form onSubmit={submit} className="space-y-5">
                             <div>
-                                <Label htmlFor="username" required>
-                                    {t('Identifiant')}
-                                </Label>
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <Label htmlFor="username" required>
+                                        {t('Identifiant')}
+                                    </Label>
+
+                                    {/* La plupart entrent par matricule ; l'adresse reste à un clic. */}
+                                    <div className="inline-flex rounded-lg bg-ink-100 p-0.5 text-xs dark:bg-white/5">
+                                        {(
+                                            [
+                                                ['matricule', t('Matricule')],
+                                                ['email', t('E-mail')],
+                                            ] as ['matricule' | 'email', string][]
+                                        ).map(([cle, libelle]) => (
+                                            <button
+                                                key={cle}
+                                                type="button"
+                                                onClick={() => choisirMode(cle)}
+                                                className={cn(
+                                                    'rounded-md px-2.5 py-1 font-medium transition',
+                                                    mode === cle
+                                                        ? 'bg-white text-ink-900 shadow-sm dark:bg-white/10 dark:text-white'
+                                                        : 'text-ink-500 hover:text-ink-700 dark:text-ink-400 dark:hover:text-ink-200',
+                                                )}
+                                            >
+                                                {libelle}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 <div className="relative mt-2">
-                                    <Icon name="user" className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                                    <Icon
+                                        name={mode === 'email' ? 'mail' : 'user'}
+                                        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400"
+                                    />
                                     <input
                                         id="username"
                                         autoFocus
@@ -176,7 +237,10 @@ export default function Login() {
                                                 );
                                             }
                                         }}
-                                        placeholder={t('matricule ou adresse professionnelle')}
+                                        inputMode={mode === 'email' ? 'email' : 'numeric'}
+                                        placeholder={
+                                            mode === 'email' ? t('prenom.nom@lamajestueuse.com') : t('les chiffres de votre matricule')
+                                        }
                                         className={cn('field-input pl-10', errors.username && 'border-red-400 focus:border-red-500 focus:ring-red-500/15')}
                                     />
 
@@ -192,7 +256,9 @@ export default function Login() {
                                     )}
                                 </div>
                                 <p className="mt-1.5 text-xs text-ink-400">
-                                    {t('Tapez les chiffres de votre matricule — ou effacez pour saisir votre adresse professionnelle.')}
+                                    {mode === 'email'
+                                        ? t('Votre adresse professionnelle.')
+                                        : t('Tapez seulement les chiffres : le préfixe est déjà là.')}
                                 </p>
                             </div>
 

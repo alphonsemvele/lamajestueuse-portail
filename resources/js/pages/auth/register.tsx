@@ -117,6 +117,26 @@ export default function Register({ instituts }: { instituts: Application[] }) {
                         </div>
 
                         <form onSubmit={submit} className="space-y-6">
+                            {/*
+                              * Récapitulatif en tête : sans lui, une erreur
+                              * sans champ dédié — un institut refusé, une
+                              * session expirée — renvoyait la page sans un
+                              * mot, et l'envoi semblait ne rien faire.
+                              */}
+                            {Object.keys(errors).length > 0 && (
+                                <div
+                                    role="alert"
+                                    className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                                >
+                                    <p className="font-medium">{t('Votre inscription n’a pas pu être enregistrée.')}</p>
+                                    <ul className="mt-1.5 list-disc space-y-0.5 pl-5">
+                                        {Object.entries(errors).map(([champ, message]) => (
+                                            <li key={champ}>{message as string}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
                             <ErrorSummary errors={errors as Record<string, string>} title={t('Veuillez corriger les points suivants :')} />
 
                             <Card className="p-6">

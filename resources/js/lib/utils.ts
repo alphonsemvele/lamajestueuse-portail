@@ -86,6 +86,7 @@ export const routes = {
         contrat: (id: number) => `/personnel/contrats/${id}`,
         carriere: (user: number) => `/personnel/dossier/${user}/carriere`,
         documents: (user: number) => `/personnel/dossier/${user}/documents`,
+        rattachement: (user: number) => `/personnel/dossier/${user}/rattachement`,
         document: (id: number) => `/personnel/documents/${id}`,
         evenement: (id: number) => `/personnel/carriere/${id}`,
         paie: '/personnel/paie',

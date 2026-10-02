@@ -1,0 +1,241 @@
+<?php
+
+namespace Tests\Feature\Modules;
+
+use App\Models\Application;
+use App\Models\Employeur;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+/**
+ * Le rattachement d'une personne a un employeur.
+ *
+ * Un seul institut : il se deduit tout seul. Deux instituts : la deduction
+ * serait un coup de des, c'est la RH qui tranche. Et son choix l'emporte
+ * toujours, meme quand la deduction etait possible.
+ */
+class RattachementEmployeurTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private Application $module;
+
+    private Application $ium;
+
+    private Application $gsbm;
+
+    private Employeur $employeurIum;
+
+    private Employeur $employeurGsbm;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->module = Application::factory()->module('personnel')->create(['name' => 'Personnel & paie']);
+
+        $this->ium = Application::factory()->create(['name' => 'IUM']);
+        $this->gsbm = Application::factory()->create(['name' => 'GSBM']);
+
+        $this->employeurIum = Employeur::create([
+            'nom' => 'Institut Universitaire', 'sigle' => 'IUM',
+            'application_id' => $this->ium->id, 'actif' => true,
+        ]);
+        $this->employeurGsbm = Employeur::create([
+            'nom' => 'Groupe Scolaire Bilingue', 'sigle' => 'GSBM',
+            'application_id' => $this->gsbm->id, 'actif' => true,
+        ]);
+    }
+
+    private function gestionnaire(): User
+    {
+        $user = User::factory()->create();
+        $user->applications()->attach($this->module, ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])]);
+        $user->employeursRh()->attach([$this->employeurIum->id, $this->employeurGsbm->id]);
+
+        return $user;
+    }
+
+    private function membre(array $instituts): User
+    {
+        $membre = User::factory()->create(['lastname' => 'NKOA']);
+        $membre->applications()->attach($instituts);
+
+        return $membre->fresh();
+    }
+
+    // -------------------------------------------------------- la deduction
+
+    public function test_un_seul_institut_deduit_l_employeur(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+
+        $this->assertSame($this->employeurIum->id, $membre->employeurDeRattachement()?->id);
+        $this->assertFalse($membre->rattachementATrancher());
+    }
+
+    public function test_deux_instituts_attendent_la_decision_de_la_rh(): void
+    {
+        $membre = $this->membre([$this->ium->id, $this->gsbm->id]);
+
+        $this->assertNull($membre->employeurDeRattachement());
+        $this->assertTrue($membre->rattachementATrancher());
+    }
+
+    public function test_aucun_institut_ne_donne_aucun_employeur(): void
+    {
+        $membre = User::factory()->create();
+
+        $this->assertNull($membre->employeurDeRattachement());
+        $this->assertFalse($membre->rattachementATrancher());
+    }
+
+    // ----------------------------------------------------- le choix de la RH
+
+    public function test_la_rh_tranche_entre_deux_instituts(): void
+    {
+        $membre = $this->membre([$this->ium->id, $this->gsbm->id]);
+
+        $this->actingAs($this->gestionnaire())
+            ->put(route('personnel.rattachement', $membre), ['employeur_id' => $this->employeurGsbm->id])
+            ->assertSessionHasNoErrors();
+
+        $membre->refresh();
+        $this->assertSame($this->employeurGsbm->id, $membre->employeurDeRattachement()?->id);
+        $this->assertFalse($membre->rattachementATrancher());
+    }
+
+    /** Le choix pose l'emporte sur la deduction, meme quand elle etait sure. */
+    public function test_la_rh_change_un_rattachement_deduit(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+
+        $this->actingAs($this->gestionnaire())
+            ->put(route('personnel.rattachement', $membre), ['employeur_id' => $this->employeurGsbm->id]);
+
+        $this->assertSame($this->employeurGsbm->id, $membre->fresh()->employeurDeRattachement()?->id);
+    }
+
+    public function test_la_rh_rend_la_main_a_la_deduction(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+        $membre->update(['employeur_id' => $this->employeurGsbm->id]);
+
+        $this->actingAs($this->gestionnaire())
+            ->put(route('personnel.rattachement', $membre), ['employeur_id' => null])
+            ->assertSessionHasNoErrors();
+
+        $membre->refresh();
+        $this->assertNull($membre->employeur_id);
+        $this->assertSame($this->employeurIum->id, $membre->employeurDeRattachement()?->id);
+    }
+
+    public function test_un_gestionnaire_ne_rattache_pas_hors_de_son_perimetre(): void
+    {
+        $horsPerimetre = Employeur::create(['nom' => 'Ailleurs', 'sigle' => 'AIL', 'actif' => true]);
+        $membre = $this->membre([$this->ium->id]);
+
+        $limite = User::factory()->create();
+        $limite->applications()->attach($this->module, ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])]);
+        $limite->employeursRh()->attach($this->employeurIum);
+
+        $this->actingAs($limite)
+            ->put(route('personnel.rattachement', $membre), ['employeur_id' => $horsPerimetre->id])
+            ->assertForbidden();
+
+        $this->assertNull($membre->fresh()->employeur_id);
+    }
+
+    public function test_un_lecteur_ne_rattache_rien(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+
+        $lecteur = User::factory()->create();
+        $lecteur->applications()->attach($this->module, ['role_in_app' => 'lecteur', 'roles' => json_encode(['lecteur'])]);
+
+        $this->actingAs($lecteur)
+            ->put(route('personnel.rattachement', $membre), ['employeur_id' => $this->employeurIum->id])
+            ->assertForbidden();
+    }
+
+    // ------------------------------------------------- ce que la RH voit
+
+    public function test_la_fiche_annonce_qu_il_faut_trancher(): void
+    {
+        $membre = $this->membre([$this->ium->id, $this->gsbm->id]);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $membre))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('agent.rattachementATrancher', true)
+                ->where('agent.employeurRetenu', null)
+                ->has('agent.employeursPossibles', 2));
+    }
+
+    public function test_la_fiche_montre_le_rattachement_deduit(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $membre))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('agent.rattachementATrancher', false)
+                ->where('agent.employeurRetenu.sigle', 'IUM')
+                ->where('agent.employeurChoisi', null));
+    }
+
+    public function test_le_contrat_propose_l_employeur_de_rattachement(): void
+    {
+        $membre = $this->membre([$this->ium->id, $this->gsbm->id]);
+        $membre->update(['employeur_id' => $this->employeurGsbm->id]);
+
+        $this->actingAs($this->gestionnaire())->get(route('personnel.agents.show', $membre))
+            ->assertInertia(function (Assert $page) {
+                $employeurs = collect($page->toArray()['props']['referentiels']['employeurs']);
+
+                $this->assertTrue($employeurs->firstWhere('sigle', 'GSBM')['rattachement']);
+                $this->assertFalse($employeurs->firstWhere('sigle', 'IUM')['rattachement']);
+            });
+    }
+
+    public function test_le_filtre_retrouve_ceux_qui_attendent_un_rattachement(): void
+    {
+        $this->membre([$this->ium->id, $this->gsbm->id]);      // à trancher
+        $this->membre([$this->ium->id]);                        // déduit
+        $tranche = $this->membre([$this->ium->id, $this->gsbm->id]);
+        $tranche->update(['employeur_id' => $this->employeurIum->id]);
+
+        $this->actingAs($this->gestionnaire())
+            ->get(route('personnel.agents', ['statut' => 'a_rattacher']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
+    }
+
+    /** Le choix de la RH prime aussi sur le perimetre : la personne suit. */
+    public function test_le_perimetre_suit_le_rattachement_choisi(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+        $membre->update(['employeur_id' => $this->employeurGsbm->id]);
+
+        $gestionnaireGsbm = User::factory()->create();
+        $gestionnaireGsbm->applications()->attach($this->module, ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])]);
+        $gestionnaireGsbm->employeursRh()->attach($this->employeurGsbm);
+
+        $this->actingAs($gestionnaireGsbm)->get(route('personnel.agents'))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
+    }
+
+    public function test_rattachee_ailleurs_elle_sort_du_perimetre_de_son_institut(): void
+    {
+        $membre = $this->membre([$this->ium->id]);
+        $membre->update(['employeur_id' => $this->employeurGsbm->id]);
+
+        $gestionnaireIum = User::factory()->create();
+        $gestionnaireIum->applications()->attach($this->module, ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])]);
+        $gestionnaireIum->employeursRh()->attach($this->employeurIum);
+
+        $this->actingAs($gestionnaireIum)->get(route('personnel.agents'))
+            ->assertInertia(fn (Assert $page) => $page->has('agents.data', 0));
+    }
+}

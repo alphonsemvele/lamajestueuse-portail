@@ -35,6 +35,12 @@ interface Agent {
     urgenceTelephone: string | null;
     observations: string | null;
     anciennete: number | null;
+    /** L'employeur choisi par la RH ; null quand il se déduit. */
+    employeurChoisi: number | null;
+    /** Celui finalement retenu, déduit ou choisi ; null s'il faut trancher. */
+    employeurRetenu: { id: number; sigle: string; nom: string } | null;
+    employeursPossibles: { id: number; sigle: string; nom: string }[];
+    rattachementATrancher: boolean;
 }
 
 interface Diplome {
@@ -111,7 +117,7 @@ interface Props {
     documents: Document[];
     bulletins: BulletinLigne[];
     referentiels: {
-        employeurs: { id: number; sigle: string; nom: string; posteDeclare: string | null }[];
+        employeurs: { id: number; sigle: string; nom: string; posteDeclare: string | null; rattachement: boolean }[];
         profils: { id: number; nom: string; echelon: string | null; salaireBase: number }[];
         types: Record<string, string>;
         evenements: Record<string, string>;
@@ -208,8 +214,11 @@ export default function FicheAgent({
                         <h1 className="text-xl font-semibold text-ink-900 dark:text-white">{agent.nom}</h1>
                         <p className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">
                             {agent.matricule ?? 'sans matricule'}
+                            {agent.employeurRetenu && ` · ${agent.employeurRetenu.sigle}`}
                             {agent.anciennete !== null && ` · ${agent.anciennete} an(s) dans le groupe`}
                         </p>
+
+                        {peutGerer && <Rattachement agent={agent} />}
                         <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-ink-600 dark:text-ink-300">
                             {agent.email && (
                                 <span className="inline-flex items-center gap-1.5">
@@ -277,6 +286,62 @@ export default function FicheAgent({
 }
 
 // ------------------------------------------------------------------ dossier
+
+/**
+ * Le rattachement : à quel employeur cette personne appartient.
+ *
+ * Un seul institut, il se déduit et le sélecteur ne sert qu'à le forcer
+ * ailleurs. Deux instituts, la déduction serait un coup de dés : la RH
+ * tranche, et tant qu'elle ne l'a pas fait, l'avertissement reste affiché.
+ */
+function Rattachement({ agent }: { agent: Agent }) {
+    const formulaire = useForm({ employeur_id: agent.employeurChoisi ? String(agent.employeurChoisi) : '' });
+
+    const enregistrer = (valeur: string) => {
+        formulaire.setData('employeur_id', valeur);
+        // setData ne s'applique qu'au rendu suivant : on envoie la valeur lue.
+        formulaire.transform((donnees) => ({ ...donnees, employeur_id: valeur }));
+        formulaire.put(routes.personnel.rattachement(agent.userId), { preserveScroll: true });
+    };
+
+    if (agent.employeursPossibles.length === 0) {
+        return null;
+    }
+
+    return (
+        <div className="mt-3">
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-ink-500 dark:text-ink-400">Employeur</span>
+
+                <Select
+                    value={formulaire.data.employeur_id}
+                    onChange={(event) => enregistrer(event.target.value)}
+                    disabled={formulaire.processing}
+                    className="w-auto py-1 text-xs"
+                    aria-label="Employeur de rattachement"
+                >
+                    <option value="">
+                        {agent.employeursPossibles.length === 1
+                            ? `Automatique — ${agent.employeursPossibles[0].sigle}`
+                            : 'À choisir…'}
+                    </option>
+                    {agent.employeursPossibles.map((employeur) => (
+                        <option key={employeur.id} value={employeur.id}>
+                            {employeur.sigle} — {employeur.nom}
+                        </option>
+                    ))}
+                </Select>
+            </div>
+
+            {agent.rattachementATrancher && (
+                <p className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2 py-1 text-[11px] text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
+                    <Icon name="alert" className="h-3.5 w-3.5" />
+                    Cette personne relève de {agent.employeursPossibles.length} instituts : choisissez son employeur.
+                </p>
+            )}
+        </div>
+    );
+}
 
 function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
     const [edition, setEdition] = useState(false);
@@ -753,10 +818,13 @@ function Contrats({
     const posteDeclare = (employeurId: string) =>
         referentiels.employeurs.find((e) => String(e.id) === employeurId)?.posteDeclare ?? agent.poste ?? '';
 
+    /** L'employeur de rattachement, proposé d'office pour un nouveau contrat. */
+    const rattachement = referentiels.employeurs.find((e) => e.rattachement);
+
     const vide = {
-        employeur_id: '',
+        employeur_id: rattachement ? String(rattachement.id) : '',
         type: 'cdi',
-        poste: posteDeclare(''),
+        poste: posteDeclare(rattachement ? String(rattachement.id) : ''),
         date_debut: '',
         date_fin: '',
         quotite: 100,

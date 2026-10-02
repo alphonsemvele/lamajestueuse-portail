@@ -132,6 +132,17 @@ class PersonnelController extends Controller
                 ->where('statut', 'actif')
                 ->when($perimetre !== null, fn ($sub) => $sub->whereIn('employeur_id', $perimetre))))
             ->when($statut === 'sans_dossier', fn ($q) => $q->whereDoesntHave('agent'))
+            /*
+             * Ceux que la RH doit rattacher : aucun employeur choisi, et
+             * plusieurs instituts donc plusieurs employeurs possibles. La
+             * requete compte les employeurs vises par leurs instituts.
+             */
+            ->when($statut === 'a_rattacher', fn ($q) => $q
+                ->whereNull('employeur_id')
+                ->whereHas('applications', fn ($a) => $a
+                    ->where('applications.type', 'application')
+                    ->whereIn('applications.id', Employeur::whereNotNull('application_id')->pluck('application_id')),
+                    '>', 1))
             ->when($statut === 'plusieurs', fn ($q) => $q->whereHas('agent', fn ($a) => $a->has('contratsActifs', '>', 1)))
             ->orderBy('lastname')->orderBy('name')
             ->paginate(20)->withQueryString()
@@ -179,6 +190,8 @@ class PersonnelController extends Controller
             'initiales' => $membre->initials(),
             'anciennete' => $agent?->anciennete(),
             'contrats' => $agent?->contratsActifs->map(fn (Contrat $c) => $c->toUiArray())->all() ?? [],
+            'employeur' => $membre->employeurDeRattachement()?->sigle,
+            'aRattacher' => $membre->rattachementATrancher(),
         ];
     }
 
@@ -373,6 +386,7 @@ class PersonnelController extends Controller
                         // si la personne l'y a precise : le contrat le reprend
                         // d'office, et le service RH le corrige au besoin.
                         'posteDeclare' => $this->posteDeclare($user, $e),
+                        'rattachement' => $user->employeurDeRattachement()?->id === $e->id,
                     ])->all(),
                 'profils' => ProfilSalaire::where('actif', true)->with('echelon')->orderBy('nom')->get()
                     ->map(fn ($p) => $p->toUiArray())->all(),
@@ -414,7 +428,43 @@ class PersonnelController extends Controller
             'entite' => $user->entite,
             'photoUrl' => $user->avatarUrl(),
             'initiales' => $user->initials(),
+            // Le rattachement : ce que la RH a choisi, ce qui s'en deduit, et
+            // l'avertissement quand elle doit trancher.
+            'employeurChoisi' => $user->employeur_id,
+            'employeurRetenu' => $user->employeurDeRattachement()?->toUiArray(),
+            'employeursPossibles' => collect($user->employeursPossibles())
+                ->map(fn (Employeur $e) => ['id' => $e->id, 'sigle' => $e->sigle, 'nom' => $e->nom])->all(),
+            'rattachementATrancher' => $user->rattachementATrancher(),
         ];
+    }
+
+    /**
+     * Rattache la personne a un employeur, ou rend la main a la deduction.
+     *
+     * Un seul institut : le rattachement se deduit tout seul, et ce choix ne
+     * sert qu'a le forcer ailleurs. Deux instituts : il n'y a pas de
+     * deduction possible, et ce choix est le seul moyen de trancher.
+     */
+    public function rattacher(Request $request, User $user): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+        $this->verifierPersonne($request, $user);
+
+        $donnees = $request->validate([
+            'employeur_id' => ['nullable', 'exists:employeurs,id'],
+        ]);
+
+        $choisi = $donnees['employeur_id'] ?? null;
+
+        if ($choisi !== null) {
+            $this->verifierEntite($request, (int) $choisi);
+        }
+
+        $user->update(['employeur_id' => $choisi]);
+
+        return back()->with('status', $choisi === null
+            ? __('Rattachement rendu automatique.')
+            : __('Rattachement enregistré.'));
     }
 
     /**

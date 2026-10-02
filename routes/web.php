@@ -139,6 +139,9 @@ Route::middleware('auth')->group(function () {
         Route::delete('/carriere/{evenement}', [PersonnelController::class, 'destroyEvenement'])->name('evenements.destroy');
 
         // ------------------------------------------------------- paie
+        Route::put('/dossier/{user}/rattachement', [PersonnelController::class, 'rattacher'])->name('rattachement');
+
+        // ------------------------------------------------------- paie
         Route::get('/paie', [PaieController::class, 'index'])->name('paie.index');
         Route::post('/paie/generer', [PaieController::class, 'generer'])->name('paie.generer');
         Route::post('/paie/lot', [PaieController::class, 'traiterLot'])->name('paie.lot');

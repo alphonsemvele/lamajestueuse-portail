@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
@@ -19,7 +20,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'lastname', 'sexe', 'matricule', 'email', 'phone', 'poste', 'entite',
         'avatar', 'role', 'status', 'locale', 'password', 'last_login_at',
-        'self_registered', 'approved_at', 'dans_le_personnel',
+        'self_registered', 'approved_at', 'dans_le_personnel', 'employeur_id',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -70,6 +71,54 @@ class User extends Authenticatable
      *
      * @param  array<int, int>|null  $employeurs  null : aucune limite
      */
+    /** L'employeur choisi par la RH, quand elle en a designe un. */
+    public function employeur(): BelongsTo
+    {
+        return $this->belongsTo(Employeur::class);
+    }
+
+    /**
+     * L'employeur dont cette personne releve.
+     *
+     * Le choix de la RH l'emporte. A defaut, il se deduit — mais seulement
+     * quand la deduction est sure : un seul institut rattache, donc un seul
+     * employeur possible. Rattache a deux, la personne attend que la RH
+     * tranche, et cette methode rend null.
+     */
+    public function employeurDeRattachement(): ?Employeur
+    {
+        if ($this->employeur_id) {
+            return $this->employeur;
+        }
+
+        $possibles = $this->employeursPossibles();
+
+        return count($possibles) === 1 ? $possibles[0] : null;
+    }
+
+    /**
+     * Les employeurs vers lesquels ses instituts pointent.
+     *
+     * @return list<Employeur>
+     */
+    public function employeursPossibles(): array
+    {
+        $instituts = $this->relationLoaded('applications')
+            ? $this->applications->where('type', 'application')->pluck('id')
+            : $this->applications()->where('applications.type', 'application')->pluck('applications.id');
+
+        return Employeur::whereIn('application_id', $instituts)->orderBy('sigle')->get()->all();
+    }
+
+    /**
+     * La RH doit-elle trancher ? Plusieurs employeurs possibles, et aucun
+     * choix pose.
+     */
+    public function rattachementATrancher(): bool
+    {
+        return $this->employeur_id === null && count($this->employeursPossibles()) > 1;
+    }
+
     public function scopeDuPerimetreRh(Builder $query, ?array $employeurs): Builder
     {
         if ($employeurs === null) {
@@ -80,8 +129,13 @@ class User extends Authenticatable
             ->whereNotNull('application_id')->pluck('application_id')->all();
 
         return $query->where(fn ($sub) => $sub
-            ->whereHas('agent.contrats', fn ($c) => $c->whereIn('employeur_id', $employeurs))
-            ->orWhereHas('applications', fn ($a) => $a->whereIn('applications.id', $applications)));
+            // Le choix de la RH prime : rattachee ici, la personne y reste,
+            // quels que soient ses instituts.
+            ->whereIn('employeur_id', $employeurs)
+            ->orWhereHas('agent.contrats', fn ($c) => $c->whereIn('employeur_id', $employeurs))
+            ->orWhere(fn ($ni) => $ni
+                ->whereNull('employeur_id')
+                ->whereHas('applications', fn ($a) => $a->whereIn('applications.id', $applications))));
     }
 
     /** Cette personne releve-t-elle du perimetre donne ? */

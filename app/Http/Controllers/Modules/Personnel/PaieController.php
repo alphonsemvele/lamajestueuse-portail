@@ -410,7 +410,7 @@ class PaieController extends Controller
                 $bulletin,
                 $request->boolean('apercu'),
                 $bulletin->statut === 'brouillon'
-                    ? 'Bulletin provisoire : il peut encore etre recalcule avant validation.'
+                    ? 'Bulletin provisoire : il peut encore être recalculé avant validation.'
                     : null,
             );
         } catch (\Throwable $erreur) {

@@ -61,7 +61,7 @@ class BulletinPdf
             'contrat' => $bulletin->contrat,
             'agent' => $agent,
             'salarie' => $agent?->user,
-            'mention' => $mention ?? "Document remis a titre d'information. Conservez-le : il fait foi de votre remuneration.",
+            'mention' => $mention ?? "Document remis à titre d'information. Conservez-le : il fait foi de votre rémunération.",
         ])->setPaper('a4');
     }
 

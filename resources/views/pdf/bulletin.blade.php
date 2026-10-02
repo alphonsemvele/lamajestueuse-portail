@@ -36,9 +36,9 @@
     <meta charset="utf-8">
     <title>Bulletin de paie — {{ $bulletin->periode() }}</title>
     <style>
-        @page { margin: 14mm 14mm 16mm; }
+        @page { margin: 12mm 13mm 12mm; }
 
-        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1f2937; line-height: 1.45; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 11.5px; color: #111827; line-height: 1.4; }
         table { border-collapse: collapse; width: 100%; }
         td, th { vertical-align: top; }
         .nombre { text-align: right; }
@@ -46,34 +46,34 @@
         /* en-tête */
         .entete td { vertical-align: middle; }
         .marque { font-size: 18px; font-weight: bold; color: {{ $couleur }}; letter-spacing: .2px; }
-        .coordonnees { font-size: 9px; color: #6b7280; line-height: 1.6; margin-top: 3px; }
+        .coordonnees { font-size: 9.5px; color: #1f2937; line-height: 1.6; margin-top: 3px; }
         .titre-bloc { text-align: right; }
         .titre { font-size: 17px; font-weight: bold; color: {{ $couleur }}; letter-spacing: 1.4px; }
         .periode { font-size: 12.5px; color: #374151; font-weight: bold; margin-top: 3px; }
-        .reference { font-size: 8.5px; color: #9ca3af; margin-top: 4px; }
+        .reference { font-size: 9px; color: #374151; margin-top: 4px; }
         .filet { height: 1.6px; background: {{ $couleur }}; margin: 12px 0 14px; }
-        .sceau { border: .6px solid #c8cee0; color: #6b7280; font-size: 8px; font-weight: bold;
+        .sceau { border: .8px solid {{ $couleur }}; color: {{ $couleur }}; font-size: 8.4px; font-weight: bold;
                  text-transform: uppercase; letter-spacing: .9px; padding: 2.5px 7px; }
 
         /* identité */
         .cartouche { border: .6px solid #dfe3ec; margin-bottom: 13px; }
-        .cartouche td { padding: 7.5px 10px; border-right: .6px solid #f1f2f4; border-bottom: .6px solid #f1f2f4; }
+        .cartouche td { padding: 7px 10px; border-right: .6px solid #f1f2f4; border-bottom: .6px solid #f1f2f4; }
         .cartouche tr:last-child td { border-bottom: none; }
         .cartouche td:last-child { border-right: none; }
-        .etiquette { font-size: 7.8px; text-transform: uppercase; letter-spacing: .6px; color: #9ca3af;
+        .etiquette { font-size: 8.4px; text-transform: uppercase; letter-spacing: .6px; color: #4b5563;
                      display: block; margin-bottom: 1px; }
-        .valeur { font-size: 11px; color: #111827; }
+        .valeur { font-size: 11.5px; color: #000; }
         .valeur-forte { font-weight: bold; }
 
         /* décompte */
-        .decompte th { color: #8a93a6; font-size: 8px; text-transform: uppercase;
+        .decompte th { color: #374151; font-size: 8.6px; text-transform: uppercase;
                        letter-spacing: .9px; padding: 4px 9px; text-align: left;
                        border-bottom: .6px solid #e2e6ee; }
-        .decompte td { padding: 7px 10px; border-bottom: .6px solid #f3f4f6; }
+        .decompte td { padding: 6.5px 10px; border-bottom: .6px solid #f3f4f6; }
         .rubrique td { background: #f4f6fa; color: {{ $couleur }}; font-size: 8.5px; font-weight: bold;
                        text-transform: uppercase; letter-spacing: .9px; padding: 6px 9px;
                        border-top: 1px solid {{ $couleur }}; border-bottom: .6px solid #e2e6ee; }
-        .base { font-size: 8.6px; color: #9ca3af; }
+        .base { font-size: 9.2px; color: #374151; }
         .soustotal td { background: #fbfcfe; font-weight: bold; border-top: .6px solid #e2e6ee;
                         border-bottom: .6px solid #e2e6ee; }
         .rien td { color: #9ca3af; font-style: italic; }
@@ -82,18 +82,18 @@
         .net { margin-top: 12px; }
         .net td { padding: 11px 13px; }
         .net-bande { background: {{ $couleur }}; color: #fff; }
-        .net-libelle { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; }
+        .net-libelle { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; }
         .net-montant { font-size: 23px; font-weight: bold; letter-spacing: .3px; }
         .recapitulatif { border: .6px solid #e5e7eb; }
-        .recapitulatif td { padding: 5.5px 9px; font-size: 10px; border-bottom: .6px solid #f3f4f6; }
+        .recapitulatif td { padding: 5.5px 9px; font-size: 10.5px; border-bottom: .6px solid #f3f4f6; }
         .recapitulatif tr:last-child td { border-bottom: none; }
 
         /* pied */
         .signature { margin-top: 20px; }
-        .signature td { font-size: 9.5px; color: #6b7280; }
+        .signature td { font-size: 10px; color: #111827; }
         .cadre-signature { border-top: .6px solid #d1d5db; padding-top: 4px; width: 60%; }
-        .mentions { margin-top: 16px; padding-top: 8px; border-top: .6px solid #e5e7eb;
-                    font-size: 8.4px; color: #9ca3af; line-height: 1.7; }
+        .mentions { margin-top: 14px; padding-top: 8px; border-top: .6px solid #d1d5db;
+                    font-size: 8.8px; color: #374151; line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -263,7 +263,7 @@
         <td width="55%">
             <div class="cadre-signature">{{ $employeur?->signataire ?: "Pour l'employeur" }}</div>
         </td>
-        <td width="45%" class="nombre" style="color: #9ca3af; font-size: 9px;">
+        <td width="45%" class="nombre" style="color: #374151; font-size: 9.5px;">
             Établi le {{ $bulletin->updated_at?->format('d/m/Y') ?? now()->format('d/m/Y') }}
         </td>
     </tr>

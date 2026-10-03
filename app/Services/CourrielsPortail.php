@@ -80,13 +80,13 @@ class CourrielsPortail
         $nom = $demande->user?->fullName() ?? $demande->nom_affiche;
 
         return match ($demande->statut) {
-            'imprimee', 'remise' => new BadgePret($nom, $demande->numero, $demande->institut?->name),
+            'imprimee', 'remise' => new BadgePret($nom, $demande->numero, $demande->logoLibelle()),
             'refusee' => new BadgeRefuse($nom, $demande->numero, $demande->motif_refus),
             default => new DemandeEnregistree(
                 $nom,
                 $demande->numero,
                 $demande->nom_affiche,
-                $demande->institut?->name,
+                $demande->logoLibelle(),
             ),
         };
     }

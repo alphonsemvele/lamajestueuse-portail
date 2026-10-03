@@ -1,10 +1,29 @@
 import { cn } from '@/lib/utils';
 
 export interface Institut {
-    id: number;
+    /** Un identifiant d'application, ou le mot « groupe » pour la maison. */
+    id: number | string;
     name: string;
     color: string | null;
     logoUrl: string | null;
+}
+
+/**
+ * Le groupe lui-même, proposé à côté des instituts.
+ *
+ * Il n'a pas de ligne en base : un badge rattaché à aucun institut est un
+ * badge du groupe. Son logo est bichrome et dessiné pour un fond clair — le
+ * bandeau reste donc blanc là où celui d'un institut prend sa couleur.
+ */
+export const LE_GROUPE: Institut = {
+    id: 'groupe',
+    name: 'LA MAJESTUEUSE',
+    color: '#002484',
+    logoUrl: '/images/marque-la-majestueuse.png',
+};
+
+export function estLeGroupe(institut: Institut | null | undefined): boolean {
+    return (institut ?? LE_GROUPE).id === LE_GROUPE.id;
 }
 
 export interface DonneesBadge {
@@ -19,13 +38,8 @@ export interface DonneesBadge {
     modele?: string;
 }
 
-/** Couleur de l'institut, avec un repli neutre quand elle manque. */
-function teinte(institut: Institut | null): string {
-    return institut?.color || '#334155';
-}
-
-function Logo({ institut, taille, fond }: { institut: Institut | null; taille: number; fond: 'clair' | 'sombre' }) {
-    if (institut?.logoUrl) {
+function Logo({ institut, taille, fond }: { institut: Institut; taille: number; fond: 'clair' | 'sombre' }) {
+    if (institut.logoUrl) {
         return <img src={institut.logoUrl} alt="" style={{ height: taille }} className="w-auto object-contain" />;
     }
 
@@ -38,7 +52,7 @@ function Logo({ institut, taille, fond }: { institut: Institut | null; taille: n
             )}
             style={{ fontSize: taille * 0.52, lineHeight: `${taille}px` }}
         >
-            {institut?.name ?? 'La Majestueuse'}
+            {institut.name}
         </span>
     );
 }
@@ -85,7 +99,10 @@ export default function CarteBadge({
     validite?: number;
     className?: string;
 }) {
-    const couleur = teinte(donnees.institut);
+    // Rien de choisi — ou rien à choisir : le badge est celui du groupe.
+    const institut = donnees.institut ?? LE_GROUPE;
+    const duGroupe = estLeGroupe(institut);
+    const couleur = institut.color || '#334155';
     const L = 204 * echelle;
     const H = 324 * echelle;
     const px = (v: number) => v * echelle;
@@ -138,13 +155,19 @@ export default function CarteBadge({
         >
             <div
                 className="relative flex items-center justify-center"
-                style={{ backgroundColor: couleur, padding: `${px(14)}px ${px(12)}px ${px(15)}px` }}
+                style={{
+                    // Le logo du groupe est dessiné pour un fond clair : son
+                    // bandeau est blanc, souligné d'un filet bleu.
+                    backgroundColor: duGroupe ? '#ffffff' : couleur,
+                    borderBottom: duGroupe ? `${px(2)}px solid ${couleur}` : undefined,
+                    padding: `${px(14)}px ${px(12)}px ${px(15)}px`,
+                }}
             >
-                <Logo institut={donnees.institut} taille={px(30)} fond="sombre" />
+                <Logo institut={institut} taille={px(duGroupe ? 40 : 30)} fond={duGroupe ? 'clair' : 'sombre'} />
                 {/* Le numéro se range à droite sans décaler le logo du centre. */}
                 {donnees.numero && (
                     <span
-                        className="absolute font-mono text-white/70"
+                        className={cn('absolute font-mono', duGroupe ? 'text-ink-400' : 'text-white/70')}
                         style={{ fontSize: px(6.5), right: px(10), bottom: px(6) }}
                     >
                         {donnees.numero}

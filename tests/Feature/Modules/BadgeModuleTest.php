@@ -211,6 +211,49 @@ class BadgeModuleTest extends TestCase
         $this->assertSame($this->ifpm->id, DemandeBadge::firstOrFail()->application_id);
     }
 
+    /**
+     * Le groupe est toujours au choix : on sert la maison avant l'ecole, et
+     * certains badges doivent porter ses couleurs. En base, cela reste
+     * l'absence d'institut : « La Majestueuse » n'est pas une application.
+     */
+    public function test_on_peut_choisir_le_logo_du_groupe(): void
+    {
+        $this->actingAs($this->employe($this->ium, $this->ifpm))->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => DemandeBadge::LOGO_GROUPE,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertNull(DemandeBadge::firstOrFail()->application_id);
+        $this->assertSame('LA MAJESTUEUSE', DemandeBadge::firstOrFail()->logoLibelle());
+    }
+
+    /** Meme rattache a un seul institut, on garde le choix du groupe. */
+    public function test_le_groupe_reste_ouvert_a_qui_ne_sert_qu_un_institut(): void
+    {
+        $this->actingAs($this->employe($this->ium))->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => DemandeBadge::LOGO_GROUPE,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertNull(DemandeBadge::firstOrFail()->application_id);
+    }
+
+    /** Le guichet retrouve les badges de la maison comme ceux d'un institut. */
+    public function test_le_guichet_filtre_les_badges_du_groupe(): void
+    {
+        $this->demande($this->employe($this->ium));
+        $this->demande($this->employe($this->ifpm), ['application_id' => null]);
+
+        $this->actingAs($this->guichet())
+            ->get(route('badges.gestion', ['institut' => DemandeBadge::LOGO_GROUPE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('demandes.data', 1)
+                ->where('demandes.data.0.institut', null));
+    }
+
     public function test_on_ne_choisit_pas_un_institut_auquel_on_n_est_pas_rattache(): void
     {
         $this->actingAs($this->employe($this->ium))->post(route('badges.store'), [

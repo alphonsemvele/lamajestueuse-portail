@@ -6,7 +6,7 @@ import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
 import { cn, routes } from '@/lib/utils';
 import type { SharedProps } from '@/types';
-import CarteBadge, { type DonneesBadge, type Institut } from './carte';
+import CarteBadge, { estLeGroupe, LE_GROUPE, type DonneesBadge, type Institut } from './carte';
 
 interface Demande {
     id: number;
@@ -61,8 +61,17 @@ export default function MonBadge({
 }: Props) {
     const { errors } = usePage<SharedProps & { errors: Record<string, string> }>().props;
 
-    // Un seul institut : il est retenu d'office, sans question posée.
+    /*
+     * Le groupe figure toujours au choix, à la suite des instituts : on peut
+     * porter les couleurs de la maison plutôt que celles d'une école. Qui
+     * n'est rattaché à rien ne choisit pas : le groupe va de soi.
+     */
+    const choixLogo: (Institut & { poste: string | null })[] = [...instituts, { ...LE_GROUPE, poste: null }];
+    const sansRattachement = instituts.length === 0;
+
+    // Un seul institut : il reste proposé d'office, le groupe à côté.
     const institutUnique = instituts.length === 1 ? instituts[0] : null;
+    const choixParDefaut = institutUnique ?? (sansRattachement ? LE_GROUPE : null);
 
     const [photoApercu, setPhotoApercu] = useState<string | null>(identite.photoUrl);
 
@@ -77,13 +86,13 @@ export default function MonBadge({
         nom_affiche: identite.nom,
         poste_affiche: institutUnique?.poste ?? identite.poste ?? '',
         motif: 'premiere',
-        application_id: institutUnique ? String(institutUnique.id) : '',
+        application_id: choixParDefaut ? String(choixParDefaut.id) : '',
         commentaire: '',
         photo_file: null,
     });
 
     const institutChoisi =
-        instituts.find((i) => String(i.id) === formulaire.data.application_id) ?? institutUnique ?? null;
+        choixLogo.find((i) => String(i.id) === formulaire.data.application_id) ?? choixParDefaut ?? null;
 
     const apercu = {
         nomAffiche: formulaire.data.nom_affiche,
@@ -211,33 +220,30 @@ export default function MonBadge({
                                 </div>
                             </Card>
 
-                            {/* Le choix du logo : posé seulement s'il y a matière à choisir. */}
+                            {/* Le choix du logo : l'institut servi, ou le groupe. */}
                             <Card className="p-5">
-                                <h2 className="text-sm font-semibold text-ink-900 dark:text-white">Logo de l'institut</h2>
+                                <h2 className="text-sm font-semibold text-ink-900 dark:text-white">Logo du badge</h2>
 
-                                {instituts.length === 0 && (
-                                    <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
-                                        Aucun institut ne vous est rattaché : votre badge portera les seules couleurs du
-                                        groupe. Signalez-le aux ressources humaines si c'est une erreur.
-                                    </p>
-                                )}
-
-                                {institutUnique && (
+                                {sansRattachement ? (
                                     <p className="mt-2 text-sm text-ink-600 dark:text-ink-300">
-                                        Votre badge portera le logo de <strong>{institutUnique.name}</strong>.
+                                        Aucun institut ne vous est rattaché : votre badge portera le logo du groupe{' '}
+                                        <strong>{LE_GROUPE.name}</strong>. Signalez-le aux ressources humaines si c'est
+                                        une erreur.
                                     </p>
-                                )}
-
-                                {instituts.length > 1 && (
+                                ) : (
                                     <>
                                         <p className="mt-1 text-xs text-ink-500 dark:text-ink-400">
-                                            Vous servez {instituts.length} instituts : choisissez celui dont le logo
-                                            figurera sur votre badge.
+                                            {instituts.length === 1
+                                                ? 'Le logo de votre institut, ou celui du groupe : choisissez ce qui figurera sur votre badge.'
+                                                : `Vous servez ${instituts.length} instituts : choisissez le logo qui figurera sur votre badge.`}
                                         </p>
 
                                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                                            {instituts.map((institut) => {
+                                            {choixLogo.map((institut) => {
                                                 const actif = formulaire.data.application_id === String(institut.id);
+                                                // Le logo du groupe est bichrome : il lui faut un fond clair.
+                                                const surFondClair = estLeGroupe(institut);
+                                                const sousTitre = institut.poste ?? (surFondClair ? 'Les couleurs de la maison' : null);
 
                                                 return (
                                                     <button
@@ -258,8 +264,11 @@ export default function MonBadge({
                                                         style={actif ? { ['--tw-ring-color' as string]: institut.color ?? '#334155' } : undefined}
                                                     >
                                                         <span
-                                                            className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg text-[10px] font-semibold text-white"
-                                                            style={{ backgroundColor: institut.color ?? '#334155' }}
+                                                            className={cn(
+                                                                'grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg text-[10px] font-semibold',
+                                                                surFondClair ? 'bg-white ring-1 ring-ink-200' : 'text-white',
+                                                            )}
+                                                            style={surFondClair ? undefined : { backgroundColor: institut.color ?? '#334155' }}
                                                         >
                                                             {institut.logoUrl ? (
                                                                 <img src={institut.logoUrl} alt="" className="h-full w-full object-contain p-1" />
@@ -271,9 +280,9 @@ export default function MonBadge({
                                                             <span className="block truncate text-sm font-medium text-ink-900 dark:text-white">
                                                                 {institut.name}
                                                             </span>
-                                                            {institut.poste && (
+                                                            {sousTitre && (
                                                                 <span className="block truncate text-xs text-ink-500 dark:text-ink-400">
-                                                                    {institut.poste}
+                                                                    {sousTitre}
                                                                 </span>
                                                             )}
                                                         </span>
@@ -365,7 +374,7 @@ export default function MonBadge({
                                     </span>
                                     <span className="text-xs text-ink-500 dark:text-ink-400">
                                         {demande.motifLibelle} · demandé le {demande.demandeLe}
-                                        {demande.institut && ` · ${demande.institut.name}`}
+                                        {` · ${demande.institut?.name ?? LE_GROUPE.name}`}
                                     </span>
                                     <span
                                         className={cn(

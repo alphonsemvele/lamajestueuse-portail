@@ -8,7 +8,7 @@ import PortalLayout from '@/layouts/portal-layout';
 import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes } from '@/lib/utils';
 import type { Paginated } from '@/types';
-import CarteBadge, { type Institut } from './carte';
+import CarteBadge, { LE_GROUPE, type Institut } from './carte';
 
 interface Demande {
     id: number;
@@ -164,6 +164,8 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                             aria-label="Institut"
                         >
                             <option value="">Tous les instituts</option>
+                            {/* Les badges qui portent le logo de la maison. */}
+                            <option value={LE_GROUPE.id}>{LE_GROUPE.name}</option>
                             {instituts.map((institut) => (
                                 <option key={institut.id} value={institut.id}>
                                     {institut.name}
@@ -207,7 +209,7 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                                     <p className="mt-0.5 truncate text-xs text-ink-500 dark:text-ink-400">
                                         {demande.demandeur}
                                         {demande.matricule && ` · ${demande.matricule}`}
-                                        {demande.institut && ` · ${demande.institut.name}`}
+                                        {` · ${demande.institut?.name ?? LE_GROUPE.name}`}
                                         {` · ${demande.motifLibelle} · ${demande.demandeLe}`}
                                     </p>
                                     {demande.commentaire && (

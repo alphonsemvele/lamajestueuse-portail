@@ -43,6 +43,15 @@ class DemandeBadge extends Model
     /** Une demande en cours occupe la place : on n'en ouvre pas deux. */
     public const EN_COURS = ['en_attente', 'approuvee', 'imprimee'];
 
+    /**
+     * Le groupe, choisi en lieu et place d'un institut.
+     *
+     * « La Majestueuse » n'est pas une application du portail, et on n'en
+     * cree pas une pour un logo : en base, le badge du groupe se reconnait a
+     * l'absence d'institut. Ce mot est ce que le formulaire envoie.
+     */
+    public const LOGO_GROUPE = 'groupe';
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -72,6 +81,12 @@ class DemandeBadge extends Model
         }
 
         return $this->user?->avatarUrl();
+    }
+
+    /** Le nom qui va avec le logo imprime : l'institut retenu, ou le groupe. */
+    public function logoLibelle(): string
+    {
+        return $this->institut?->name ?? 'LA MAJESTUEUSE';
     }
 
     public function estFigee(): bool

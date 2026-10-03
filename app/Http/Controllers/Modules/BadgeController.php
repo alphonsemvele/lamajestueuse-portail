@@ -79,6 +79,10 @@ class BadgeController extends Controller
 
         $instituts = collect($this->institutsDe($utilisateur))->pluck('id')->all();
 
+        // Le groupe est toujours propose a cote des instituts : on peut
+        // porter les couleurs de la maison plutot que celles d'une ecole.
+        $choix = [...$instituts, DemandeBadge::LOGO_GROUPE];
+
         $donnees = $request->validate([
             'nom_affiche' => ['required', 'string', 'max:80'],
             'poste_affiche' => ['nullable', 'string', 'max:120'],
@@ -87,16 +91,24 @@ class BadgeController extends Controller
             'motif' => ['required', Rule::in(array_keys(DemandeBadge::MOTIFS))],
             'application_id' => [
                 // Obligatoire des que la personne sert au moins un institut :
-                // c'est ce choix qui decide du logo imprime.
+                // c'est ce choix qui decide du logo imprime. Sans aucun
+                // rattachement, le groupe va de soi et le champ peut rester
+                // vide.
                 $instituts === [] ? 'nullable' : 'required',
-                Rule::in($instituts),
+                Rule::in($choix),
             ],
             'commentaire' => ['nullable', 'string', 'max:500'],
             'photo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ], [
-            'application_id.required' => __('Choisissez l’institut dont le logo figurera sur votre badge.'),
+            'application_id.required' => __('Choisissez le logo qui figurera sur votre badge.'),
             'application_id.in' => __('Vous n’êtes pas rattaché à cet institut.'),
         ]);
+
+        // Le groupe n'est pas une application : son badge se reconnait a
+        // l'absence d'institut.
+        if (($donnees['application_id'] ?? null) === DemandeBadge::LOGO_GROUPE) {
+            $donnees['application_id'] = null;
+        }
 
         $photo = $this->resolveMedia($request, null, 'photo', 'badges/photos');
         unset($donnees['photo_file']);
@@ -113,7 +125,7 @@ class BadgeController extends Controller
             $utilisateur->fullName(),
             $demande->numero,
             $demande->nom_affiche,
-            $demande->institut?->name,
+            $demande->logoLibelle(),
         ));
 
         return back()->with('status', __('Demande :numero enregistrée.', ['numero' => $demande->numero]));
@@ -147,7 +159,11 @@ class BadgeController extends Controller
         $demandes = DemandeBadge::with(['user', 'institut', 'traitePar'])
             ->when(in_array($statut, array_keys(DemandeBadge::STATUTS), true),
                 fn ($q) => $q->where('statut', $statut))
-            ->when($institut, fn ($q, $id) => $q->where('application_id', $id))
+            // « groupe » n'est pas un identifiant : ce sont les badges sans
+            // institut, ceux qui portent le logo de la maison.
+            ->when($institut === DemandeBadge::LOGO_GROUPE, fn ($q) => $q->whereNull('application_id'))
+            ->when($institut && $institut !== DemandeBadge::LOGO_GROUPE,
+                fn ($q) => $q->where('application_id', $institut))
             ->when($recherche !== '', fn ($q) => $q->where(fn ($sub) => $sub
                 ->where('numero', 'like', "%{$recherche}%")
                 ->orWhere('nom_affiche', 'like', "%{$recherche}%")
@@ -213,7 +229,7 @@ class BadgeController extends Controller
         $nom = $demande->user?->fullName() ?? $demande->nom_affiche;
 
         if ($demande->statut === 'imprimee') {
-            $courriels->envoyerA($demande->user, new BadgePret($nom, $demande->numero, $demande->institut?->name));
+            $courriels->envoyerA($demande->user, new BadgePret($nom, $demande->numero, $demande->logoLibelle()));
         }
 
         if ($demande->statut === 'refusee') {

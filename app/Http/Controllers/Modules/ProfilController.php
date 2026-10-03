@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Modules;
 use App\Http\Controllers\Concerns\ServesModule;
 use App\Http\Controllers\Controller;
 use App\Models\Agent;
+use App\Models\Application;
 use App\Models\Contrat;
 use App\Models\Diplome;
 use App\Models\DocumentAgent;
@@ -103,6 +104,13 @@ class ProfilController extends Controller
                 'marie' => 'Marié(e)',
                 'divorce' => 'Divorcé(e)',
                 'veuf' => 'Veuf(ve)',
+            ],
+
+            // De quoi montrer son badge tel qu'il sera fabrique.
+            'badge' => [
+                'validite' => (int) config('badges.validite_annees'),
+                'mention' => config('badges.mention'),
+                'moduleOuvert' => Application::active()->where('module_key', 'badges')->exists(),
             ],
 
             'instituts' => $moi->applications->map(fn ($institut) => [

@@ -71,7 +71,11 @@ export default function PlancheImpression({ demandes, validite, mention }: Props
                 <div className="planche mx-auto flex max-w-[1100px] flex-wrap gap-8 px-6 py-10">
                     {demandes.map((demande) => (
                         <div key={demande.id} className="flex flex-col items-center gap-2">
-                            <CarteBadge donnees={demande} echelle={1.35} validite={validite} />
+                            {/* Recto et verso côte à côte : la planche se tire en un passage. */}
+                            <div className="flex gap-4">
+                                <CarteBadge donnees={demande} echelle={1.35} validite={validite} />
+                                <CarteBadge donnees={demande} echelle={1.35} validite={validite} face="verso" mention={mention} />
+                            </div>
                             <p className="sans-impression text-[11px] text-ink-400">
                                 {demande.demandeur} · {demande.numero}
                             </p>

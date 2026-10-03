@@ -62,6 +62,8 @@ class BadgeController extends Controller
             ],
             'motifs' => DemandeBadge::MOTIFS,
             'validite' => (int) config('badges.validite_annees'),
+            // Le verso de la carte la porte : elle vient d'un seul endroit.
+            'mention' => config('badges.mention'),
             'peutGerer' => $this->peutGerer($utilisateur),
         ]);
     }
@@ -187,6 +189,7 @@ class BadgeController extends Controller
             'compteurs' => DemandeBadge::selectRaw('statut, count(*) as total')
                 ->groupBy('statut')->pluck('total', 'statut')->all(),
             'validite' => (int) config('badges.validite_annees'),
+            'mention' => config('badges.mention'),
         ]);
     }
 

@@ -89,6 +89,26 @@ class MonProfilTest extends TestCase
             });
     }
 
+    /** Chacun voit son badge depuis son profil, sans passer par le module. */
+    public function test_mon_profil_montre_mon_badge(): void
+    {
+        Application::factory()->module('badges')->create(['name' => 'Badges']);
+
+        $this->actingAs($this->moi())->get(route('profil.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('badge.validite', (int) config('badges.validite_annees'))
+                ->where('badge.mention', config('badges.mention'))
+                ->where('badge.moduleOuvert', true));
+    }
+
+    /** Module retiré : on montre le badge, mais sans proposer de le demander. */
+    public function test_sans_module_badges_on_ne_propose_pas_la_demande(): void
+    {
+        $this->actingAs($this->moi())->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page->where('badge.moduleOuvert', false));
+    }
+
     public function test_la_tuile_s_affiche_en_premier(): void
     {
         $this->actingAs($this->moi())->get(route('dashboard'))

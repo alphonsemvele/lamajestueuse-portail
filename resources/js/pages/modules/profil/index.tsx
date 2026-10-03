@@ -1,10 +1,11 @@
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
 import { Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
 import { cn, routes } from '@/lib/utils';
+import { ApercuBadge, LE_GROUPE, type Institut } from '@/pages/modules/badges/carte';
 
 interface Piece {
     id: number;
@@ -54,6 +55,7 @@ interface Props {
     };
     dossier: Record<string, string | number | boolean | null>;
     instituts: { id: number; nom: string; logoUrl: string | null; couleur: string | null; poste: string | null }[];
+    badge: { validite: number; mention: string | null; moduleOuvert: boolean };
     affectations: {
         id: number;
         employeur: string | null;
@@ -82,7 +84,7 @@ interface Props {
     situationsFamiliales: Record<string, string>;
 }
 
-type Onglet = 'informations' | 'parcours' | 'remuneration' | 'pieces';
+type Onglet = 'informations' | 'parcours' | 'remuneration' | 'badge' | 'pieces';
 
 /** Ce que chacun peut corriger de lui-même. */
 interface Saisie {
@@ -210,6 +212,7 @@ export default function MonProfil({
     identite,
     dossier,
     instituts,
+    badge,
     affectations,
     remuneration,
     parcours,
@@ -273,8 +276,30 @@ export default function MonProfil({
         { cle: 'informations', libelle: 'Informations', icon: 'user', compte: null },
         { cle: 'parcours', libelle: 'Parcours', icon: 'layers', compte: affectations.length + parcours.length },
         { cle: 'remuneration', libelle: 'Rémunération', icon: 'wallet', compte: null },
+        { cle: 'badge', libelle: 'Mon badge', icon: 'id-card', compte: null },
         { cle: 'pieces', libelle: 'Mes pièces', icon: 'document', compte: diplomes.length + documents.length },
     ];
+
+    /*
+     * Le badge se décline par institut. Rattaché à un seul, c'est le sien
+     * d'office ; rattaché à plusieurs, on demande lequel. Le groupe reste
+     * proposé pour qui porte les couleurs de la maison.
+     */
+    const choixBadge: Institut[] = [
+        ...instituts.map((institut) => ({
+            id: institut.id,
+            name: institut.nom,
+            color: institut.couleur,
+            logoUrl: institut.logoUrl,
+        })),
+        LE_GROUPE,
+    ];
+
+    const [institutBadge, setInstitutBadge] = useState<string>(
+        instituts.length === 1 ? String(instituts[0].id) : String(LE_GROUPE.id),
+    );
+
+    const badgeChoisi = choixBadge.find((institut) => String(institut.id) === institutBadge) ?? LE_GROUPE;
 
     return (
         <PortalLayout title="Mon profil">
@@ -674,6 +699,96 @@ export default function MonProfil({
                             </Bloc>
                         )}
                     </>
+                )}
+
+                {/* ------------------------------------------------------- badge */}
+                {onglet === 'badge' && (
+                    <Bloc
+                        titre="Mon badge professionnel"
+                        sous="Le badge tel qu'il sera fabriqué, recto et verso."
+                        action={
+                            badge.moduleOuvert ? (
+                                <Link
+                                    href={routes.badges.index}
+                                    className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-teal-700"
+                                >
+                                    <Icon name="id-card" className="h-4 w-4" />
+                                    Demander mon badge
+                                </Link>
+                            ) : null
+                        }
+                    >
+                        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+                            <ApercuBadge
+                                donnees={{
+                                    nomAffiche: identite.nom ?? '',
+                                    posteAffiche: identite.poste,
+                                    matricule: identite.matricule,
+                                    photoUrl: identite.photoUrl,
+                                    initiales: identite.initiales,
+                                    institut: badgeChoisi,
+                                }}
+                                validite={badge.validite}
+                                mention={badge.mention}
+                                className="shrink-0"
+                            />
+
+                            <div className="min-w-0 flex-1 space-y-4">
+                                {instituts.length > 1 ? (
+                                    <p className="text-sm text-ink-600 dark:text-ink-300">
+                                        Vous servez {instituts.length} instituts : choisissez celui dont le logo
+                                        figurera sur votre badge.
+                                    </p>
+                                ) : (
+                                    <p className="text-sm text-ink-600 dark:text-ink-300">
+                                        {instituts.length === 1
+                                            ? `Le logo de ${instituts[0].nom} est retenu d'office. Vous pouvez lui préférer celui du groupe.`
+                                            : "Aucun institut ne vous est rattaché : votre badge porte les couleurs du groupe."}
+                                    </p>
+                                )}
+
+                                <div className="grid gap-2 sm:grid-cols-2">
+                                    {choixBadge.map((institut) => {
+                                        const actif = String(institut.id) === institutBadge;
+
+                                        return (
+                                            <button
+                                                key={institut.id}
+                                                type="button"
+                                                onClick={() => setInstitutBadge(String(institut.id))}
+                                                className={cn(
+                                                    'flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition',
+                                                    actif
+                                                        ? 'border-transparent ring-2'
+                                                        : 'border-ink-200 hover:bg-ink-50 dark:border-white/10 dark:hover:bg-white/5',
+                                                )}
+                                                style={actif ? { ['--tw-ring-color' as string]: institut.color ?? '#334155' } : undefined}
+                                            >
+                                                <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-lg bg-white ring-1 ring-ink-200">
+                                                    {institut.logoUrl ? (
+                                                        <img src={institut.logoUrl} alt="" className="h-full w-full object-contain p-1" />
+                                                    ) : (
+                                                        <span className="text-[10px] font-semibold text-ink-600">
+                                                            {institut.name.slice(0, 4)}
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span className="block min-w-0 truncate text-sm font-medium text-ink-900 dark:text-white">
+                                                    {institut.name}
+                                                </span>
+                                                {actif && <Icon name="check" className="ml-auto h-4 w-4 text-ink-400" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <p className="text-xs text-ink-400">
+                                    Rendu indicatif : le numéro et la photo définitive sont fixés à la fabrication.
+                                    Le choix fait ici ne vaut pas demande.
+                                </p>
+                            </div>
+                        </div>
+                    </Bloc>
                 )}
 
                 {/* ------------------------------------------------------ pièces */}

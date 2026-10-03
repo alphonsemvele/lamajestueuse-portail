@@ -6,7 +6,7 @@ import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
 import { cn, routes } from '@/lib/utils';
 import type { SharedProps } from '@/types';
-import CarteBadge, { estLeGroupe, LE_GROUPE, type DonneesBadge, type Institut } from './carte';
+import { ApercuBadge, estLeGroupe, LE_GROUPE, type DonneesBadge, type Institut } from './carte';
 
 interface Demande {
     id: number;
@@ -39,6 +39,7 @@ interface Props {
     };
     motifs: Record<string, string>;
     validite: number;
+    mention: string | null;
     peutGerer: boolean;
 }
 
@@ -57,6 +58,7 @@ export default function MonBadge({
     identite,
     motifs,
     validite,
+    mention,
     peutGerer,
 }: Props) {
     const { errors } = usePage<SharedProps & { errors: Record<string, string> }>().props;
@@ -350,7 +352,7 @@ export default function MonBadge({
                             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
                                 Aperçu
                             </p>
-                            <CarteBadge donnees={apercu} validite={validite} />
+                            <ApercuBadge donnees={apercu} validite={validite} mention={mention} />
                             <p className="mt-3 text-xs text-ink-400">
                                 Rendu indicatif. Le numéro du badge est attribué à la fabrication.
                             </p>
@@ -447,7 +449,7 @@ export default function MonBadge({
                             </p>
                         )}
 
-                        <CarteBadge donnees={agrandi} echelle={1.2} validite={validite} />
+                        <ApercuBadge donnees={agrandi} echelle={1.2} validite={validite} mention={mention} />
 
                         <button
                             type="button"

@@ -537,6 +537,16 @@ class BadgeModuleTest extends TestCase
         $this->actingAs($this->employe($this->ium))->get(route('badges.photos'))->assertForbidden();
     }
 
+    /** Le verso porte la mention : elle vient de la configuration. */
+    public function test_la_mention_du_verso_est_transmise_aux_ecrans(): void
+    {
+        $this->actingAs($this->employe($this->ium))->get(route('badges.index'))
+            ->assertInertia(fn (Assert $page) => $page->where('mention', config('badges.mention')));
+
+        $this->actingAs($this->guichet())->get(route('badges.gestion'))
+            ->assertInertia(fn (Assert $page) => $page->where('mention', config('badges.mention')));
+    }
+
     public function test_le_badge_porte_le_logo_de_l_institut_retenu(): void
     {
         $demande = $this->demande($this->employe($this->ium, $this->ifpm), ['application_id' => $this->ifpm->id]);

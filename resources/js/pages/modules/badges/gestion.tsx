@@ -8,7 +8,7 @@ import PortalLayout from '@/layouts/portal-layout';
 import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes } from '@/lib/utils';
 import type { Paginated } from '@/types';
-import CarteBadge, { LE_GROUPE, type Institut } from './carte';
+import { ApercuBadge, LE_GROUPE, type Institut } from './carte';
 
 interface Demande {
     id: number;
@@ -37,6 +37,7 @@ interface Props {
     statuts: Record<string, string>;
     compteurs: Record<string, number>;
     validite: number;
+    mention: string | null;
 }
 
 const TONS: Record<string, string> = {
@@ -54,7 +55,7 @@ const SUITE: Record<string, { statut: string; libelle: string; icon: string } | 
     imprimee: { statut: 'remise', libelle: 'Marquer remise', icon: 'user' },
 };
 
-export default function GestionBadges({ demandes, filtres, instituts, statuts, compteurs, validite }: Props) {
+export default function GestionBadges({ demandes, filtres, instituts, statuts, compteurs, validite, mention }: Props) {
     const [apercu, setApercu] = useState<Demande | null>(null);
     const [refus, setRefus] = useState<Demande | null>(null);
     // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
@@ -284,7 +285,7 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                 >
                     <div className="absolute inset-0 bg-ink-900/60 backdrop-blur-[2px]" />
                     <div className="relative" onClick={(event) => event.stopPropagation()}>
-                        <CarteBadge donnees={apercu} echelle={1.25} validite={validite} />
+                        <ApercuBadge donnees={apercu} echelle={1.25} validite={validite} mention={mention} />
                         <button
                             type="button"
                             onClick={() => setApercu(null)}

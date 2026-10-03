@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
 
 /** Jeu d'icones du portail : traces SVG en 24x24, trait courant. */
@@ -59,10 +60,11 @@ const paths: Record<string, string> = {
     'upload': `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 9 5-5 5 5"/><path d="M12 4v12"/>`,
 };
 
-export default function Icon({ name, className }: { name: string; className?: string }) {
+export default function Icon({ name, className, style }: { name: string; className?: string; style?: CSSProperties }) {
     return (
         <svg
             className={cn('h-5 w-5', className)}
+            style={style}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"

@@ -51,7 +51,7 @@ class ApplicationRolesTest extends TestCase
 
     public function test_plusieurs_roles_sont_attribues_dans_lordre_du_catalogue_et_transmis(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application();
         $employe = User::factory()->create();
 
@@ -71,7 +71,7 @@ class ApplicationRolesTest extends TestCase
 
     public function test_un_role_inconnu_dans_la_liste_est_refuse(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application();
         $employe = User::factory()->create();
 
@@ -88,7 +88,7 @@ class ApplicationRolesTest extends TestCase
 
     public function test_la_fiche_employe_attribue_plusieurs_roles_par_application(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application();
         $employe = User::factory()->create(['name' => 'Awa']);
 
@@ -115,7 +115,7 @@ class ApplicationRolesTest extends TestCase
 
     public function test_le_portail_recupere_les_roles_et_le_personnel_de_lapplication(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application(['roles' => null]);
         $existant = User::factory()->create(['email' => 'awa@ium.cm']);
 
@@ -152,7 +152,7 @@ class ApplicationRolesTest extends TestCase
 
     public function test_une_nouvelle_synchronisation_ne_remplace_pas_les_roles_attribues_au_portail(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application();
         $employe = User::factory()->create();
         $employe->applications()->attach($app, Application::rolesAttributes(['coordonnateur']) + ['reference_locale' => 'ENS-001']);
@@ -193,7 +193,7 @@ class ApplicationRolesTest extends TestCase
 
     public function test_une_application_injoignable_affiche_une_erreur(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application();
 
         Http::fake(['*' => Http::response(['message' => 'Accès refusé.'], 401)]);
@@ -232,7 +232,7 @@ class ApplicationRolesTest extends TestCase
 
     public function test_la_liste_du_personnel_se_filtre_par_institut_et_montre_les_roles(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application();
         $autre = $this->application();
         $employe = User::factory()->create();

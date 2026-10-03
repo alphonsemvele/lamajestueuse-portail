@@ -15,6 +15,16 @@ class TutorielsTest extends TestCase
 {
     use RefreshDatabase;
 
+    private Application $module;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Les pages sont publiques, mais le module doit etre en service.
+        $this->module = Application::factory()->module('tutoriels')->create(['name' => 'Tutoriels']);
+    }
+
     public function test_les_tutoriels_se_consultent_sans_compte(): void
     {
         $this->get(route('tutoriels.index'))
@@ -117,16 +127,47 @@ class TutorielsTest extends TestCase
             });
     }
 
-    public function test_la_tuile_se_pose_sur_le_tableau_de_bord_de_tous(): void
+    /**
+     * Le module s'ouvre a tous, mais sa tuile s'attribue : on ne se la voit
+     * pas poser d'office sur son tableau de bord.
+     */
+    public function test_la_tuile_ne_parait_que_si_elle_est_attribuee(): void
     {
-        Application::factory()->module('tutoriels')->create(['name' => 'Tutoriels']);
+        $employe = User::factory()->create(['status' => 'active']);
 
-        $this->actingAs(User::factory()->create(['status' => 'active']))
-            ->get(route('dashboard'))
-            ->assertInertia(function (Assert $page) {
-                $tuiles = collect($page->toArray()['props']['apps'])->pluck('moduleKey');
+        $tuiles = fn () => collect(
+            $this->actingAs($employe)->get(route('dashboard'))->viewData('page')['props']['apps']
+        )->pluck('moduleKey');
 
-                $this->assertContains('tutoriels', $tuiles);
-            });
+        $this->assertNotContains('tutoriels', $tuiles());
+
+        $employe->applications()->attach($this->module);
+
+        $this->assertContains('tutoriels', $tuiles());
+    }
+
+    /**
+     * Retirer le module du portail le retire pour de bon : ses pages
+     * publiques se ferment aussi, sans quoi « retirer » ne voudrait rien
+     * dire — la page resterait en ligne et les liens y renverraient.
+     */
+    public function test_le_module_retire_ferme_ses_pages_publiques(): void
+    {
+        $this->module->update(['is_active' => false]);
+
+        $this->get(route('tutoriels.index'))->assertNotFound();
+        $this->get(route('tutoriels.show', 'demander-son-badge'))->assertNotFound();
+    }
+
+    /** Et les pages publiques cessent d'y renvoyer. */
+    public function test_les_pages_publiques_cessent_d_y_renvoyer(): void
+    {
+        $this->get(route('login'))
+            ->assertInertia(fn (Assert $page) => $page->where('tutorielsEnService', true));
+
+        $this->module->update(['is_active' => false]);
+
+        $this->get(route('login'))
+            ->assertInertia(fn (Assert $page) => $page->where('tutorielsEnService', false));
     }
 }

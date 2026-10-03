@@ -22,7 +22,7 @@ class ReglagesEmailTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->admin()->create();
+        return User::factory()->superadmin()->create();
     }
 
     private function reglagesComplets(): array

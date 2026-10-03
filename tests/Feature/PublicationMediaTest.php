@@ -32,7 +32,7 @@ class PublicationMediaTest extends TestCase
 
     public function test_televersement_dune_image_depuis_ladministration(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.posts.store'), $this->payload([
             'image_file' => UploadedFile::fake()->image('affiche.jpg', 1200, 800),
@@ -63,7 +63,7 @@ class PublicationMediaTest extends TestCase
 
     public function test_un_fichier_qui_nest_pas_une_image_est_refuse(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)
             ->from(route('admin.posts.create'))
@@ -77,7 +77,7 @@ class PublicationMediaTest extends TestCase
 
     public function test_remplacer_limage_efface_la_precedente(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $post = Post::create($this->payload([
             'slug' => 'journee-portes-ouvertes',
             'image' => UploadedFile::fake()->image('ancienne.jpg')->store('publications', 'public'),
@@ -97,7 +97,7 @@ class PublicationMediaTest extends TestCase
 
     public function test_retirer_limage_la_supprime_du_disque(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $post = Post::create($this->payload([
             'slug' => 'a-retirer',
             'image' => UploadedFile::fake()->image('affiche.jpg')->store('publications', 'public'),
@@ -114,7 +114,7 @@ class PublicationMediaTest extends TestCase
 
     public function test_les_visuels_livres_avec_le_projet_ne_sont_pas_effaces(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $post = Post::create($this->payload(['slug' => 'depot', 'image' => 'images/news/n1.jpg']));
 
         $this->actingAs($admin)->put(route('admin.posts.update', $post), $this->payload([
@@ -127,7 +127,7 @@ class PublicationMediaTest extends TestCase
 
     public function test_supprimer_une_publication_efface_son_image(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $post = Post::create($this->payload([
             'slug' => 'a-supprimer',
             'image' => UploadedFile::fake()->image('affiche.jpg')->store('publications', 'public'),
@@ -141,7 +141,7 @@ class PublicationMediaTest extends TestCase
 
     public function test_une_url_externe_reste_acceptee(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.posts.store'), $this->payload([
             'image' => 'https://cdn.lamajestueuse.cm/affiche.jpg',

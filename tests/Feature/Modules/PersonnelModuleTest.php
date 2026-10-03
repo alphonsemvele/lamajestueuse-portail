@@ -141,7 +141,7 @@ class PersonnelModuleTest extends TestCase
 
     public function test_l_administrateur_du_portail_gere_sans_role_particulier(): void
     {
-        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.employeurs'))->assertOk();
+        $this->actingAs(User::factory()->superadmin()->create())->get(route('personnel.employeurs'))->assertOk();
     }
 
     public function test_le_gestionnaire_rh_gere(): void
@@ -262,7 +262,7 @@ class PersonnelModuleTest extends TestCase
         $this->agent();                  // dossier deja ouvert
         User::factory()->create();       // compte sans dossier
 
-        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents'))
+        $this->actingAs(User::factory()->superadmin()->create())->get(route('personnel.agents'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('modules/personnel/agents/index')
@@ -276,7 +276,7 @@ class PersonnelModuleTest extends TestCase
         $this->agent();
         User::factory()->create();
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->get(route('personnel.agents', ['statut' => 'sans_dossier']))
             ->assertInertia(fn (Assert $page) => $page->has('agents.data', 2));
     }
@@ -286,14 +286,14 @@ class PersonnelModuleTest extends TestCase
         $this->agent();
         $this->agent('ATANGANA');
 
-        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents', ['q' => 'atangana']))
+        $this->actingAs(User::factory()->superadmin()->create())->get(route('personnel.agents', ['q' => 'atangana']))
             ->assertInertia(fn (Assert $page) => $page->has('agents.data', 1));
     }
 
     public function test_le_filtre_sans_contrat_isole_les_dossiers_a_completer(): void
     {
         $this->contrat();
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->get(route('personnel.agents', ['statut' => 'sans_contrat']))
             // Tout le monde sauf la personne sous contrat.
@@ -557,7 +557,7 @@ class PersonnelModuleTest extends TestCase
         $ici->applications()->attach($this->institut);
 
         // L'administrateur voit tout : son perimetre ne masque rien.
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
 
         $this->actingAs($admin)
             ->get(route('personnel.agents', ['employeur' => $autre->id]))
@@ -1226,7 +1226,7 @@ class PersonnelModuleTest extends TestCase
 
     public function test_le_sigle_d_un_employeur_est_unique(): void
     {
-        $this->actingAs(User::factory()->admin()->create())->post(route('personnel.employeurs.store'), [
+        $this->actingAs(User::factory()->superadmin()->create())->post(route('personnel.employeurs.store'), [
             'nom' => 'Autre institut', 'sigle' => 'IUM',
         ])->assertSessionHasErrors('sigle');
     }
@@ -1235,7 +1235,7 @@ class PersonnelModuleTest extends TestCase
     {
         $this->contrat();
 
-        $this->actingAs(User::factory()->admin()->create())->delete(route('personnel.employeurs.destroy', $this->employeur))
+        $this->actingAs(User::factory()->superadmin()->create())->delete(route('personnel.employeurs.destroy', $this->employeur))
             ->assertSessionHasErrors('employeur');
     }
 

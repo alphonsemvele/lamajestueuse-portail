@@ -36,7 +36,7 @@ class ListePersonnelPdfTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        return User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
     }
 
     private function membre(string $prenom, string $nom, ?string $email = null): User

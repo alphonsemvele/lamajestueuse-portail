@@ -29,6 +29,8 @@ class TutorielController extends Controller
 
     public function index(): Response
     {
+        $this->exigerLeModuleEnService();
+
         return Inertia::render('modules/tutoriels/index', [
             'prealables' => $this->prealables(),
             'tutoriels' => collect(config('tutoriels.tutoriels', []))
@@ -46,6 +48,8 @@ class TutorielController extends Controller
 
     public function show(string $cle): Response
     {
+        $this->exigerLeModuleEnService();
+
         $tutoriel = collect(config('tutoriels.tutoriels', []))->firstWhere('cle', $cle);
 
         abort_if($tutoriel === null, 404);
@@ -62,6 +66,15 @@ class TutorielController extends Controller
             // Le module concerne, pour proposer d'y aller une fois lu.
             'module' => $this->moduleDuTutoriel($tutoriel['module'] ?? null),
         ]);
+    }
+
+    /**
+     * Les pages sont publiques, mais le module reste un module : retire du
+     * portail, il ne repond plus — sinon « retirer » ne voudrait rien dire.
+     */
+    private function exigerLeModuleEnService(): void
+    {
+        abort_if($this->module() === null, 404);
     }
 
     /** @return array<string, mixed> */

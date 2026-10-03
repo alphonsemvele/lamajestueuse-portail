@@ -27,7 +27,7 @@ class DatabaseSeeder extends Seeder
         $applications = [
             [
                 'name' => 'IFPM',
-                'description' => "Institut de Formation Professionnelle. Étudiants, cours, notes, bulletins et préinscriptions.",
+                'description' => 'Institut de Formation Professionnelle. Étudiants, cours, notes, bulletins et préinscriptions.',
                 'url' => 'https://ifpm.lamajestueuse.cm',
                 'category_id' => $categories['formation']->id,
                 'cover' => 'images/apps/ifpm.jpg',
@@ -38,7 +38,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'name' => 'GSBM',
-                'description' => "Groupe Scolaire Bilingue. Élèves, classes, présences et bulletins.",
+                'description' => 'Groupe Scolaire Bilingue. Élèves, classes, présences et bulletins.',
                 'url' => 'https://gsbm.lamajestueuse.cm',
                 'category_id' => $categories['formation']->id,
                 'cover' => 'images/apps/gsbm.jpg',
@@ -82,7 +82,7 @@ class DatabaseSeeder extends Seeder
             ],
             [
                 'name' => 'Formulaires',
-                'description' => "Tous les formulaires internes du groupe.",
+                'description' => 'Tous les formulaires internes du groupe.',
                 'url' => 'https://formulaires.lamajestueuse.cm',
                 'category_id' => $categories['information']->id,
                 'cover' => 'images/apps/formulaires.jpg',
@@ -132,7 +132,8 @@ class DatabaseSeeder extends Seeder
             'phone' => '+237 6 99 00 00 01',
             'poste' => 'Administrateur du portail',
             'entite' => "Direction des systèmes d'information",
-            'role' => 'admin',
+            // Le compte d'amorcage ouvre l'administration : sans lui, personne.
+            'role' => 'superadmin',
             'status' => 'active',
             'password' => 'Majestueuse@2026',
         ]);
@@ -194,18 +195,18 @@ class DatabaseSeeder extends Seeder
 
         $posts = [
             [
-                'title' => "Rentrée académique 2026-2027 : ouverture des préinscriptions",
+                'title' => 'Rentrée académique 2026-2027 : ouverture des préinscriptions',
                 'excerpt' => "Les préinscriptions en ligne sont ouvertes pour l'ensemble des filières de l'IFPM et du GSBM.",
                 'type' => 'news', 'image' => 'images/news/n2.jpg', 'is_featured' => true,
             ],
             [
                 'title' => "La Fondation Médicale ouvre son service d'hospitalisation à domicile",
-                'excerpt' => "Le module HAD est désormais actif : tournées, visites, plans de soins et signatures électroniques.",
+                'excerpt' => 'Le module HAD est désormais actif : tournées, visites, plans de soins et signatures électroniques.',
                 'type' => 'news', 'image' => 'images/news/n1.jpg',
             ],
             [
-                'title' => "Portail unique : une seule connexion pour toutes vos applications",
-                'excerpt' => "À compter de cette semaine, vos applications métier sont accessibles depuis ce portail avec un seul mot de passe.",
+                'title' => 'Portail unique : une seule connexion pour toutes vos applications',
+                'excerpt' => 'À compter de cette semaine, vos applications métier sont accessibles depuis ce portail avec un seul mot de passe.',
                 'type' => 'announcement', 'image' => 'images/news/n3.jpg', 'is_featured' => true,
             ],
             [
@@ -214,7 +215,7 @@ class DatabaseSeeder extends Seeder
                 'type' => 'announcement',
             ],
             [
-                'title' => "Appel à candidature interne : chef de service pédiatrie",
+                'title' => 'Appel à candidature interne : chef de service pédiatrie',
                 'excerpt' => "Les candidatures sont reçues jusqu'au 30 du mois courant auprès de la direction des ressources humaines.",
                 'type' => 'billboard',
             ],

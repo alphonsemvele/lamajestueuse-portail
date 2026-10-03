@@ -254,6 +254,8 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
      */
     Route::get('modules', [ModuleController::class, 'index'])->name('modules.index');
     Route::post('modules/{application}/etat', [ModuleController::class, 'toggle'])->name('modules.toggle');
+    Route::post('modules/{application}/attribuer', [ModuleController::class, 'attribuerATous'])
+        ->name('modules.attribuer');
 
     /*
      * Envoi des courriels : reglages du relais et essai.

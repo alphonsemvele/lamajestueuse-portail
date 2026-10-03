@@ -158,6 +158,7 @@ export const routes = {
         postVisibility: (slug: string) => `/admin/posts/${slug}/visibilite`,
         modules: '/admin/modules',
         moduleToggle: (slug: string) => `/admin/modules/${slug}/etat`,
+        moduleAttribuer: (slug: string) => `/admin/modules/${slug}/attribuer`,
         email: '/admin/email',
         emailTest: '/admin/email/essai',
         emailModeles: '/admin/email/modeles',

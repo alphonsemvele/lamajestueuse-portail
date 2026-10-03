@@ -36,6 +36,18 @@ export default function AdminModules({ modules, orphelins }: Props) {
         router.post(routes.admin.moduleToggle(module.slug), {}, { preserveScroll: true });
     };
 
+    // Une tuile ne paraît que si elle est attribuée : pour les modules qui
+    // concernent chacun, on le fait d'un geste plutôt que compte par compte.
+    const attribuerATous = (module: Module) => {
+        if (!module.slug) return;
+
+        if (!confirm(t('Poser « :nom » sur le tableau de bord de tout le personnel en service ?', { nom: module.nom }))) {
+            return;
+        }
+
+        router.post(routes.admin.moduleAttribuer(module.slug), {}, { preserveScroll: true });
+    };
+
     return (
         <AdminLayout
             title={t('Modules')}
@@ -72,8 +84,11 @@ export default function AdminModules({ modules, orphelins }: Props) {
                                     )}
 
                                     {module.ouvertATous && (
-                                        <span className="badge bg-indigo-100 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200">
-                                            {t('ouvert à tous')}
+                                        <span
+                                            title={t("Ce module s'ouvre à qui connaît son adresse, sans attribution. Sa tuile, elle, s'attribue comme les autres.")}
+                                            className="badge bg-indigo-100 text-indigo-800 dark:bg-indigo-500/15 dark:text-indigo-200"
+                                        >
+                                            {t('accès libre')}
                                         </span>
                                     )}
                                 </div>
@@ -83,11 +98,7 @@ export default function AdminModules({ modules, orphelins }: Props) {
                                 <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-ink-500 dark:text-ink-400">
                                     <span className="font-mono text-ink-400">{module.cle}</span>
 
-                                    <span>
-                                        {module.ouvertATous
-                                            ? t('visible par tout le personnel')
-                                            : t(':n accès accordé(s)', { n: module.acces })}
-                                    </span>
+                                    <span>{t(':n accès accordé(s)', { n: module.acces })}</span>
 
                                     {module.rolesGestion.length > 0 && (
                                         <span>
@@ -134,6 +145,16 @@ export default function AdminModules({ modules, orphelins }: Props) {
                                             <Icon name="key" className="h-3.5 w-3.5" />
                                             {t('Accès')}
                                         </Link>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => attribuerATous(module)}
+                                            title={t('Attribuer cette tuile à tous les comptes en service')}
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
+                                        >
+                                            <Icon name="users" className="h-3.5 w-3.5" />
+                                            {t('Donner à tous')}
+                                        </button>
 
                                         <Link
                                             href={routes.admin.applicationEdit(module.slug)}

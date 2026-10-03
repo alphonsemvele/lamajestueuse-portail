@@ -21,7 +21,7 @@ class ModelesEmailTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->admin()->create(['email' => 'admin@lamajestueuse.cm']);
+        return User::factory()->superadmin()->create(['email' => 'admin@lamajestueuse.cm']);
     }
 
     public function test_l_ecran_est_reserve_aux_administrateurs(): void

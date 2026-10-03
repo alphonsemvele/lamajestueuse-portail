@@ -15,7 +15,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_une_application_peut_etre_creee_sans_lien_de_destination(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.applications.store'), [
             'name' => 'Comptabilité',
@@ -36,7 +36,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_ladministrateur_cree_un_projet_avec_son_lien_de_redirection(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $category = Category::create(['name' => 'Sante', 'slug' => 'sante', 'color' => '#0d9488']);
 
         $this->actingAs($admin)->post(route('admin.applications.store'), [
@@ -62,7 +62,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_le_lien_de_redirection_doit_etre_une_url_valide(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)
             ->from(route('admin.applications.create'))
@@ -76,7 +76,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_le_slug_est_unique(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         Application::factory()->create(['slug' => 'ifpm']);
 
         $this->actingAs($admin)
@@ -90,7 +90,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_un_slug_vide_qui_entre_en_collision_est_rejete_proprement(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         Application::factory()->create(['name' => 'IFPM', 'slug' => 'ifpm']);
 
         // Slug laisse vide : il est deduit du nom et doit produire une erreur
@@ -109,7 +109,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_lidentifiant_client_sso_est_unique(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         Application::factory()->create(['client_id' => 'ifpm']);
 
         $this->actingAs($admin)
@@ -123,7 +123,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_modification_du_lien_de_redirection(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = Application::factory()->create(['url' => 'https://ancien.lamajestueuse.cm']);
 
         $this->actingAs($admin)->put(route('admin.applications.update', $app), [
@@ -138,7 +138,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_suppression_dune_application(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = Application::factory()->create();
 
         $this->actingAs($admin)->delete(route('admin.applications.destroy', $app))
@@ -149,7 +149,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_affectation_des_acces_a_une_application(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = Application::factory()->create();
         $employe = User::factory()->create();
         $autre = User::factory()->create();
@@ -170,7 +170,7 @@ class ApplicationManagementTest extends TestCase
         // Le front construit ses URL a la main : si la cle de route changeait,
         // tous les liens d'edition tomberaient en 404 sans que rien n'echoue
         // cote serveur. Ce test fige la convention.
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = Application::factory()->create(['slug' => 'fondation-medicale']);
 
         $this->assertSame('slug', $app->getRouteKeyName());
@@ -182,7 +182,7 @@ class ApplicationManagementTest extends TestCase
 
     public function test_lecran_de_creation_saffiche(): void
     {
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->get(route('admin.applications.create'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page

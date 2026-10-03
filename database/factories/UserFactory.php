@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -39,9 +40,16 @@ class UserFactory extends Factory
         ];
     }
 
+    /** Administrateur du portail : tout, sauf l'administration elle-meme. */
     public function admin(): static
     {
         return $this->state(fn () => ['role' => 'admin']);
+    }
+
+    /** Super administrateur : le seul a ouvrir /admin. */
+    public function superadmin(): static
+    {
+        return $this->state(fn () => ['role' => 'superadmin']);
     }
 
     public function suspended(): static

@@ -31,7 +31,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_televersement_dune_image_de_couverture_et_dun_logo(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.applications.store'), $this->payload([
             'cover_file' => UploadedFile::fake()->image('couverture.jpg', 1200, 600),
@@ -49,7 +49,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_un_fichier_qui_nest_pas_une_image_est_refuse(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)
             ->from(route('admin.applications.create'))
@@ -63,7 +63,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_une_couverture_trop_lourde_est_refusee(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)
             ->from(route('admin.applications.create'))
@@ -75,7 +75,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_remplacer_une_image_efface_le_fichier_precedent(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $application = Application::factory()->create([
             'cover' => UploadedFile::fake()->image('ancienne.jpg')->store('applications/couvertures', 'public'),
         ]);
@@ -98,7 +98,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_retirer_une_image_la_supprime_du_disque(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $application = Application::factory()->create([
             'logo' => UploadedFile::fake()->image('logo.png')->store('applications/logos', 'public'),
         ]);
@@ -118,7 +118,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_les_visuels_livres_avec_le_projet_ne_sont_pas_effaces(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $application = Application::factory()->create(['cover' => 'images/apps/ifpm.jpg']);
 
         // Un chemin sous /public appartient au depot, pas au disque de stockage :
@@ -137,7 +137,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_une_url_externe_reste_acceptee(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.applications.store'), $this->payload([
             'cover' => 'https://cdn.lamajestueuse.cm/couverture.jpg',
@@ -150,7 +150,7 @@ class ApplicationMediaTest extends TestCase
 
     public function test_supprimer_une_application_efface_ses_fichiers(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $application = Application::factory()->create([
             'cover' => UploadedFile::fake()->image('c.jpg')->store('applications/couvertures', 'public'),
             'logo' => UploadedFile::fake()->image('l.png')->store('applications/logos', 'public'),

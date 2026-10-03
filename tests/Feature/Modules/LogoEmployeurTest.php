@@ -176,7 +176,7 @@ class LogoEmployeurTest extends TestCase
 
     public function test_un_administrateur_televerse_le_logo_d_un_employeur(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
 
         $this->actingAs($admin)->post(route('personnel.employeurs.store'), [
             'nom' => 'Institut de Formation',
@@ -193,7 +193,7 @@ class LogoEmployeurTest extends TestCase
 
     public function test_le_logo_se_retire(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
         $this->employeur->update(['logo' => $this->poserUneImage('employeurs/logos/ium.png')]);
 
         $this->actingAs($admin)->put(route('personnel.employeurs.update', $this->employeur), [
@@ -209,7 +209,7 @@ class LogoEmployeurTest extends TestCase
 
     public function test_une_modification_sans_logo_garde_celui_en_place(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
         $chemin = $this->poserUneImage('employeurs/logos/ium.png');
         $this->employeur->update(['logo' => $chemin]);
 
@@ -224,7 +224,7 @@ class LogoEmployeurTest extends TestCase
 
     public function test_un_fichier_trop_lourd_est_refuse(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
 
         $this->actingAs($admin)->post(route('personnel.employeurs.store'), [
             'nom' => 'Trop lourd', 'sigle' => 'TL', 'actif' => true,
@@ -248,7 +248,7 @@ class LogoEmployeurTest extends TestCase
 
     public function test_l_ecran_des_employeurs_porte_l_adresse_du_logo(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
         $this->employeur->update(['logo' => $this->poserUneImage('employeurs/logos/ium.png')]);
 
         $this->actingAs($admin)->get(route('personnel.employeurs'))

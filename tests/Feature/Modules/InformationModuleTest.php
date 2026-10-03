@@ -86,7 +86,7 @@ class InformationModuleTest extends TestCase
 
     public function test_un_administrateur_du_portail_publie_toujours(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $admin->applications()->attach($this->module());
 
         $this->actingAs($admin)->get(route('informations.index'))
@@ -129,7 +129,7 @@ class InformationModuleTest extends TestCase
 
     public function test_ladministrateur_declare_un_module_sans_url(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.applications.store'), [
             'name' => "Centre d'information",
@@ -146,7 +146,7 @@ class InformationModuleTest extends TestCase
 
     public function test_un_module_exige_une_cle_connue(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->from(route('admin.applications.create'))
             ->post(route('admin.applications.store'), ['name' => 'Sans clé', 'type' => 'module', 'is_active' => '1'])
@@ -161,7 +161,7 @@ class InformationModuleTest extends TestCase
 
     public function test_une_application_metier_sans_lien_reste_sans_destination(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->from(route('admin.applications.create'))
             ->post(route('admin.applications.store'), ['name' => 'Sans lien', 'type' => 'application', 'is_active' => '1'])

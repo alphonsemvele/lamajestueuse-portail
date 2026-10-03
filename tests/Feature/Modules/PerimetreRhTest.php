@@ -99,7 +99,7 @@ class PerimetreRhTest extends TestCase
 
     public function test_l_administrateur_attribue_les_entites_depuis_l_ecran_d_acces(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $gestionnaire = User::factory()->create();
 
         $this->actingAs($admin)->get(route('admin.applications.access', $this->module))
@@ -117,7 +117,7 @@ class PerimetreRhTest extends TestCase
 
     public function test_retirer_l_acces_retire_aussi_les_entites(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $gestionnaire = $this->gestionnaire($this->ium, $this->ifpm);
 
         $this->actingAs($admin)->put(route('admin.applications.access.update', $this->module), [
@@ -132,13 +132,13 @@ class PerimetreRhTest extends TestCase
     {
         $application = Application::factory()->create();
 
-        $this->actingAs(User::factory()->admin()->create())->get(route('admin.applications.access', $application))
+        $this->actingAs(User::factory()->superadmin()->create())->get(route('admin.applications.access', $application))
             ->assertInertia(fn (Assert $page) => $page->has('employeurs', 0));
     }
 
     public function test_l_administrateur_du_portail_n_a_aucune_limite(): void
     {
-        $this->assertNull(User::factory()->admin()->create()->perimetreRh());
+        $this->assertNull(User::factory()->superadmin()->create()->perimetreRh());
     }
 
     // ---------------------------------------------------------- ce qui est vu
@@ -182,7 +182,7 @@ class PerimetreRhTest extends TestCase
         $this->actingAs($this->gestionnaire($this->ium))->get(route('personnel.agents'))
             ->assertInertia(fn (Assert $page) => $page->has('agents.data', 0));
 
-        $reponse = $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents'));
+        $reponse = $this->actingAs(User::factory()->superadmin()->create())->get(route('personnel.agents'));
         $noms = collect($reponse->viewData('page')['props']['agents']['data'])->pluck('nom');
 
         $this->assertTrue($noms->contains(fn ($nom) => str_contains((string) $nom, 'ISOLÉ')));
@@ -230,7 +230,7 @@ class PerimetreRhTest extends TestCase
                 ->where('contrats.0.poste', 'Enseignant IUM')
                 ->has('referentiels.employeurs', 1));
 
-        $this->actingAs(User::factory()->admin()->create())->get(route('personnel.agents.show', $agent->user))
+        $this->actingAs(User::factory()->superadmin()->create())->get(route('personnel.agents.show', $agent->user))
             ->assertInertia(fn (Assert $page) => $page->has('contrats', 2));
     }
 

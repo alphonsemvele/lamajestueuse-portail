@@ -1,10 +1,11 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/icon';
 import LocaleSwitch from '@/components/locale-switch';
 import Logo from '@/components/logo';
 import ThemeToggle from '@/components/theme-toggle';
 import { cn, routes, useT } from '@/lib/utils';
+import type { SharedProps } from '@/types';
 
 interface Etape {
     titre: string;
@@ -28,6 +29,7 @@ interface Props {
 
 export default function Support({ rubriques, contact, retour }: Props) {
     const t = useT();
+    const { tutorielsEnService } = usePage<SharedProps>().props;
     const [recherche, setRecherche] = useState('');
     const [ouverte, setOuverte] = useState<string | null>(rubriques[0]?.cle ?? null);
     const [agrandie, setAgrandie] = useState<{ url: string; titre: string } | null>(null);
@@ -69,10 +71,12 @@ export default function Support({ rubriques, contact, retour }: Props) {
                             <Logo size="sm" />
                         </Link>
                         <span className="flex-1" />
-                        <Link href={routes.tutoriels.index} className="btn-ghost hidden sm:inline-flex">
-                            <Icon name="book" className="h-4 w-4" />
-                            {t('Tutoriels')}
-                        </Link>
+                        {tutorielsEnService && (
+                            <Link href={routes.tutoriels.index} className="btn-ghost hidden sm:inline-flex">
+                                <Icon name="book" className="h-4 w-4" />
+                                {t('Tutoriels')}
+                            </Link>
+                        )}
                         <LocaleSwitch />
                         <ThemeToggle />
                         <Link

@@ -376,7 +376,7 @@ class RegistrationTest extends TestCase
 
     public function test_un_administrateur_valide_la_demande(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $ifpm = Application::factory()->create();
 
         $this->post(route('register'), $this->payload([
@@ -437,7 +437,7 @@ class RegistrationTest extends TestCase
 
     public function test_un_administrateur_refuse_la_demande(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $ifpm = Application::factory()->create();
 
         $this->post(route('register'), $this->payload([
@@ -465,7 +465,7 @@ class RegistrationTest extends TestCase
 
     public function test_modifier_les_acces_ne_supprime_pas_le_poste_declare(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $ifpm = Application::factory()->create();
 
         $this->post(route('register'), $this->payload([

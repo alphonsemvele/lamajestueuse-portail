@@ -20,7 +20,7 @@ function Erreur({ message }: { message?: string }) {
 
 export default function Register({ instituts }: { instituts: Application[] }) {
     const t = useT();
-    const { flash } = usePage<SharedProps>().props;
+    const { flash, tutorielsEnService } = usePage<SharedProps>().props;
     const registered = flash.registered;
 
     const { data, setData, post, processing, errors, clearErrors } = useForm<{
@@ -396,12 +396,14 @@ export default function Register({ instituts }: { instituts: Application[] }) {
             </main>
 
             <footer className="mx-auto max-w-4xl px-5 pb-10 text-center text-xs text-ink-400">
-                <p className="mb-2 text-sm text-ink-500 dark:text-ink-400">
-                    {'Une question sur l’inscription ? '}
-                    <Link href={routes.tutoriels.index} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                        {'Voir les tutoriels pas à pas'}
-                    </Link>
-                </p>
+                {tutorielsEnService && (
+                    <p className="mb-2 text-sm text-ink-500 dark:text-ink-400">
+                        {'Une question sur l’inscription ? '}
+                        <Link href={routes.tutoriels.index} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
+                            {'Voir les tutoriels pas à pas'}
+                        </Link>
+                    </p>
+                )}
                 © {new Date().getFullYear()} La Majestueuse · Yaoundé
             </footer>
         </div>

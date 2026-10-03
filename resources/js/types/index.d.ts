@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'manager' | 'employee';
+export type Role = 'superadmin' | 'admin' | 'manager' | 'employee';
 export type Status = 'active' | 'suspended' | 'pending';
 export type AppType = 'application' | 'quick_link' | 'module';
 export type PostType = 'news' | 'announcement' | 'billboard';
@@ -15,6 +15,8 @@ export interface AuthUser {
     entite: string | null;
     role: Role;
     isAdmin: boolean;
+    /** Seul le super administrateur ouvre le tableau de bord d'administration. */
+    isSuperAdmin: boolean;
 }
 
 export interface Category {
@@ -136,6 +138,8 @@ export interface SharedProps {
     appName: string;
     auth: { user: AuthUser | null };
     locale: string;
+    /** Les tutoriels sont-ils en service ? Retirés, on n'y renvoie plus. */
+    tutorielsEnService: boolean;
     translations: Record<string, string>;
     flash: { status: string | null; registered?: { nom: string; identifiant: string | null } | null };
     errors: Record<string, string>;

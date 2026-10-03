@@ -119,9 +119,9 @@ class HorsPersonnelTest extends TestCase
     {
         $technique = User::factory()->create(['dans_le_personnel' => true]);
 
-        $this->actingAs(User::factory()->admin()->create())->put(route('admin.users.update', $technique), [
+        $this->actingAs(User::factory()->superadmin()->create())->put(route('admin.users.update', $technique), [
             'name' => $technique->name,
-            'role' => 'admin',
+            'role' => 'superadmin',
             'status' => 'active',
             'locale' => 'fr',
             'dans_le_personnel' => false,
@@ -134,7 +134,7 @@ class HorsPersonnelTest extends TestCase
     {
         $technique = User::factory()->create(['dans_le_personnel' => false]);
 
-        $this->actingAs(User::factory()->admin()->create())->get(route('admin.users.edit', $technique))
+        $this->actingAs(User::factory()->superadmin()->create())->get(route('admin.users.edit', $technique))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('user.dansLePersonnel', false));
     }

@@ -139,7 +139,7 @@ class ApercuProfilTest extends TestCase
     {
         $this->profil(['Transport' => ['fixe', 30000]], ['Avance' => ['fixe', 5000]]);
 
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
 
         $this->actingAs($admin)->get(route('personnel.profils'))
             ->assertOk()

@@ -53,6 +53,8 @@ class MonProfilTest extends TestCase
     {
         $moi = User::factory()->create(['lastname' => 'NKOA', 'status' => 'active']);
         $moi->applications()->attach($this->institut, ['poste' => 'Chargée de scolarité']);
+        // Une tuile ne parait que si elle est attribuee, celle-ci comprise.
+        $moi->applications()->attach($this->module);
 
         return $moi;
     }
@@ -61,8 +63,10 @@ class MonProfilTest extends TestCase
 
     public function test_le_module_est_ouvert_a_tout_le_personnel(): void
     {
-        // Aucune attribution : la tuile se pose d'elle-meme.
-        $this->actingAs($this->moi())->get(route('profil.index'))->assertOk();
+        // Sans meme la tuile, le module s'ouvre : il concerne chacun.
+        $sansTuile = User::factory()->create(['status' => 'active']);
+
+        $this->actingAs($sansTuile)->get(route('profil.index'))->assertOk();
     }
 
     public function test_un_visiteur_ne_voit_pas_mon_profil(): void

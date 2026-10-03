@@ -17,8 +17,9 @@
 | 'admin_route' : l'ecran depuis lequel on administre le module. C'est le lien
 | que propose /admin/modules ; null quand le module se consulte seulement.
 |
-| 'ouvert_a_tous' : le module se pose de lui-meme sur le tableau de bord de
-| tout le personnel, sans attribution individuelle.
+| 'ouvert_a_tous' : le module s'ouvre a qui connait son adresse, sans qu'on
+| ait a le lui attribuer. Sa tuile, elle, suit la regle commune : elle ne
+| parait sur un tableau de bord que si elle a ete attribuee.
 |
 */
 
@@ -63,8 +64,8 @@ return [
         'admin_route' => 'badges.gestion',
         'icon' => 'key',
         'color' => '#4f46e5',
-        // Chacun demande son badge : la tuile se pose d'elle-meme sur le
-        // tableau de bord de tout le personnel, sans attribution prealable.
+        // Chacun demande son badge : le module s'ouvre a tout le personnel,
+        // sans attribution prealable. La tuile, elle, s'attribue.
         'ouvert_a_tous' => true,
         // Seuls ces roles traitent les demandes et impriment les badges.
         'manage_roles' => ['admin', 'drh', 'rh', 'accueil'],
@@ -74,7 +75,7 @@ return [
         'name' => 'Mon bulletin de paie',
         'description' => "Consulter et télécharger ses bulletins de paie.",
         'route' => 'mes-bulletins.index',
-        // Chacun consulte les siens : la tuile se pose d'elle-meme.
+        // Chacun consulte les siens : le module s'ouvre a tout le personnel.
         'ouvert_a_tous' => true,
         'admin_route' => 'personnel.paie.index',
         'icon' => 'wallet',

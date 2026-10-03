@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Application;
 use App\Models\DemandeBadge;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route as Routeur;
@@ -73,6 +74,39 @@ class ModuleController extends Controller
         return back()->with('status', $application->is_active
             ? __('« :nom » est en service.', ['nom' => $application->name])
             : __('« :nom » est retiré du portail. Ses données sont conservées.', ['nom' => $application->name]));
+    }
+
+    /**
+     * Donne la tuile a tous les comptes en service.
+     *
+     * Une tuile ne parait que si elle a ete attribuee. Pour les modules qui
+     * concernent chacun — son profil, son badge, ses bulletins — il faut
+     * pouvoir le faire d'un geste, et non compte par compte.
+     */
+    public function attribuerATous(Application $application): RedirectResponse
+    {
+        abort_unless($application->isModule(), 404);
+
+        $deja = $application->users()->pluck('users.id')->all();
+
+        $manquants = User::where('status', 'active')
+            ->whereNotIn('id', $deja)
+            ->pluck('id')->all();
+
+        $application->users()->attach($manquants);
+
+        if ($manquants === []) {
+            return back()->with('status', __('« :nom » était déjà attribué à tout le personnel en service.', [
+                'nom' => $application->name,
+            ]));
+        }
+
+        return back()->with('status', trans_choice(
+            '{1}« :nom » est désormais sur le tableau de bord d’un compte de plus.'
+            .'|[2,*]« :nom » est désormais sur le tableau de bord de :nombre comptes de plus.',
+            count($manquants),
+            ['nom' => $application->name, 'nombre' => count($manquants)],
+        ));
     }
 
     /** Une route nommee peut avoir disparu : on ne fabrique pas de lien mort. */

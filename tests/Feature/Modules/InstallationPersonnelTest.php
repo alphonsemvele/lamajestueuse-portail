@@ -27,7 +27,7 @@ class InstallationPersonnelTest extends TestCase
 
     public function test_l_installation_cree_la_tuile_et_les_employeurs(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->installer();
 
@@ -118,7 +118,7 @@ class InstallationPersonnelTest extends TestCase
     /** Un administrateur qui s'est retiré la tuile ne se la voit pas remettre. */
     public function test_un_acces_retire_ne_revient_pas_au_deploiement_suivant(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $this->installer();
 
         $module = Application::where('module_key', 'personnel')->firstOrFail();

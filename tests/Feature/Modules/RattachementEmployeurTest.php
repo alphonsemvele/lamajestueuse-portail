@@ -254,7 +254,7 @@ class RattachementEmployeurTest extends TestCase
         $membre = $this->membre([$this->ium->id]);
         $membre->update(['employeur_id' => $this->employeurGsbm->id]);
 
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
 
         $this->actingAs($admin)
             ->delete(route('personnel.employeurs.destroy', $this->employeurGsbm))

@@ -128,7 +128,7 @@ class PortalSignOnTest extends TestCase
 
     public function test_le_role_affecte_doit_figurer_parmi_ceux_declares(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application(['roles' => ['admin', 'enseignant', 'personnel']]);
         $employe = User::factory()->create();
 
@@ -152,7 +152,7 @@ class PortalSignOnTest extends TestCase
 
     public function test_la_reference_locale_est_enregistree_et_transmise(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = $this->application();
         $employe = User::factory()->create();
 

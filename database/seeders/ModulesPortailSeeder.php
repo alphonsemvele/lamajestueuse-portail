@@ -44,7 +44,7 @@ class ModulesPortailSeeder extends Seeder
         // Premiere installation : les administrateurs du portail voient la
         // tuile d'emblee. Les gestionnaires RH se rajoutent ensuite depuis
         // /admin/applications, avec leurs entites.
-        foreach (User::where('role', 'admin')->get() as $administrateur) {
+        foreach (User::whereIn('role', ['admin', 'superadmin'])->get() as $administrateur) {
             $administrateur->applications()->syncWithoutDetaching([
                 $module->id => ['role_in_app' => 'drh', 'roles' => json_encode(['drh'])],
             ]);

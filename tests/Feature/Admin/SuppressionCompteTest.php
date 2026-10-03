@@ -43,7 +43,7 @@ class SuppressionCompteTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        return User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
     }
 
     private function avecDossier(bool $avecBulletin): User

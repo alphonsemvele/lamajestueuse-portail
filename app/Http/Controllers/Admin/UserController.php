@@ -118,6 +118,17 @@ class UserController extends Controller
     public function update(Request $request, User $user, CourrielsPortail $courriels): RedirectResponse
     {
         $data = $this->validated($request, $user);
+
+        /*
+         * On ne se retire pas a soi-meme l'administration : seul un super
+         * administrateur ouvre cet ecran, et s'il se retrogradait il n'y
+         * aurait plus personne pour l'y remettre.
+         */
+        if ($user->id === $request->user()->id && ($data['role'] ?? null) !== 'superadmin' && $user->isSuperAdmin()) {
+            return back()->withErrors([
+                'role' => __('Vous ne pouvez pas retirer votre propre rôle de super administrateur : demandez-le à un autre super administrateur.'),
+            ]);
+        }
         $acces = $this->accessPayload($request, $user);
 
         /*
@@ -396,7 +407,7 @@ class UserController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'poste' => ['nullable', 'string', 'max:120'],
             'entite' => ['nullable', 'string', 'max:120'],
-            'role' => ['required', Rule::in(['admin', 'manager', 'employee'])],
+            'role' => ['required', Rule::in(['superadmin', 'admin', 'manager', 'employee'])],
             // Un administrateur technique entre dans le portail sans figurer
             // dans les dossiers du personnel.
             'dans_le_personnel' => ['boolean'],

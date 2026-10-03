@@ -130,7 +130,11 @@ export default function PortalLayout({ title, categories = [], filters, alerts =
                                         {auth.user?.fullName}
                                     </span>
                                     <span className="block text-[10px] uppercase tracking-wide text-ink-400">
-                                        {auth.user?.isAdmin ? t('Administrateur') : t('Employé')}
+                                        {auth.user?.isSuperAdmin
+                                            ? t('Super administrateur')
+                                            : auth.user?.isAdmin
+                                              ? t('Administrateur')
+                                              : t('Employé')}
                                     </span>
                                 </span>
                                 <Icon name="chevron-down" className="h-4 w-4 text-ink-400" />
@@ -153,7 +157,8 @@ export default function PortalLayout({ title, categories = [], filters, alerts =
                                         {t('Mon profil')}
                                     </Link>
 
-                                    {auth.user?.isAdmin && (
+                                    {/* L'administration du portail est au seul super administrateur. */}
+                                    {auth.user?.isSuperAdmin && (
                                         <Link
                                             href={routes.admin.dashboard}
                                             className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-ink-700 transition hover:bg-ink-50 dark:text-ink-200 dark:hover:bg-white/5"

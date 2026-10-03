@@ -245,6 +245,7 @@ export default function UserForm({ user, applications, assigned, postes }: Props
                                     <option value="employee">{t('Employé')}</option>
                                     <option value="manager">{t('Responsable')}</option>
                                     <option value="admin">{t('Administrateur')}</option>
+                                    <option value="superadmin">{t('Super administrateur')}</option>
                                 </Select>
                             </div>
                             <div>

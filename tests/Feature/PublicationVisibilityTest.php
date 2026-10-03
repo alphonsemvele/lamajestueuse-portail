@@ -55,7 +55,7 @@ class PublicationVisibilityTest extends TestCase
 
     public function test_masquer_conserve_la_date_de_publication(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $post = $this->publication();
         $date = $post->published_at;
 
@@ -68,7 +68,7 @@ class PublicationVisibilityTest extends TestCase
 
     public function test_la_bascule_fonctionne_dans_les_deux_sens(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $post = $this->publication();
 
         $this->actingAs($admin)->post(route('admin.posts.visibility', $post));
@@ -123,7 +123,7 @@ class PublicationVisibilityTest extends TestCase
 
     public function test_le_formulaire_enregistre_letat_choisi(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.posts.store'), [
             'title' => 'Brouillon interne',

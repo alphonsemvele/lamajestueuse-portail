@@ -30,7 +30,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $demandeur = User::factory()->create(['status' => 'pending', 'email' => 'claire@lamajestueuse.cm']);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->post(route('admin.users.approve', $demandeur))->assertRedirect();
 
         Mail::assertSent(CompteValide::class, fn ($mail) => $mail->hasTo('claire@lamajestueuse.cm'));
@@ -42,7 +42,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $demandeur = User::factory()->create(['status' => 'pending', 'email' => 'claire@lamajestueuse.cm']);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->post(route('admin.users.reject', $demandeur));
 
         Mail::assertSent(DemandeRefusee::class);
@@ -55,7 +55,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $demandeur = User::factory()->create(['status' => 'pending', 'email' => null]);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->post(route('admin.users.approve', $demandeur))->assertRedirect();
 
         Mail::assertNothingSent();
@@ -73,7 +73,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $demandeur = User::factory()->create(['status' => 'pending', 'email' => null]);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->post(route('admin.users.approve', $demandeur))
             ->assertSessionHas('status')
             ->assertSessionHasErrors('courriel');
@@ -89,7 +89,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $demandeur = User::factory()->create(['status' => 'pending', 'email' => 'claire@lamajestueuse.cm']);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->post(route('admin.users.approve', $demandeur))
             ->assertSessionHasErrors('courriel');
 
@@ -110,7 +110,7 @@ class CourrielsDesProceduresTest extends TestCase
             'status' => 'pending', 'email' => 'claire@lamajestueuse.cm', 'self_registered' => true,
         ]);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->put(route('admin.users.update', $demandeur), [
                 'name' => $demandeur->name,
                 'email' => $demandeur->email,
@@ -129,7 +129,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $actif = User::factory()->create(['status' => 'active', 'email' => 'claire@lamajestueuse.cm']);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->put(route('admin.users.update', $actif), [
                 'name' => 'Claire NKOA',
                 'email' => $actif->email,
@@ -207,7 +207,7 @@ class CourrielsDesProceduresTest extends TestCase
     public function test_le_renvoi_suit_l_etat_du_compte(): void
     {
         Mail::fake();
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $enAttente = User::factory()->create(['status' => 'pending', 'email' => 'a@lamajestueuse.cm']);
         $this->actingAs($admin)->post(route('admin.users.renvoyer', $enAttente))->assertRedirect();
@@ -233,7 +233,7 @@ class CourrielsDesProceduresTest extends TestCase
             'status' => 'active', 'email' => 'd@lamajestueuse.cm', 'self_registered' => false,
         ]);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->post(route('admin.users.renvoyer', $cree))->assertRedirect();
 
         Mail::assertSent(CompteCree::class);
@@ -246,7 +246,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $sansAdresse = User::factory()->create(['status' => 'active', 'email' => null]);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->post(route('admin.users.renvoyer', $sansAdresse))
             ->assertSessionHasErrors('courriel');
 

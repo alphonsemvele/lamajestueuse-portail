@@ -80,6 +80,7 @@ export default function UsersIndex({
     };
 
     const roles: Record<string, string> = {
+        superadmin: t("Super administrateur"),
         admin: t("Administrateur"),
         manager: t("Responsable"),
         employee: t("Employé"),

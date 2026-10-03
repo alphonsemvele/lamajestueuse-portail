@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\File;
@@ -38,8 +39,14 @@ class HandleInertiaRequests extends Middleware
                     'entite' => $user->entite,
                     'role' => $user->role,
                     'isAdmin' => $user->isAdmin(),
+                    'isSuperAdmin' => $user->isSuperAdmin(),
                 ] : null,
             ],
+
+            // Les pages publiques proposent les tutoriels : inutile d'y
+            // envoyer qui que ce soit si le module est retire du portail.
+            'tutorielsEnService' => fn () => Application::where('module_key', 'tutoriels')
+                ->where('is_active', true)->exists(),
 
             'locale' => App::getLocale(),
 

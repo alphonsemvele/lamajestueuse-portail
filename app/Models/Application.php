@@ -209,17 +209,15 @@ class Application extends Model
         return (bool) array_intersect(self::pivotRoles($pivot), $this->module()['manage_roles'] ?? []);
     }
 
-    /** Module que tout le personnel voit, sans attribution individuelle. */
+    /**
+     * Module que tout le personnel peut ouvrir sans attribution.
+     *
+     * Cela ne dit rien de la tuile : elle ne parait sur un tableau de bord
+     * que si elle a ete attribuee, comme n'importe quelle application.
+     */
     public function estOuvertATous(): bool
     {
         return (bool) ($this->module()['ouvert_a_tous'] ?? false);
-    }
-
-    /** Les modules ouverts a tout le personnel, actifs. */
-    public static function ouvertesATous()
-    {
-        return static::active()->where('type', 'module')->get()
-            ->filter(fn (self $application) => $application->estOuvertATous());
     }
 
     public function scopeActive(Builder $query): Builder

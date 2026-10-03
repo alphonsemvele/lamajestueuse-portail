@@ -88,13 +88,22 @@ class BadgeModuleTest extends TestCase
                 ->has('instituts', 1));
     }
 
-    /** La tuile se pose seule : sinon personne ne trouverait le module. */
-    public function test_la_tuile_apparait_sur_le_tableau_de_bord_de_tous(): void
+    /**
+     * La demande reste ouverte a tous, mais la tuile s'attribue : un module
+     * ne parait sur un tableau de bord que s'il a ete donne.
+     */
+    public function test_la_tuile_ne_parait_que_si_elle_est_attribuee(): void
     {
         $employe = $this->employe($this->ium);
 
         $this->actingAs($employe)->get(route('dashboard'))
             ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('apps', fn ($apps) => ! collect($apps)->contains('moduleKey', 'badges')));
+
+        $employe->applications()->attach($this->module);
+
+        $this->actingAs($employe)->get(route('dashboard'))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('apps', fn ($apps) => collect($apps)->contains('moduleKey', 'badges')));
     }
@@ -128,7 +137,7 @@ class BadgeModuleTest extends TestCase
         $this->actingAs($employe)->get(route('badges.gestion'))->assertForbidden();
         $this->actingAs($employe)->get(route('badges.impression'))->assertForbidden();
         $this->actingAs($this->guichet())->get(route('badges.gestion'))->assertOk();
-        $this->actingAs(User::factory()->admin()->create())->get(route('badges.gestion'))->assertOk();
+        $this->actingAs(User::factory()->superadmin()->create())->get(route('badges.gestion'))->assertOk();
     }
 
     // ---------------------------------------------------------- la demande

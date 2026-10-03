@@ -18,7 +18,7 @@ class ModulesAdminTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->admin()->create();
+        return User::factory()->superadmin()->create();
     }
 
     public function test_un_employe_n_entre_pas_dans_l_administration(): void

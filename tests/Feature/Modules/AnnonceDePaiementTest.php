@@ -205,7 +205,7 @@ class AnnonceDePaiementTest extends TestCase
 
     public function test_le_catalogue_des_modeles_porte_le_volet_paie(): void
     {
-        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $admin = User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
 
         $this->actingAs($admin)->get(route('admin.email.modeles'))
             ->assertOk()

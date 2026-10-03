@@ -17,7 +17,7 @@ class MatriculesAdminTest extends TestCase
 
     private function admin(): User
     {
-        return User::factory()->admin()->create(['matricule' => 'LM-260001']);
+        return User::factory()->superadmin()->create(['matricule' => 'LM-260001']);
     }
 
     private function compte(string $nom, ?string $matricule = null): User

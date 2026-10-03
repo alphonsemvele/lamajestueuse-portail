@@ -18,7 +18,7 @@ class UserManagementTest extends TestCase
         $compte = User::factory()->create();
         $fiche = route('admin.users.edit', $compte);
 
-        $this->actingAs(User::factory()->admin()->create())
+        $this->actingAs(User::factory()->superadmin()->create())
             ->from($fiche)
             ->put(route('admin.users.update', $compte), [
                 'name' => 'Claire',
@@ -32,7 +32,7 @@ class UserManagementTest extends TestCase
 
     public function test_creation_dun_employe_avec_ses_acces(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $app = Application::factory()->create();
 
         $this->actingAs($admin)->post(route('admin.users.store'), [
@@ -59,7 +59,7 @@ class UserManagementTest extends TestCase
 
     public function test_un_employe_peut_etre_cree_sans_adresse_email(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)->post(route('admin.users.store'), [
             'name' => 'Joseph',
@@ -77,7 +77,7 @@ class UserManagementTest extends TestCase
 
     public function test_ladresse_email_doit_etre_unique(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         User::factory()->create(['email' => 'doublon@lamajestueuse.cm']);
 
         $this->actingAs($admin)
@@ -92,7 +92,7 @@ class UserManagementTest extends TestCase
 
     public function test_modification_sans_mot_de_passe_conserve_lancien(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
         $user = User::factory()->create();
         $ancien = $user->password;
 
@@ -111,7 +111,7 @@ class UserManagementTest extends TestCase
 
     public function test_un_administrateur_ne_peut_pas_supprimer_son_propre_compte(): void
     {
-        $admin = User::factory()->admin()->create();
+        $admin = User::factory()->superadmin()->create();
 
         $this->actingAs($admin)
             ->from(route('admin.users.index'))

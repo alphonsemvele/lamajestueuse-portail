@@ -2,12 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Application;
 use App\Models\Post;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Le tableau de bord : les tuiles de celui qui regarde.
+ *
+ * Une tuile se montre a deux conditions, et jamais autrement : l'application
+ * est en service, et elle lui a ete attribuee. Un module ouvert a tous reste
+ * accessible par son adresse — un lien, un tutoriel — mais il ne se pose plus
+ * de lui-meme sur le tableau de bord de chacun.
+ */
 class DashboardController extends Controller
 {
     /**
@@ -38,14 +45,7 @@ class DashboardController extends Controller
             ->orderBy('application_user.is_pinned', 'desc')
             ->orderBy('applications.sort_order')
             ->orderBy('applications.name')
-            ->get();
-
-        // Les modules ouverts a tout le personnel (demander son badge, par
-        // exemple) s'ajoutent d'eux-memes : personne n'a a les attribuer.
-        $applications = $applications
-            ->concat(Application::ouvertesATous()->load('category'))
-            ->unique('id')
-            ->sortBy([['sort_order', 'asc'], ['name', 'asc']])
+            ->get()
             // « Mon profil » ouvre toujours le tableau de bord, quel que soit
             // l'ordre donne aux tuiles : on se trouve avant de chercher.
             ->sortBy(fn ($application) => $application->module_key === 'profil' ? 0 : 1)

@@ -241,9 +241,25 @@ class User extends Authenticatable
         return Storage::disk('public')->url($this->avatar);
     }
 
+    /**
+     * Administrateur du portail : il passe partout dans le portail et dans
+     * les modules. Le tableau de bord de l'administration, lui, est reserve
+     * au super administrateur.
+     */
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return in_array($this->role, ['admin', 'superadmin'], true);
+    }
+
+    /**
+     * Super administrateur : le seul a ouvrir l'administration du portail.
+     *
+     * C'est la seule difference avec un administrateur — dans le portail et
+     * dans les modules, ils peuvent exactement la meme chose.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'superadmin';
     }
 
     public function isActive(): bool

@@ -5,8 +5,10 @@ namespace Tests\Feature\Admin;
 use App\Mail\Badge\BadgePret;
 use App\Mail\Badge\BadgeRefuse;
 use App\Mail\Badge\DemandeEnregistree;
+use App\Mail\Compte\CompteCree;
 use App\Mail\Compte\CompteValide;
 use App\Mail\Compte\DemandeRefusee;
+use App\Mail\Compte\InscriptionRecue;
 use App\Models\Application;
 use App\Models\DemandeBadge;
 use App\Models\User;
@@ -58,6 +60,85 @@ class CourrielsDesProceduresTest extends TestCase
 
         Mail::assertNothingSent();
         $this->assertSame('active', $demandeur->refresh()->status);
+    }
+
+    /**
+     * Rien n'est parti : l'administrateur doit l'apprendre a l'ecran. Sinon
+     * il croit la personne prevenue, et elle attend un message qui n'existe
+     * pas.
+     */
+    public function test_une_validation_sans_adresse_le_dit_a_l_administrateur(): void
+    {
+        Mail::fake();
+
+        $demandeur = User::factory()->create(['status' => 'pending', 'email' => null]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('admin.users.approve', $demandeur))
+            ->assertSessionHas('status')
+            ->assertSessionHasErrors('courriel');
+    }
+
+    /** Un relais en panne est rapporte avec le mot du serveur, sans la trace. */
+    public function test_un_relais_en_panne_est_rapporte_a_l_ecran(): void
+    {
+        Mail::shouldReceive('to')->andReturnSelf();
+        Mail::shouldReceive('send')->andThrow(
+            new \RuntimeException("Connection could not be established\n#0 interne")
+        );
+
+        $demandeur = User::factory()->create(['status' => 'pending', 'email' => 'claire@lamajestueuse.cm']);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->post(route('admin.users.approve', $demandeur))
+            ->assertSessionHasErrors('courriel');
+
+        $erreur = session('errors')->first('courriel');
+
+        $this->assertStringContainsString('Connection could not be established', $erreur);
+        $this->assertStringNotContainsString('#0 interne', $erreur);
+        // La procedure, elle, a abouti.
+        $this->assertSame('active', $demandeur->refresh()->status);
+    }
+
+    /** Activer un compte depuis sa fiche vaut validation : on previent. */
+    public function test_activer_un_compte_depuis_sa_fiche_previent_la_personne(): void
+    {
+        Mail::fake();
+
+        $demandeur = User::factory()->create([
+            'status' => 'pending', 'email' => 'claire@lamajestueuse.cm', 'self_registered' => true,
+        ]);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->put(route('admin.users.update', $demandeur), [
+                'name' => $demandeur->name,
+                'email' => $demandeur->email,
+                'role' => 'employee',
+                'status' => 'active',
+                'locale' => 'fr',
+            ])->assertRedirect();
+
+        Mail::assertSent(CompteValide::class, fn ($mail) => $mail->hasTo('claire@lamajestueuse.cm'));
+    }
+
+    /** Une modification qui ne touche pas au statut ne previent personne. */
+    public function test_modifier_un_compte_deja_actif_n_envoie_rien(): void
+    {
+        Mail::fake();
+
+        $actif = User::factory()->create(['status' => 'active', 'email' => 'claire@lamajestueuse.cm']);
+
+        $this->actingAs(User::factory()->admin()->create())
+            ->put(route('admin.users.update', $actif), [
+                'name' => 'Claire NKOA',
+                'email' => $actif->email,
+                'role' => 'employee',
+                'status' => 'active',
+                'locale' => 'fr',
+            ])->assertRedirect();
+
+        Mail::assertNothingSent();
     }
 
     public function test_une_demande_de_badge_est_accusee_reception(): void
@@ -130,7 +211,7 @@ class CourrielsDesProceduresTest extends TestCase
 
         $enAttente = User::factory()->create(['status' => 'pending', 'email' => 'a@lamajestueuse.cm']);
         $this->actingAs($admin)->post(route('admin.users.renvoyer', $enAttente))->assertRedirect();
-        Mail::assertSent(\App\Mail\Compte\InscriptionRecue::class);
+        Mail::assertSent(InscriptionRecue::class);
 
         $valide = User::factory()->create([
             'status' => 'active', 'email' => 'b@lamajestueuse.cm', 'self_registered' => true,
@@ -155,7 +236,7 @@ class CourrielsDesProceduresTest extends TestCase
         $this->actingAs(User::factory()->admin()->create())
             ->post(route('admin.users.renvoyer', $cree))->assertRedirect();
 
-        Mail::assertSent(\App\Mail\Compte\CompteCree::class);
+        Mail::assertSent(CompteCree::class);
         Mail::assertNotSent(CompteValide::class);
     }
 

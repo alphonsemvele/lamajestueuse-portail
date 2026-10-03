@@ -115,16 +115,36 @@ class UserController extends Controller
         ]);
     }
 
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(Request $request, User $user, CourrielsPortail $courriels): RedirectResponse
     {
         $data = $this->validated($request, $user);
         $acces = $this->accessPayload($request, $user);
 
+        /*
+         * Passer un compte a « actif » depuis sa fiche vaut validation : la
+         * personne doit etre prevenue comme si l'on avait repondu a sa
+         * demande depuis la liste. Sans cela, un compte active par cet
+         * ecran s'ouvrait sans que son titulaire l'apprenne.
+         */
+        $ouverture = ($data['status'] ?? $user->status) === 'active' && $user->status !== 'active';
+
         $user->update($data);
         $user->applications()->sync($acces);
 
-        return back()
-            ->with('status', "Le compte de {$user->fullName()} a été mis à jour.");
+        $fait = "Le compte de {$user->fullName()} a été mis à jour.";
+
+        if (! $ouverture) {
+            return back()->with('status', $fait);
+        }
+
+        $courriel = $courriels->pourCompte($user);
+        $parti = $courriel !== null && $courriels->envoyerA($user, $courriel);
+
+        return $this->rendreCompte(
+            $fait,
+            $parti ? __('Le message d’ouverture est parti à :adresse.', ['adresse' => $user->email]) : null,
+            $courriels->dernierEchec(),
+        );
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
@@ -162,7 +182,7 @@ class UserController extends Controller
      * Valide une demande d'inscription : le compte devient utilisable avec les
      * instituts qu'il avait demandes.
      */
-    public function approve(User $user): RedirectResponse
+    public function approve(User $user, CourrielsPortail $courriels): RedirectResponse
     {
         if (! $user->isPending()) {
             return back()->with('status', __("Ce compte n'est pas en attente de validation."));
@@ -170,20 +190,24 @@ class UserController extends Controller
 
         $user->approve();
 
-        app(CourrielsPortail::class)->envoyerA($user, new CompteValide(
+        $parti = $courriels->envoyerA($user, new CompteValide(
             $user->fullName(),
             $user->matricule,
             $user->applications()->pluck('name')->all(),
         ));
 
-        return back()->with('status', __('Le compte de :nom a été validé.', ['nom' => $user->fullName()]));
+        return $this->rendreCompte(
+            __('Le compte de :nom a été validé.', ['nom' => $user->fullName()]),
+            $parti ? __('Le message d’ouverture est parti à :adresse.', ['adresse' => $user->email]) : null,
+            $courriels->dernierEchec(),
+        );
     }
 
     /**
      * Refuse une demande : le compte est suspendu et ses acces retires. Il
      * reste visible dans la liste, l'administrateur peut le supprimer ensuite.
      */
-    public function reject(User $user): RedirectResponse
+    public function reject(User $user, CourrielsPortail $courriels): RedirectResponse
     {
         if (! $user->isPending()) {
             return back()->with('status', __("Ce compte n'est pas en attente de validation."));
@@ -192,9 +216,27 @@ class UserController extends Controller
         $user->forceFill(['status' => 'suspended'])->save();
         $user->applications()->detach();
 
-        app(CourrielsPortail::class)->envoyerA($user, new DemandeRefusee($user->fullName()));
+        $parti = $courriels->envoyerA($user, new DemandeRefusee($user->fullName()));
 
-        return back()->with('status', __('La demande de :nom a été refusée.', ['nom' => $user->fullName()]));
+        return $this->rendreCompte(
+            __('La demande de :nom a été refusée.', ['nom' => $user->fullName()]),
+            $parti ? __('Le message est parti à :adresse.', ['adresse' => $user->email]) : null,
+            $courriels->dernierEchec(),
+        );
+    }
+
+    /**
+     * La procedure a abouti ; le courriel, peut-etre pas.
+     *
+     * Les deux sont dits ensemble : l'action reussie en message d'etat, et le
+     * courriel manquant en avertissement. Sans cela, l'administrateur croit
+     * que la personne a ete prevenue alors qu'elle n'a rien recu.
+     */
+    private function rendreCompte(string $fait, ?string $envoi, ?string $echec): RedirectResponse
+    {
+        $retour = back()->with('status', trim($fait.' '.($envoi ?? '')));
+
+        return $echec === null ? $retour : $retour->withErrors(['courriel' => $echec]);
     }
 
     /**
@@ -260,7 +302,8 @@ class UserController extends Controller
 
         if (! $courriel || ! $courriels->envoyerA($user, $courriel)) {
             return back()->withErrors([
-                'courriel' => __('L’envoi a échoué. Vérifiez les réglages e-mail.'),
+                'courriel' => $courriels->dernierEchec()
+                    ?? __('L’envoi a échoué. Vérifiez les réglages e-mail.'),
             ]);
         }
 

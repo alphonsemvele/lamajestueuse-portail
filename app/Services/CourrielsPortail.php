@@ -29,6 +29,21 @@ use Throwable;
 class CourrielsPortail
 {
     /**
+     * Pourquoi le dernier envoi n'est pas parti.
+     *
+     * L'echec ne doit pas arreter la procedure, mais celui qui valide un
+     * compte doit l'apprendre sur le champ : sinon l'erreur ne vit que dans
+     * le journal, l'ecran annonce une reussite, et l'employe attend un
+     * message qui ne viendra jamais.
+     */
+    private ?string $dernierEchec = null;
+
+    public function dernierEchec(): ?string
+    {
+        return $this->dernierEchec;
+    }
+
+    /**
      * Le message qui correspond a l'etat actuel d'un compte : c'est celui
      * qu'un renvoi doit reexpedier.
      */
@@ -100,7 +115,22 @@ class CourrielsPortail
 
     public function envoyerA(?User $destinataire, CourrielDuPortail $courriel): bool
     {
-        if (! $destinataire || blank($destinataire->email)) {
+        $this->dernierEchec = null;
+
+        if (! $destinataire) {
+            $this->dernierEchec = __('Aucun destinataire : le message n’est pas parti.');
+
+            return false;
+        }
+
+        // Depuis que l'adresse est facultative a l'inscription, un compte
+        // peut n'en avoir aucune : il n'y a alors rien a envoyer, et c'est
+        // la premiere chose a dire a l'administrateur.
+        if (blank($destinataire->email)) {
+            $this->dernierEchec = __('Aucun message envoyé : :nom n’a pas d’adresse e-mail. Renseignez-la dans sa fiche, puis renvoyez le message avec l’icône enveloppe.', [
+                'nom' => $destinataire->fullName(),
+            ]);
+
             return false;
         }
 
@@ -109,6 +139,8 @@ class CourrielsPortail
 
     public function envoyer(string $adresse, CourrielDuPortail $courriel): bool
     {
+        $this->dernierEchec = null;
+
         try {
             Mail::to($adresse)->send($courriel);
 
@@ -120,7 +152,23 @@ class CourrielsPortail
                 'erreur' => $e->getMessage(),
             ]);
 
+            $this->dernierEchec = __('L’envoi à :adresse a échoué : :erreur', [
+                'adresse' => $adresse,
+                'erreur' => $this->messageLisible($e),
+            ]);
+
             return false;
         }
+    }
+
+    /**
+     * Le message du serveur, sans la trace : elle peut porter les
+     * identifiants du relais, qui n'ont rien a faire a l'ecran.
+     */
+    private function messageLisible(Throwable $e): string
+    {
+        $message = trim(explode("\n", $e->getMessage())[0]);
+
+        return mb_substr($message, 0, 300) ?: $e::class;
     }
 }

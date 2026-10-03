@@ -8,16 +8,16 @@ use App\Http\Controllers\Controller;
 use App\Mail\Badge\BadgePret;
 use App\Mail\Badge\BadgeRefuse;
 use App\Mail\Badge\DemandeEnregistree;
-use App\Services\CourrielsPortail;
 use App\Models\Application;
 use App\Models\DemandeBadge;
 use App\Models\User;
+use App\Services\CourrielsPortail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use ZipArchive;
@@ -385,5 +385,4 @@ class BadgeController extends Controller
                 'poste' => $a->pivot->poste,
             ])->all();
     }
-
 }

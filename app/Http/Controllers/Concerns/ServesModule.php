@@ -88,7 +88,7 @@ trait ServesModule
         abort_unless(
             $personne->releveDuPerimetreRh($this->perimetre($request)),
             403,
-            __("Ce dossier ne relève pas de votre périmètre.")
+            __('Ce dossier ne relève pas de votre périmètre.')
         );
     }
 

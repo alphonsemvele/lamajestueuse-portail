@@ -16,7 +16,7 @@ class DemandeRefusee extends CourrielDuPortail
 
     public static function exemple(): static
     {
-        return new static('Claire NKOA', "Le matricule indiqué ne correspond à aucun agent du groupe.");
+        return new static('Claire NKOA', 'Le matricule indiqué ne correspond à aucun agent du groupe.');
     }
 
     public function envelope(): Envelope

@@ -303,7 +303,8 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                                         </button>
                                     )}
 
-                                    {demande.statut === 'en_attente' && (
+                                    {/* On refuse tant que rien n'est imprimé ; après, il est trop tard. */}
+                                    {['en_attente', 'approuvee'].includes(demande.statut) && (
                                         <button
                                             type="button"
                                             onClick={() => setRefus(demande)}

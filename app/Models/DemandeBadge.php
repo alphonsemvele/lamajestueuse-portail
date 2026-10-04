@@ -44,6 +44,22 @@ class DemandeBadge extends Model
     public const EN_COURS = ['en_attente', 'approuvee', 'imprimee'];
 
     /**
+     * Ce qui peut suivre chaque etat.
+     *
+     * Une demande refusee ou remise est close : elle ne se rouvre pas. Le
+     * demandeur en depose une nouvelle, qui porte son propre numero. Sans
+     * cette regle un refus se defaisait d'un clic, et la decision ne voulait
+     * plus rien dire.
+     */
+    public const SUITES = [
+        'en_attente' => ['approuvee', 'refusee'],
+        'approuvee' => ['imprimee', 'refusee'],
+        'imprimee' => ['remise'],
+        'remise' => [],
+        'refusee' => [],
+    ];
+
+    /**
      * Le groupe, choisi en lieu et place d'un institut.
      *
      * « La Majestueuse » n'est pas une application du portail, et on n'en
@@ -87,6 +103,12 @@ class DemandeBadge extends Model
     public function logoLibelle(): string
     {
         return $this->institut?->name ?? 'LA MAJESTUEUSE';
+    }
+
+    /** La demande peut-elle passer a cet etat depuis celui qu'elle occupe ? */
+    public function peutPasserA(string $statut): bool
+    {
+        return in_array($statut, self::SUITES[$this->statut] ?? [], true);
     }
 
     public function estFigee(): bool

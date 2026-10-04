@@ -394,6 +394,63 @@ class BadgeModuleTest extends TestCase
         $this->assertNotNull($demande->traite_le);
     }
 
+    /**
+     * Un refus se tient : on ne le defait pas en remettant la demande a
+     * « approuvee ». Le demandeur en depose une nouvelle.
+     */
+    public function test_une_demande_refusee_ne_se_rouvre_pas(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), [
+            'statut' => 'refusee', 'motif_refus' => 'Photo trop sombre.',
+        ]);
+
+        foreach (['approuvee', 'en_attente', 'imprimee', 'remise'] as $vers) {
+            $this->actingAs($this->guichet())
+                ->post(route('badges.traiter', $demande), ['statut' => $vers])
+                ->assertSessionHasErrors('badge');
+        }
+
+        $this->assertSame('refusee', $demande->refresh()->statut);
+        $this->assertSame('Photo trop sombre.', $demande->motif_refus);
+    }
+
+    /** Une demande remise est close elle aussi. */
+    public function test_une_demande_remise_ne_se_rouvre_pas(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'remise']);
+
+        $this->actingAs($this->guichet())
+            ->post(route('badges.traiter', $demande), ['statut' => 'approuvee'])
+            ->assertSessionHasErrors('badge');
+
+        $this->assertSame('remise', $demande->refresh()->statut);
+    }
+
+    /** Les etapes se suivent : on ne saute pas l'impression. */
+    public function test_on_ne_saute_pas_une_etape(): void
+    {
+        $demande = $this->demande($this->employe($this->ium));
+
+        $this->actingAs($this->guichet())
+            ->post(route('badges.traiter', $demande), ['statut' => 'remise'])
+            ->assertSessionHasErrors('badge');
+
+        $this->assertSame('en_attente', $demande->refresh()->statut);
+    }
+
+    /** Mais on refuse encore apres avoir approuve : la photo peut decevoir. */
+    public function test_on_refuse_encore_une_demande_approuvee(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'approuvee']);
+
+        $this->actingAs($this->guichet())->post(route('badges.traiter', $demande), [
+            'statut' => 'refusee',
+            'motif_refus' => 'Photo inexploitable.',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('refusee', $demande->refresh()->statut);
+    }
+
     public function test_un_refus_exige_son_motif(): void
     {
         $demande = $this->demande($this->employe($this->ium));

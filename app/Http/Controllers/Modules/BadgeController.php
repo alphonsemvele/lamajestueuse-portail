@@ -249,6 +249,28 @@ class BadgeController extends Controller
             return back()->withErrors(['motif_refus' => __('Dites pourquoi la demande est refusée.')]);
         }
 
+        // Deux clics sur le meme bouton ne traitent pas deux fois.
+        if ($donnees['statut'] === $demande->statut) {
+            return back();
+        }
+
+        /*
+         * Les etapes se suivent, et une demande close le reste : sans cette
+         * garde, un refus se defaisait en remettant la demande a « approuvee ».
+         */
+        if (! $demande->peutPasserA($donnees['statut'])) {
+            return back()->withErrors(['badge' => $demande->estFigee()
+                ? __('La demande :numero est close (:etat) : elle ne se rouvre pas. Le demandeur peut en déposer une nouvelle.', [
+                    'numero' => $demande->numero,
+                    'etat' => mb_strtolower(DemandeBadge::STATUTS[$demande->statut]),
+                ])
+                : __('Une demande « :etat » ne peut pas passer à « :vers ».', [
+                    'etat' => DemandeBadge::STATUTS[$demande->statut],
+                    'vers' => DemandeBadge::STATUTS[$donnees['statut']],
+                ]),
+            ]);
+        }
+
         $demande->update([
             'statut' => $donnees['statut'],
             'motif_refus' => $donnees['statut'] === 'refusee' ? $donnees['motif_refus'] : null,

@@ -9,6 +9,7 @@ use App\Mail\Badge\BadgePret;
 use App\Mail\Badge\BadgeRefuse;
 use App\Mail\Badge\BadgeValide;
 use App\Mail\Badge\DemandeEnregistree;
+use App\Mail\Badge\DemandeRouverte;
 use App\Models\Application;
 use App\Models\DemandeBadge;
 use App\Models\User;
@@ -234,6 +235,61 @@ class BadgeController extends Controller
         $demande->update($donnees + ['photo' => $photo]);
 
         return back()->with('status', __('Demande :numero mise à jour.', ['numero' => $demande->numero]));
+    }
+
+    /**
+     * Revenir sur un refus.
+     *
+     * Un clic malheureux, un motif qui ne tenait pas : la demande repart a
+     * l'etude plutot que d'obliger le demandeur a tout refaire. C'est la
+     * seule porte qui rouvre une demande close, et elle ne s'ouvre que sur
+     * un refus — un badge remis, lui, est une affaire terminee.
+     */
+    public function rouvrir(Request $request, DemandeBadge $demande): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        if ($demande->statut !== 'refusee') {
+            return back()->withErrors([
+                'badge' => __('Seule une demande refusée se rouvre.'),
+            ]);
+        }
+
+        /*
+         * Le demandeur a pu redeposer entre-temps, comme le refus l'y
+         * invitait : rouvrir lui ferait deux demandes en cours, et la regle
+         * du portail n'en admet qu'une.
+         */
+        $autre = DemandeBadge::where('user_id', $demande->user_id)
+            ->whereKeyNot($demande->id)->enCours()->first();
+
+        if ($autre) {
+            return back()->withErrors([
+                'badge' => __('Impossible : :nom a déjà déposé la demande :numero, qui est en cours.', [
+                    'nom' => $demande->user?->fullName() ?? $demande->nom_affiche,
+                    'numero' => $autre->numero,
+                ]),
+            ]);
+        }
+
+        $demande->update([
+            'statut' => 'en_attente',
+            'motif_refus' => null,
+            'traite_par' => $request->user()->id,
+            'traite_le' => now(),
+        ]);
+
+        // Il avait recu un refus et l'invitation a recommencer : sans ce
+        // message, il depose une seconde demande pour rien.
+        $demande->loadMissing('user');
+        app(CourrielsPortail::class)->envoyerA($demande->user, new DemandeRouverte(
+            $demande->user?->fullName() ?? $demande->nom_affiche,
+            $demande->numero,
+        ));
+
+        return back()->with('status', __('Demande :numero rouverte : elle attend de nouveau d’être traitée.', [
+            'numero' => $demande->numero,
+        ]));
     }
 
     public function traiter(Request $request, DemandeBadge $demande): RedirectResponse

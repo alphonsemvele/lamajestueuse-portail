@@ -2,11 +2,13 @@
 
 namespace Tests\Feature\Modules;
 
+use App\Mail\Badge\DemandeRouverte;
 use App\Models\Application;
 use App\Models\DemandeBadge;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -412,6 +414,69 @@ class BadgeModuleTest extends TestCase
 
         $this->assertSame('refusee', $demande->refresh()->statut);
         $this->assertSame('Photo trop sombre.', $demande->motif_refus);
+    }
+
+    // ------------------------------------------------------- revenir dessus
+
+    /** Un clic malheureux se repare : la demande repart a l'etude. */
+    public function test_le_guichet_rouvre_une_demande_refusee(): void
+    {
+        Mail::fake();
+
+        $employe = $this->employe($this->ium);
+        $employe->update(['email' => 'claire@lamajestueuse.cm']);
+        $demande = $this->demande($employe, ['statut' => 'refusee', 'motif_refus' => 'Photo trop sombre.']);
+
+        $guichet = $this->guichet();
+
+        $this->actingAs($guichet)->post(route('badges.rouvrir', $demande))
+            ->assertSessionHasNoErrors()->assertRedirect();
+
+        $demande->refresh();
+
+        $this->assertSame('en_attente', $demande->statut);
+        $this->assertNull($demande->motif_refus);
+        $this->assertSame($guichet->id, $demande->traite_par);
+
+        // Il avait recu un refus : sans ce message il redepose pour rien.
+        Mail::assertSent(DemandeRouverte::class, fn ($mail) => $mail->hasTo('claire@lamajestueuse.cm'));
+    }
+
+    /** Seul un refus se rouvre : une demande en cours n'a pas a reculer. */
+    public function test_on_ne_rouvre_que_ce_qui_a_ete_refuse(): void
+    {
+        foreach (['en_attente', 'approuvee', 'imprimee', 'remise'] as $statut) {
+            $demande = $this->demande($this->employe($this->ium), ['statut' => $statut]);
+
+            $this->actingAs($this->guichet())->post(route('badges.rouvrir', $demande))
+                ->assertSessionHasErrors('badge');
+
+            $this->assertSame($statut, $demande->refresh()->statut);
+        }
+    }
+
+    /**
+     * Le refus invitait a redeposer : si c'est fait, rouvrir l'ancienne
+     * donnerait deux demandes en cours a la meme personne.
+     */
+    public function test_on_ne_rouvre_pas_quand_une_autre_demande_court(): void
+    {
+        $employe = $this->employe($this->ium);
+        $refusee = $this->demande($employe, ['statut' => 'refusee', 'motif_refus' => 'Photo trop sombre.']);
+        $this->demande($employe, ['numero' => 'BDG-000999']);
+
+        $this->actingAs($this->guichet())->post(route('badges.rouvrir', $refusee))
+            ->assertSessionHasErrors('badge');
+
+        $this->assertSame('refusee', $refusee->refresh()->statut);
+    }
+
+    public function test_un_employe_ne_rouvre_pas_une_demande(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'refusee']);
+
+        $this->actingAs($this->employe($this->ium))
+            ->post(route('badges.rouvrir', $demande))->assertForbidden();
     }
 
     /** Une demande remise est close elle aussi. */

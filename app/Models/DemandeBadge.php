@@ -46,10 +46,13 @@ class DemandeBadge extends Model
     /**
      * Ce qui peut suivre chaque etat.
      *
-     * Une demande refusee ou remise est close : elle ne se rouvre pas. Le
-     * demandeur en depose une nouvelle, qui porte son propre numero. Sans
-     * cette regle un refus se defaisait d'un clic, et la decision ne voulait
-     * plus rien dire.
+     * Une demande refusee ou remise est close : les etapes ne la rouvrent
+     * pas. Sans cette regle un refus se defaisait d'un clic, et la decision
+     * ne voulait plus rien dire.
+     *
+     * Revenir sur un refus reste possible, mais par la porte nommee pour
+     * cela — « rouvrir » — et non en remettant la demande a une etape
+     * precedente comme si de rien n'etait.
      */
     public const SUITES = [
         'en_attente' => ['approuvee', 'refusee'],

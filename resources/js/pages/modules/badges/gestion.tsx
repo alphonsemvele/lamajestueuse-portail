@@ -303,6 +303,22 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                                         </button>
                                     )}
 
+                                    {/* Revenir sur un refus : la seule porte qui rouvre une demande. */}
+                                    {demande.statut === 'refusee' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                if (confirm(`Rouvrir ${demande.numero} ? Le refus est levé et la demande repart à l'étude.`)) {
+                                                    router.post(routes.badges.rouvrir(demande.id), {}, { preserveScroll: true });
+                                                }
+                                            }}
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300 dark:hover:bg-emerald-500/10"
+                                        >
+                                            <Icon name="refresh" className="h-3.5 w-3.5" />
+                                            Rouvrir
+                                        </button>
+                                    )}
+
                                     {/* On refuse tant que rien n'est imprimé ; après, il est trop tard. */}
                                     {['en_attente', 'approuvee'].includes(demande.statut) && (
                                         <button

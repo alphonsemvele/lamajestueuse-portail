@@ -627,6 +627,64 @@ class BadgeModuleTest extends TestCase
         $this->assertNull($demande->refresh()->application_id);
     }
 
+    /**
+     * Corriger un nom ne doit pas couter sa photo au demandeur : sans
+     * nouveau fichier, l'ancienne reste, et son fichier avec elle.
+     */
+    public function test_une_correction_sans_photo_garde_l_ancienne(): void
+    {
+        Storage::fake('public');
+
+        $employe = $this->employe($this->ium);
+        $this->actingAs($employe)->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+            'photo_file' => UploadedFile::fake()->image('portrait.jpg', 400, 500),
+        ])->assertRedirect();
+
+        $demande = DemandeBadge::firstOrFail();
+        $photo = $demande->photo;
+        $this->assertNotNull($photo);
+
+        $this->actingAs($this->guichet())->post(route('badges.modifier', $demande), [
+            'nom_affiche' => 'Claire NKOA ÉPOUSE MBALLA',
+            'application_id' => $this->ium->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame($photo, $demande->refresh()->photo);
+        Storage::disk('public')->assertExists($photo);
+    }
+
+    /** Avec un nouveau fichier, en revanche, l'ancien ne traine pas. */
+    public function test_une_correction_avec_photo_remplace_l_ancienne(): void
+    {
+        Storage::fake('public');
+
+        $employe = $this->employe($this->ium);
+        $this->actingAs($employe)->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+            'photo_file' => UploadedFile::fake()->image('portrait.jpg', 400, 500),
+        ])->assertRedirect();
+
+        $demande = DemandeBadge::firstOrFail();
+        $ancienne = $demande->photo;
+
+        $this->actingAs($this->guichet())->post(route('badges.modifier', $demande), [
+            'nom_affiche' => 'Claire NKOA',
+            'application_id' => $this->ium->id,
+            'photo_file' => UploadedFile::fake()->image('mieux.jpg', 400, 500),
+        ])->assertSessionHasNoErrors();
+
+        $demande->refresh();
+
+        $this->assertNotSame($ancienne, $demande->photo);
+        Storage::disk('public')->assertExists($demande->photo);
+        Storage::disk('public')->assertMissing($ancienne);
+    }
+
     /** Une demande close ne se retouche plus. */
     public function test_on_ne_modifie_pas_une_demande_remise(): void
     {

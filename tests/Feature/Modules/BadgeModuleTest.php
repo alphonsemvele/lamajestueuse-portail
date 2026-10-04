@@ -537,6 +537,60 @@ class BadgeModuleTest extends TestCase
         $this->actingAs($this->employe($this->ium))->get(route('badges.photos'))->assertForbidden();
     }
 
+    // ------------------------------------------------ correction au guichet
+
+    /** Corriger vaut mieux que refuser : le demandeur n'a rien a refaire. */
+    public function test_le_guichet_corrige_une_demande(): void
+    {
+        $demande = $this->demande($this->employe($this->ium));
+
+        $this->actingAs($this->guichet())->post(route('badges.modifier', $demande), [
+            'nom_affiche' => 'Claire NKOA ÉPOUSE MBALLA',
+            'poste_affiche' => 'Chargée de scolarité',
+            'application_id' => $this->ifpm->id,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $demande->refresh();
+
+        $this->assertSame('Claire NKOA ÉPOUSE MBALLA', $demande->nom_affiche);
+        $this->assertSame('Chargée de scolarité', $demande->poste_affiche);
+        // Le guichet n'est pas tenu par les rattachements du demandeur.
+        $this->assertSame($this->ifpm->id, $demande->application_id);
+    }
+
+    public function test_le_guichet_peut_rendre_un_badge_au_groupe(): void
+    {
+        $demande = $this->demande($this->employe($this->ium));
+
+        $this->actingAs($this->guichet())->post(route('badges.modifier', $demande), [
+            'nom_affiche' => 'Claire NKOA',
+            'application_id' => DemandeBadge::LOGO_GROUPE,
+        ])->assertRedirect();
+
+        $this->assertNull($demande->refresh()->application_id);
+    }
+
+    /** Une demande close ne se retouche plus. */
+    public function test_on_ne_modifie_pas_une_demande_remise(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'remise']);
+
+        $this->actingAs($this->guichet())->post(route('badges.modifier', $demande), [
+            'nom_affiche' => 'Autre nom',
+        ])->assertSessionHasErrors('badge');
+
+        $this->assertSame('Claire NKOA', $demande->refresh()->nom_affiche);
+    }
+
+    public function test_un_employe_ne_modifie_pas_les_demandes(): void
+    {
+        $demande = $this->demande($this->employe($this->ium));
+
+        $this->actingAs($this->employe($this->ium))->post(route('badges.modifier', $demande), [
+            'nom_affiche' => 'Autre nom',
+        ])->assertForbidden();
+    }
+
     /** Le verso porte la mention : elle vient de la configuration. */
     public function test_la_mention_du_verso_est_transmise_aux_ecrans(): void
     {

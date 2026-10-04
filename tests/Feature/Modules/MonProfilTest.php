@@ -6,6 +6,7 @@ use App\Models\Agent;
 use App\Models\Application;
 use App\Models\CategorieRh;
 use App\Models\Contrat;
+use App\Models\DemandeBadge;
 use App\Models\Diplome;
 use App\Models\DocumentAgent;
 use App\Models\Echelon;
@@ -93,13 +94,37 @@ class MonProfilTest extends TestCase
     public function test_mon_profil_montre_mon_badge(): void
     {
         Application::factory()->module('badges')->create(['name' => 'Badges']);
+        $moi = $this->moi();
 
-        $this->actingAs($this->moi())->get(route('profil.index'))
+        $demande = DemandeBadge::create([
+            'numero' => 'BDG-000001', 'user_id' => $moi->id, 'nom_affiche' => 'Claire NKOA',
+            'application_id' => $this->institut->id, 'modele' => 'classique',
+            'motif' => 'premiere', 'statut' => 'approuvee',
+        ]);
+
+        $this->actingAs($moi)->get(route('profil.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
+                ->where('badge.demande.numero', $demande->numero)
+                ->where('badge.demande.statut', 'approuvee')
+                ->where('badge.demande.institut.name', 'IUM')
                 ->where('badge.validite', (int) config('badges.validite_annees'))
                 ->where('badge.mention', config('badges.mention'))
                 ->where('badge.moduleOuvert', true));
+    }
+
+    /** Sans demande, il n'y a rien a montrer — et c'est dit. */
+    public function test_sans_demande_aucun_badge_n_est_montre(): void
+    {
+        $this->actingAs($this->moi())->get(route('profil.index'))
+            ->assertInertia(fn (Assert $page) => $page->where('badge.demande', null));
+    }
+
+    /** Le message de validation renvoie droit sur l'onglet du badge. */
+    public function test_un_lien_peut_ouvrir_l_onglet_du_badge(): void
+    {
+        $this->actingAs($this->moi())->get(route('profil.index', ['onglet' => 'badge']))
+            ->assertInertia(fn (Assert $page) => $page->where('ongletInitial', 'badge'));
     }
 
     /** Module retiré : on montre le badge, mais sans proposer de le demander. */

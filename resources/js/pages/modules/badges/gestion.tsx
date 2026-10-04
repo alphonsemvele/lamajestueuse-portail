@@ -58,6 +58,7 @@ const SUITE: Record<string, { statut: string; libelle: string; icon: string } | 
 export default function GestionBadges({ demandes, filtres, instituts, statuts, compteurs, validite, mention }: Props) {
     const [apercu, setApercu] = useState<Demande | null>(null);
     const [refus, setRefus] = useState<Demande | null>(null);
+    const [edition, setEdition] = useState<Demande | null>(null);
     // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
     const [q, setQ] = useRechercheInstantanee(filtres.q, (terme) => filtrer({ q: terme }));
 
@@ -83,6 +84,39 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                 setRefus(null);
                 formulaireRefus.reset();
             },
+        });
+    };
+
+    /*
+     * Le guichet corrige plutôt que de refuser : un nom mal saisi, un
+     * institut qui n'est pas le bon, une photo inexploitable.
+     */
+    const formulaireEdition = useForm({
+        nom_affiche: '',
+        poste_affiche: '',
+        application_id: '',
+        photo_file: null as File | null,
+    });
+
+    const ouvrirEdition = (demande: Demande) => {
+        formulaireEdition.setData({
+            nom_affiche: demande.nomAffiche,
+            poste_affiche: demande.posteAffiche ?? '',
+            application_id: String(demande.institut?.id ?? LE_GROUPE.id),
+            photo_file: null,
+        });
+        formulaireEdition.clearErrors();
+        setEdition(demande);
+    };
+
+    const modifier = (event: FormEvent) => {
+        event.preventDefault();
+        if (!edition) return;
+
+        formulaireEdition.post(routes.badges.modifier(edition.id), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => setEdition(null),
         });
     };
 
@@ -258,6 +292,17 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                                         Renvoyer
                                     </button>
 
+                                    {!['remise', 'refusee'].includes(demande.statut) && (
+                                        <button
+                                            type="button"
+                                            onClick={() => ouvrirEdition(demande)}
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
+                                        >
+                                            <Icon name="pencil" className="h-3.5 w-3.5" />
+                                            Modifier
+                                        </button>
+                                    )}
+
                                     {demande.statut === 'en_attente' && (
                                         <button
                                             type="button"
@@ -294,6 +339,109 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                             Fermer
                         </button>
                     </div>
+                </div>
+            )}
+
+            {edition && (
+                <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-ink-900/50" onClick={() => setEdition(null)} />
+                    <form
+                        onSubmit={modifier}
+                        className="relative w-full max-w-md space-y-4 rounded-2xl bg-white p-6 shadow-2xl dark:bg-ink-800"
+                    >
+                        <div>
+                            <h2 className="text-lg font-semibold text-ink-900 dark:text-white">
+                                Modifier {edition.numero}
+                            </h2>
+                            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+                                Corriger vaut mieux que refuser : le demandeur n'a rien à refaire.
+                            </p>
+                        </div>
+
+                        <label className="block">
+                            <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                Nom sur la carte
+                            </span>
+                            <Input
+                                value={formulaireEdition.data.nom_affiche}
+                                onChange={(event) => formulaireEdition.setData('nom_affiche', event.target.value)}
+                                required
+                            />
+                            {formulaireEdition.errors.nom_affiche && (
+                                <p className="mt-1 text-xs font-medium text-red-600">
+                                    {formulaireEdition.errors.nom_affiche}
+                                </p>
+                            )}
+                        </label>
+
+                        <label className="block">
+                            <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                Fonction (facultative)
+                            </span>
+                            <Input
+                                value={formulaireEdition.data.poste_affiche}
+                                onChange={(event) => formulaireEdition.setData('poste_affiche', event.target.value)}
+                            />
+                        </label>
+
+                        <label className="block">
+                            <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                Logo imprimé
+                            </span>
+                            <Select
+                                value={formulaireEdition.data.application_id}
+                                onChange={(event) => formulaireEdition.setData('application_id', event.target.value)}
+                            >
+                                <option value={LE_GROUPE.id}>{LE_GROUPE.name}</option>
+                                {instituts.map((institut) => (
+                                    <option key={institut.id} value={institut.id}>
+                                        {institut.name}
+                                    </option>
+                                ))}
+                            </Select>
+                            {formulaireEdition.errors.application_id && (
+                                <p className="mt-1 text-xs font-medium text-red-600">
+                                    {formulaireEdition.errors.application_id}
+                                </p>
+                            )}
+                        </label>
+
+                        <label className="block">
+                            <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                Remplacer la photo (facultatif)
+                            </span>
+                            <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={(event) =>
+                                    formulaireEdition.setData('photo_file', event.target.files?.[0] ?? null)
+                                }
+                                className="block w-full text-sm text-ink-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-700 dark:text-ink-300 dark:file:bg-white/10 dark:file:text-ink-200"
+                            />
+                            {formulaireEdition.errors.photo_file && (
+                                <p className="mt-1 text-xs font-medium text-red-600">
+                                    {formulaireEdition.errors.photo_file}
+                                </p>
+                            )}
+                        </label>
+
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setEdition(null)}
+                                className="rounded-xl border border-ink-200 px-3.5 py-2 text-sm font-medium text-ink-700 dark:border-white/10 dark:text-ink-200"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={formulaireEdition.processing}
+                                className="rounded-xl bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                            >
+                                Enregistrer
+                            </button>
+                        </div>
+                    </form>
                 </div>
             )}
 

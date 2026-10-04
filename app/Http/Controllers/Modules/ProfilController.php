@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Agent;
 use App\Models\Application;
 use App\Models\Contrat;
+use App\Models\DemandeBadge;
 use App\Models\Diplome;
 use App\Models\DocumentAgent;
 use App\Models\EvenementCarriere;
@@ -48,6 +49,10 @@ class ProfilController extends Controller
         $agent = $moi->agent;
 
         return Inertia::render('modules/profil/index', [
+            // Un lien peut designer l'onglet a ouvrir : le message qui annonce
+            // un badge validé renvoie droit sur sa visualisation.
+            'ongletInitial' => $request->query('onglet'),
+
             'identite' => [
                 'nom' => $moi->fullName(),
                 'prenom' => $moi->name,
@@ -106,8 +111,14 @@ class ProfilController extends Controller
                 'veuf' => 'Veuf(ve)',
             ],
 
-            // De quoi montrer son badge tel qu'il sera fabrique.
+            /*
+             * Son badge, tel qu'il a ete demande : on le regarde ici, on ne
+             * le compose pas. Le choix du logo appartient a l'ecran de
+             * demande — ici, c'est une piece, pas un formulaire.
+             */
             'badge' => [
+                'demande' => DemandeBadge::with('institut')
+                    ->where('user_id', $moi->id)->latest()->first()?->toUiArray(),
                 'validite' => (int) config('badges.validite_annees'),
                 'mention' => config('badges.mention'),
                 'moduleOuvert' => Application::active()->where('module_key', 'badges')->exists(),

@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Mail\Badge\BadgePret;
 use App\Mail\Badge\BadgeRefuse;
+use App\Mail\Badge\BadgeValide;
 use App\Mail\Badge\DemandeEnregistree;
 use App\Mail\Compte\CompteCree;
 use App\Mail\Compte\CompteValide;
@@ -287,8 +288,36 @@ class CourrielsDesProceduresTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    /** Une etape intermediaire ne derange personne. */
-    public function test_l_approbation_d_un_badge_n_envoie_rien(): void
+    /**
+     * La validation est l'etape qui compte pour le demandeur : c'est la
+     * qu'il peut enfin voir sa carte. Le message l'y mene.
+     */
+    public function test_la_validation_d_un_badge_previent_et_mene_au_profil(): void
+    {
+        Mail::fake();
+
+        $module = Application::factory()->module('badges')->create(['name' => 'Badges']);
+        $guichet = User::factory()->create();
+        $guichet->applications()->attach($module, ['role_in_app' => 'accueil', 'roles' => json_encode(['accueil'])]);
+
+        $employe = User::factory()->create(['email' => 'claire@lamajestueuse.cm']);
+        $demande = DemandeBadge::create([
+            'numero' => 'BDG-000001', 'user_id' => $employe->id, 'nom_affiche' => 'Claire NKOA',
+            'modele' => 'classique', 'motif' => 'premiere', 'statut' => 'en_attente',
+        ]);
+
+        $this->actingAs($guichet)->post(route('badges.traiter', $demande), ['statut' => 'approuvee']);
+
+        Mail::assertSent(BadgeValide::class, function (BadgeValide $courriel) {
+            $corps = $courriel->render();
+
+            return $courriel->hasTo('claire@lamajestueuse.cm')
+                && str_contains($corps, 'mon-profil?onglet=badge');
+        });
+    }
+
+    /** L'impression, elle, ne regarde que le guichet. */
+    public function test_l_impression_ne_derange_pas_le_demandeur(): void
     {
         Mail::fake();
 
@@ -297,11 +326,11 @@ class CourrielsDesProceduresTest extends TestCase
         $guichet->applications()->attach($module, ['role_in_app' => 'accueil', 'roles' => json_encode(['accueil'])]);
 
         $demande = DemandeBadge::create([
-            'numero' => 'BDG-000001', 'user_id' => User::factory()->create()->id, 'nom_affiche' => 'Claire NKOA',
-            'modele' => 'classique', 'motif' => 'premiere', 'statut' => 'en_attente',
+            'numero' => 'BDG-000001', 'user_id' => User::factory()->create(['email' => null])->id,
+            'nom_affiche' => 'Claire NKOA', 'modele' => 'classique', 'motif' => 'premiere', 'statut' => 'approuvee',
         ]);
 
-        $this->actingAs($guichet)->post(route('badges.traiter', $demande), ['statut' => 'approuvee']);
+        $this->actingAs($guichet)->post(route('badges.traiter', $demande), ['statut' => 'imprimee']);
 
         Mail::assertNothingSent();
     }

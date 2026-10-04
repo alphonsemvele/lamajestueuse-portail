@@ -7,6 +7,7 @@ use App\Http\Controllers\Concerns\ServesModule;
 use App\Http\Controllers\Controller;
 use App\Mail\Badge\BadgePret;
 use App\Mail\Badge\BadgeRefuse;
+use App\Mail\Badge\BadgeValide;
 use App\Mail\Badge\DemandeEnregistree;
 use App\Models\Application;
 use App\Models\DemandeBadge;
@@ -193,6 +194,48 @@ class BadgeController extends Controller
         ]);
     }
 
+    /**
+     * Le guichet corrige une demande : un nom mal saisi, un institut qui
+     * n'est pas le bon, une photo inexploitable.
+     *
+     * C'est le geste qui evite un refus pour une faute de frappe. Une
+     * demande remise ou refusee, elle, est close : on ne la retouche plus.
+     */
+    public function modifier(Request $request, DemandeBadge $demande): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        if ($demande->estFigee()) {
+            return back()->withErrors([
+                'badge' => __('Cette demande est close : elle ne se modifie plus.'),
+            ]);
+        }
+
+        // Le guichet n'est pas tenu par les rattachements du demandeur : il
+        // corrige, et peut donc designer n'importe quel institut en service.
+        $instituts = Application::active()->where('type', 'application')->pluck('id')->all();
+
+        $donnees = $request->validate([
+            'nom_affiche' => ['required', 'string', 'max:80'],
+            'poste_affiche' => ['nullable', 'string', 'max:120'],
+            'application_id' => ['nullable', Rule::in([...$instituts, DemandeBadge::LOGO_GROUPE])],
+            'photo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ], [
+            'application_id.in' => __('Cet institut n’est pas en service.'),
+        ]);
+
+        if (($donnees['application_id'] ?? null) === DemandeBadge::LOGO_GROUPE) {
+            $donnees['application_id'] = null;
+        }
+
+        $photo = $this->resolveMedia($request, $demande->photo, 'photo', 'badges/photos');
+        unset($donnees['photo_file']);
+
+        $demande->update($donnees + ['photo' => $photo]);
+
+        return back()->with('status', __('Demande :numero mise à jour.', ['numero' => $demande->numero]));
+    }
+
     public function traiter(Request $request, DemandeBadge $demande): RedirectResponse
     {
         $this->autoriserGestion($request->user());
@@ -222,14 +265,19 @@ class BadgeController extends Controller
     }
 
     /**
-     * Previent le demandeur quand son badge l'attend, ou quand sa demande
-     * est refusee. Les etapes intermediaires ne le concernent pas.
+     * Previent le demandeur a chaque etape qui le concerne : sa demande
+     * validee, son badge pret a retirer, ou son refus. L'impression, elle,
+     * ne regarde que le guichet.
      */
     private function prevenirLeDemandeur(DemandeBadge $demande): void
     {
         $courriels = app(CourrielsPortail::class);
         $demande->loadMissing(['user', 'institut']);
         $nom = $demande->user?->fullName() ?? $demande->nom_affiche;
+
+        if ($demande->statut === 'approuvee') {
+            $courriels->envoyerA($demande->user, new BadgeValide($nom, $demande->numero, $demande->logoLibelle()));
+        }
 
         if ($demande->statut === 'imprimee') {
             $courriels->envoyerA($demande->user, new BadgePret($nom, $demande->numero, $demande->logoLibelle()));

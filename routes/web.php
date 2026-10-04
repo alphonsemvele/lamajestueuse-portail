@@ -125,6 +125,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/photos', [BadgeController::class, 'photos'])->name('photos');
         Route::post('/{demande}/traiter', [BadgeController::class, 'traiter'])->name('traiter');
         Route::post('/{demande}/renvoyer', [BadgeController::class, 'renvoyerCourriel'])->name('renvoyer');
+        Route::post('/{demande}/modifier', [BadgeController::class, 'modifier'])->name('modifier');
     });
 
     /*

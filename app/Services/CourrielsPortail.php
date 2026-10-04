@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Mail\Badge\BadgePret;
 use App\Mail\Badge\BadgeRefuse;
+use App\Mail\Badge\BadgeValide;
 use App\Mail\Badge\DemandeEnregistree;
 use App\Mail\Compte\CompteCree;
 use App\Mail\Compte\CompteValide;
@@ -81,6 +82,7 @@ class CourrielsPortail
 
         return match ($demande->statut) {
             'imprimee', 'remise' => new BadgePret($nom, $demande->numero, $demande->logoLibelle()),
+            'approuvee' => new BadgeValide($nom, $demande->numero, $demande->logoLibelle()),
             'refusee' => new BadgeRefuse($nom, $demande->numero, $demande->motif_refus),
             default => new DemandeEnregistree(
                 $nom,

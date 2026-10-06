@@ -39,7 +39,7 @@ export function estLeGroupe(institut: Institut | null | undefined): boolean {
 export const IDENTITE_GROUPE = {
     raisonSociale: 'LA MAJESTUEUSE SARL',
     adresse: 'Mbankomo, NDAZOA',
-    telephone: '+237 6 00 00 00 00',
+    telephone: '+237 6 55 34 19 39',
     email: 'contact@lamajestueuse.cm',
 };
 

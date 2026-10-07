@@ -1,4 +1,4 @@
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
@@ -7,7 +7,7 @@ import { Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
 import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes } from '@/lib/utils';
-import type { Paginated } from '@/types';
+import type { Paginated, SharedProps } from '@/types';
 import { ApercuBadge, LE_GROUPE, type Institut } from './carte';
 
 interface Demande {
@@ -26,6 +26,7 @@ interface Demande {
     motifRefus: string | null;
     institut: Institut | null;
     demandeLe: string | null;
+    deposePar: string | null;
     traiteLe: string | null;
     traitePar: string | null;
 }
@@ -35,9 +36,20 @@ interface Props {
     filtres: { statut: string | null; institut: string | null; q: string };
     instituts: Institut[];
     statuts: Record<string, string>;
+    motifs: Record<string, string>;
     compteurs: Record<string, number>;
     validite: number;
     mention: string | null;
+    personnel: Personne[];
+}
+
+/** Un membre du personnel, pour déposer une demande à sa place. */
+interface Personne {
+    id: number;
+    nom: string;
+    matricule: string | null;
+    poste: string | null;
+    instituts: { id: number; name: string }[];
 }
 
 const TONS: Record<string, string> = {
@@ -55,10 +67,25 @@ const SUITE: Record<string, { statut: string; libelle: string; icon: string } | 
     imprimee: { statut: 'remise', libelle: 'Marquer remise', icon: 'user' },
 };
 
-export default function GestionBadges({ demandes, filtres, instituts, statuts, compteurs, validite, mention }: Props) {
+export default function GestionBadges({
+    demandes,
+    filtres,
+    instituts,
+    statuts,
+    motifs,
+    compteurs,
+    validite,
+    mention,
+    personnel,
+}: Props) {
+    // Les refus qui ne visent aucun champ — « une demande est deja en cours »
+    // — arrivent dans les erreurs partagees, pas dans celles du formulaire.
+    const { errors } = usePage<SharedProps & { errors: Record<string, string> }>().props;
     const [apercu, setApercu] = useState<Demande | null>(null);
     const [refus, setRefus] = useState<Demande | null>(null);
     const [edition, setEdition] = useState<Demande | null>(null);
+    const [depot, setDepot] = useState(false);
+    const [recherchePersonne, setRecherchePersonne] = useState('');
     // Recherche au fil de la frappe : plus besoin d'appuyer sur Entrée.
     const [q, setQ] = useRechercheInstantanee(filtres.q, (terme) => filtrer({ q: terme }));
 
@@ -120,6 +147,59 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
         });
     };
 
+    /*
+     * Déposer pour quelqu'un : celui qui n'a pas de compte, celui qui ne s'y
+     * retrouve pas, celui qu'on inscrit au comptoir. La demande suit ensuite
+     * le même circuit que les autres.
+     */
+    const formulaireDepot = useForm({
+        user_id: '',
+        nom_affiche: '',
+        poste_affiche: '',
+        motif: 'premiere',
+        application_id: '',
+        commentaire: '',
+        photo_file: null as File | null,
+    });
+
+    const choisie = personnel.find((p) => String(p.id) === formulaireDepot.data.user_id) ?? null;
+
+    const trouvees = recherchePersonne.trim()
+        ? personnel.filter((p) =>
+              `${p.nom} ${p.matricule ?? ''}`.toLowerCase().includes(recherchePersonne.trim().toLowerCase()),
+          )
+        : personnel;
+
+    const choisirPersonne = (personne: Personne) => {
+        formulaireDepot.setData((donnees) => ({
+            ...donnees,
+            user_id: String(personne.id),
+            // Le nom et la fonction du dossier, corrigeables avant l'envoi.
+            nom_affiche: personne.nom,
+            poste_affiche: personne.poste ?? '',
+            // Un seul institut : retenu d'office, comme pour l'intéressé.
+            application_id:
+                personne.instituts.length === 1 ? String(personne.instituts[0].id) : String(LE_GROUPE.id),
+        }));
+    };
+
+    const ouvrirDepot = () => {
+        formulaireDepot.reset();
+        formulaireDepot.clearErrors();
+        setRecherchePersonne('');
+        setDepot(true);
+    };
+
+    const deposer = (event: FormEvent) => {
+        event.preventDefault();
+
+        formulaireDepot.post(routes.badges.pour, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => setDepot(false),
+        });
+    };
+
     const aImprimer = compteurs.approuvee ?? 0;
 
     return (
@@ -134,6 +214,15 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={ouvrirDepot}
+                            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+                        >
+                            <Icon name="plus" className="h-4 w-4" />
+                            Déposer pour un employé
+                        </button>
+
                         <Link
                             href={routes.badges.index}
                             className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200"
@@ -246,6 +335,7 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                                         {demande.matricule && ` · ${demande.matricule}`}
                                         {` · ${demande.institut?.name ?? LE_GROUPE.name}`}
                                         {` · ${demande.motifLibelle} · ${demande.demandeLe}`}
+                                        {demande.deposePar && ` · déposée par ${demande.deposePar}`}
                                     </p>
                                     {demande.commentaire && (
                                         <p className="mt-1 text-xs text-ink-600 dark:text-ink-300">
@@ -356,6 +446,182 @@ export default function GestionBadges({ demandes, filtres, instituts, statuts, c
                             Fermer
                         </button>
                     </div>
+                </div>
+            )}
+
+            {depot && (
+                <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-ink-900/50" onClick={() => setDepot(false)} />
+                    <form
+                        onSubmit={deposer}
+                        className="relative flex max-h-[90vh] w-full max-w-lg flex-col gap-4 overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl dark:bg-ink-800"
+                    >
+                        <div>
+                            <h2 className="text-lg font-semibold text-ink-900 dark:text-white">
+                                Déposer une demande pour un employé
+                            </h2>
+                            <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
+                                La demande portera son nom, et le portail le préviendra s'il a une adresse.
+                            </p>
+                        </div>
+
+                        {errors.badge && (
+                            <p className="rounded-xl bg-red-50 px-3.5 py-2.5 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+                                {errors.badge}
+                            </p>
+                        )}
+
+                        <label className="block">
+                            <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                Pour qui ?
+                            </span>
+                            <Input
+                                value={recherchePersonne}
+                                onChange={(event) => setRecherchePersonne(event.target.value)}
+                                placeholder="Chercher un nom ou un matricule…"
+                            />
+                            <div className="mt-2 max-h-44 overflow-y-auto rounded-xl border border-ink-200 dark:border-white/10">
+                                {trouvees.length === 0 && (
+                                    <p className="px-3.5 py-3 text-sm text-ink-400">Personne ne correspond.</p>
+                                )}
+                                {trouvees.slice(0, 40).map((personne) => {
+                                    const actif = String(personne.id) === formulaireDepot.data.user_id;
+
+                                    return (
+                                        <button
+                                            key={personne.id}
+                                            type="button"
+                                            onClick={() => choisirPersonne(personne)}
+                                            className={cn(
+                                                'flex w-full items-center justify-between gap-3 px-3.5 py-2 text-left transition',
+                                                actif
+                                                    ? 'bg-indigo-50 dark:bg-indigo-500/15'
+                                                    : 'hover:bg-ink-50 dark:hover:bg-white/5',
+                                            )}
+                                        >
+                                            <span className="min-w-0">
+                                                <span className="block truncate text-sm font-medium text-ink-900 dark:text-white">
+                                                    {personne.nom}
+                                                </span>
+                                                <span className="block truncate text-xs text-ink-400">
+                                                    {personne.matricule ?? 'sans matricule'}
+                                                    {personne.poste && ` · ${personne.poste}`}
+                                                </span>
+                                            </span>
+                                            {actif && <Icon name="check" className="h-4 w-4 shrink-0 text-indigo-600" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {formulaireDepot.errors.user_id && (
+                                <p className="mt-1 text-xs font-medium text-red-600">{formulaireDepot.errors.user_id}</p>
+                            )}
+                        </label>
+
+                        {choisie && (
+                            <>
+                                <label className="block">
+                                    <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                        Nom sur la carte
+                                    </span>
+                                    <Input
+                                        value={formulaireDepot.data.nom_affiche}
+                                        onChange={(event) => formulaireDepot.setData('nom_affiche', event.target.value)}
+                                        required
+                                    />
+                                    {formulaireDepot.errors.nom_affiche && (
+                                        <p className="mt-1 text-xs font-medium text-red-600">
+                                            {formulaireDepot.errors.nom_affiche}
+                                        </p>
+                                    )}
+                                </label>
+
+                                <label className="block">
+                                    <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                        Fonction (facultative)
+                                    </span>
+                                    <Input
+                                        value={formulaireDepot.data.poste_affiche}
+                                        onChange={(event) => formulaireDepot.setData('poste_affiche', event.target.value)}
+                                    />
+                                </label>
+
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <label className="block">
+                                        <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                            Logo imprimé
+                                        </span>
+                                        <Select
+                                            value={formulaireDepot.data.application_id}
+                                            onChange={(event) => formulaireDepot.setData('application_id', event.target.value)}
+                                        >
+                                            <option value={LE_GROUPE.id}>{LE_GROUPE.name}</option>
+                                            {choisie.instituts.map((institut) => (
+                                                <option key={institut.id} value={institut.id}>
+                                                    {institut.name}
+                                                </option>
+                                            ))}
+                                        </Select>
+                                        {formulaireDepot.errors.application_id && (
+                                            <p className="mt-1 text-xs font-medium text-red-600">
+                                                {formulaireDepot.errors.application_id}
+                                            </p>
+                                        )}
+                                    </label>
+
+                                    <label className="block">
+                                        <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                            Motif
+                                        </span>
+                                        <Select
+                                            value={formulaireDepot.data.motif}
+                                            onChange={(event) => formulaireDepot.setData('motif', event.target.value)}
+                                        >
+                                            {Object.entries(motifs).map(([cle, libelle]) => (
+                                                <option key={cle} value={cle}>
+                                                    {libelle}
+                                                </option>
+                                            ))}
+                                        </Select>
+                                    </label>
+                                </div>
+
+                                <label className="block">
+                                    <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
+                                        Photo (facultative)
+                                    </span>
+                                    <input
+                                        type="file"
+                                        accept="image/jpeg,image/png,image/webp"
+                                        onChange={(event) =>
+                                            formulaireDepot.setData('photo_file', event.target.files?.[0] ?? null)
+                                        }
+                                        className="block w-full text-sm text-ink-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-700 dark:text-ink-300 dark:file:bg-white/10 dark:file:text-ink-200"
+                                    />
+                                    <span className="mt-1 block text-xs text-ink-400">
+                                        Sans photo jointe, le badge reprend celle de son compte.
+                                    </span>
+                                </label>
+                            </>
+                        )}
+
+                        <div className="flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setDepot(false)}
+                                className="rounded-xl border border-ink-200 px-3.5 py-2 text-sm font-medium text-ink-700 dark:border-white/10 dark:text-ink-200"
+                            >
+                                Annuler
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={!choisie || formulaireDepot.processing}
+                                className="rounded-xl bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                            >
+                                Déposer la demande
+                            </button>
+                        </div>
+                    </form>
                 </div>
             )}
 

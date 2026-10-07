@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Modules;
 
+use App\Mail\Badge\DemandeEnregistree;
 use App\Mail\Badge\DemandeRouverte;
 use App\Models\Application;
 use App\Models\DemandeBadge;
@@ -657,6 +658,94 @@ class BadgeModuleTest extends TestCase
     public function test_les_photos_sont_reservees_au_guichet(): void
     {
         $this->actingAs($this->employe($this->ium))->get(route('badges.photos'))->assertForbidden();
+    }
+
+    // ------------------------------------------------- depot pour un employe
+
+    /**
+     * Celui qui n'a pas de compte, celui qui ne s'y retrouve pas, celui qu'on
+     * inscrit au comptoir : sa demande n'a pas a attendre qu'il la fasse.
+     */
+    public function test_le_guichet_depose_une_demande_pour_un_employe(): void
+    {
+        Mail::fake();
+
+        $employe = $this->employe($this->ium);
+        $employe->update(['email' => 'claire@lamajestueuse.cm']);
+        $guichet = $this->guichet();
+
+        $this->actingAs($guichet)->post(route('badges.pour'), [
+            'user_id' => $employe->id,
+            'nom_affiche' => 'Claire NKOA',
+            'poste_affiche' => 'Chargée de scolarité',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $demande = DemandeBadge::firstOrFail();
+
+        $this->assertSame($employe->id, $demande->user_id);
+        // On sait qui l'a deposee : sans cela elle paraitrait venir de lui.
+        $this->assertSame($guichet->id, $demande->depose_par);
+        $this->assertSame('en_attente', $demande->statut);
+
+        // C'est le titulaire qu'on previent, pas celui qui a depose.
+        Mail::assertSent(DemandeEnregistree::class, fn ($mail) => $mail->hasTo('claire@lamajestueuse.cm'));
+    }
+
+    /** Le guichet ne rattache personne : le logo reste un institut qu'il sert. */
+    public function test_le_depot_respecte_les_rattachements_de_la_personne(): void
+    {
+        $employe = $this->employe($this->ium);
+
+        $this->actingAs($this->guichet())->post(route('badges.pour'), [
+            'user_id' => $employe->id,
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ifpm->id,
+        ])->assertSessionHasErrors('application_id');
+
+        $this->assertSame(0, DemandeBadge::count());
+    }
+
+    /** La regle d'une seule demande en cours vaut aussi pour le guichet. */
+    public function test_on_ne_depose_pas_une_seconde_demande_pour_la_meme_personne(): void
+    {
+        $employe = $this->employe($this->ium);
+        $this->demande($employe);
+
+        $this->actingAs($this->guichet())->post(route('badges.pour'), [
+            'user_id' => $employe->id,
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+        ])->assertSessionHasErrors('badge');
+
+        $this->assertSame(1, DemandeBadge::count());
+    }
+
+    public function test_un_employe_ne_depose_pas_pour_un_autre(): void
+    {
+        $autre = $this->employe($this->ium);
+
+        $this->actingAs($this->employe($this->ium))->post(route('badges.pour'), [
+            'user_id' => $autre->id,
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+        ])->assertForbidden();
+    }
+
+    /** Une demande deposee par l'interesse ne porte aucun deposant. */
+    public function test_une_demande_ordinaire_ne_porte_pas_de_deposant(): void
+    {
+        $this->actingAs($this->employe($this->ium))->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+        ])->assertRedirect();
+
+        $this->assertNull(DemandeBadge::firstOrFail()->depose_par);
     }
 
     // ------------------------------------------------ correction au guichet

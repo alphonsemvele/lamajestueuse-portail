@@ -108,8 +108,80 @@ class BadgeController extends Controller
             'application_id.in' => __('Vous n’êtes pas rattaché à cet institut.'),
         ]);
 
-        // Le groupe n'est pas une application : son badge se reconnait a
-        // l'absence d'institut.
+        $demande = $this->deposer($request, $utilisateur, $donnees);
+
+        return back()->with('status', __('Demande :numero enregistrée.', ['numero' => $demande->numero]));
+    }
+
+    /**
+     * Le guichet depose une demande pour un employe.
+     *
+     * Celui qui n'a pas de compte, celui qui ne s'y retrouve pas, celui qu'on
+     * inscrit au comptoir : sa demande n'a pas a attendre qu'il la fasse
+     * lui-meme. Elle suit ensuite le meme circuit que les autres, et porte le
+     * nom de qui l'a deposee.
+     */
+    public function storePour(Request $request): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $personne = User::find($request->integer('user_id'));
+
+        if ($personne === null) {
+            return back()->withErrors([
+                'user_id' => __('Choisissez la personne pour qui déposer la demande.'),
+            ]);
+        }
+
+        if (DemandeBadge::where('user_id', $personne->id)->enCours()->exists()) {
+            return back()->withErrors([
+                'badge' => __(':nom a déjà une demande en cours : traitez-la ou annulez-la d’abord.', [
+                    'nom' => $personne->fullName(),
+                ]),
+            ]);
+        }
+
+        // Le logo doit rester un institut que cette personne sert — ou celui
+        // du groupe. Le guichet depose a sa place, il ne la rattache pas.
+        $instituts = collect($this->institutsDe($personne))->pluck('id')->all();
+
+        $donnees = $request->validate([
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'nom_affiche' => ['required', 'string', 'max:80'],
+            'poste_affiche' => ['nullable', 'string', 'max:120'],
+            'motif' => ['required', Rule::in(array_keys(DemandeBadge::MOTIFS))],
+            'application_id' => [
+                $instituts === [] ? 'nullable' : 'required',
+                Rule::in([...$instituts, DemandeBadge::LOGO_GROUPE]),
+            ],
+            'commentaire' => ['nullable', 'string', 'max:500'],
+            'photo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ], [
+            'application_id.required' => __('Choisissez le logo qui figurera sur le badge.'),
+            'application_id.in' => __(':nom n’est pas rattaché à cet institut.', ['nom' => $personne->fullName()]),
+        ]);
+
+        unset($donnees['user_id']);
+
+        $demande = $this->deposer($request, $personne, $donnees, $request->user());
+
+        return back()->with('status', __('Demande :numero déposée pour :nom.', [
+            'numero' => $demande->numero,
+            'nom' => $personne->fullName(),
+        ]));
+    }
+
+    /**
+     * Enregistre la demande et previent son titulaire.
+     *
+     * La photo jointe est facultative : sans elle, le badge reprend celle du
+     * compte. Et c'est bien le titulaire qu'on previent, jamais celui qui a
+     * depose a sa place.
+     *
+     * @param  array<string, mixed>  $donnees
+     */
+    private function deposer(Request $request, User $pour, array $donnees, ?User $par = null): DemandeBadge
+    {
         if (($donnees['application_id'] ?? null) === DemandeBadge::LOGO_GROUPE) {
             $donnees['application_id'] = null;
         }
@@ -120,19 +192,20 @@ class BadgeController extends Controller
         $demande = DemandeBadge::create($donnees + [
             'modele' => 'classique',
             'numero' => DemandeBadge::prochainNumero(),
-            'user_id' => $utilisateur->id,
+            'user_id' => $pour->id,
+            'depose_par' => $par?->id,
             'photo' => $photo,
             'statut' => 'en_attente',
         ]);
 
-        app(CourrielsPortail::class)->envoyerA($utilisateur, new DemandeEnregistree(
-            $utilisateur->fullName(),
+        app(CourrielsPortail::class)->envoyerA($pour, new DemandeEnregistree(
+            $pour->fullName(),
             $demande->numero,
             $demande->nom_affiche,
             $demande->logoLibelle(),
         ));
 
-        return back()->with('status', __('Demande :numero enregistrée.', ['numero' => $demande->numero]));
+        return $demande;
     }
 
     /** Le demandeur retire sa demande tant qu'elle n'est pas traitée. */
@@ -188,6 +261,25 @@ class BadgeController extends Controller
                     'id' => $a->id, 'name' => $a->name, 'color' => $a->color, 'logoUrl' => $a->logoUrl(),
                 ])->all(),
             'statuts' => DemandeBadge::STATUTS,
+            'motifs' => DemandeBadge::MOTIFS,
+            /*
+             * Le personnel, pour deposer une demande a la place de quelqu'un.
+             * Chacun vient avec ses instituts : le guichet choisit un logo
+             * que cette personne sert, pas n'importe lequel.
+             */
+            'personnel' => User::duPersonnel()
+                ->with(['applications' => fn ($q) => $q->where('applications.type', 'application')
+                    ->where('applications.is_active', true)])
+                ->orderByRaw('LOWER(COALESCE(lastname, name)) ASC')
+                ->get()
+                ->map(fn (User $personne) => [
+                    'id' => $personne->id,
+                    'nom' => $personne->fullName(),
+                    'matricule' => $personne->matricule,
+                    'poste' => $personne->poste,
+                    'instituts' => $personne->applications
+                        ->map(fn ($a) => ['id' => $a->id, 'name' => $a->name])->all(),
+                ])->all(),
             'compteurs' => DemandeBadge::selectRaw('statut, count(*) as total')
                 ->groupBy('statut')->pluck('total', 'statut')->all(),
             'validite' => (int) config('badges.validite_annees'),

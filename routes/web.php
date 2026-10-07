@@ -127,6 +127,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/{demande}/renvoyer', [BadgeController::class, 'renvoyerCourriel'])->name('renvoyer');
         Route::post('/{demande}/modifier', [BadgeController::class, 'modifier'])->name('modifier');
         Route::post('/{demande}/rouvrir', [BadgeController::class, 'rouvrir'])->name('rouvrir');
+        Route::post('/pour', [BadgeController::class, 'storePour'])->name('pour');
     });
 
     /*

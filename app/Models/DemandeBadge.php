@@ -16,7 +16,7 @@ class DemandeBadge extends Model
     protected $table = 'demandes_badge';
 
     protected $fillable = [
-        'numero', 'user_id', 'application_id', 'nom_affiche', 'poste_affiche',
+        'numero', 'user_id', 'depose_par', 'application_id', 'nom_affiche', 'poste_affiche',
         'modele', 'motif', 'photo', 'commentaire', 'statut', 'motif_refus',
         'traite_par', 'traite_le',
     ];
@@ -85,6 +85,12 @@ class DemandeBadge extends Model
     public function traitePar(): BelongsTo
     {
         return $this->belongsTo(User::class, 'traite_par');
+    }
+
+    /** Le guichet qui a depose la demande a la place de l'interesse. */
+    public function deposePar(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'depose_par');
     }
 
     public function scopeEnCours(Builder $query): Builder
@@ -158,6 +164,7 @@ class DemandeBadge extends Model
                 'color' => $this->institut->color,
                 'logoUrl' => $this->institut->logoUrl(),
             ] : null,
+            'deposePar' => $this->deposePar?->fullName(),
             'traitePar' => $this->traitePar?->fullName(),
             'traiteLe' => $this->traite_le?->format('d/m/Y'),
             'demandeLe' => $this->created_at?->format('d/m/Y'),

@@ -1,6 +1,7 @@
-import { Link } from '@inertiajs/react';
-import { type ReactNode, useState } from 'react';
+import { Link, router } from '@inertiajs/react';
+import { type ReactNode, useEffect, useState } from 'react';
 import Icon from '@/components/icon';
+import Spinner from '@/components/spinner';
 import { cn, routes, useT } from '@/lib/utils';
 import type { Application } from '@/types';
 
@@ -12,6 +13,46 @@ export default function AppCard({ application, variant = 'app' }: { application:
     // en ligne : la tuile reste visible et annonce son ouverture prochaine.
     const bientot = application.destination === null;
     const [annonce, setAnnonce] = useState(false);
+
+    /*
+     * Une application hors du portail — IUM, IFPM, GSBM — s'ouvre par une
+     * navigation complète du navigateur. L'indicateur d'attente du portail
+     * s'éteint dès que la requête est finie, c'est-à-dire juste avant que la
+     * page ne change : le plus long reste pourtant à venir, le temps que
+     * l'institut reconnaisse l'identité signée. La tuile prend donc le relais,
+     * et ne s'éteint pas d'elle-même — c'est la page qui disparaît.
+     *
+     * Rien de tout cela pour un module du portail, dont l'indicateur global
+     * couvre déjà l'attente, ni pour une application qui s'ouvre dans un
+     * nouvel onglet, où cette page-ci ne bouge pas.
+     */
+    const horsPortail = !bientot && application.type !== 'module' && !application.opensNewTab;
+    const [ouverture, setOuverture] = useState(false);
+    const [lent, setLent] = useState(false);
+
+    useEffect(() => {
+        if (!ouverture) {
+            return;
+        }
+
+        // L'ouverture peut échouer — droits retirés, module hors service : la
+        // page ne change alors jamais, et la boîte resterait seule à l'écran.
+        const abandonner = () => {
+            setOuverture(false);
+            setLent(false);
+        };
+
+        const ecoutes = [router.on('error', abandonner)];
+
+        // Et si rien ne se passe du tout, on rend la main au bout de douze
+        // secondes plutôt que de laisser l'employé devant un écran figé.
+        const minuteur = setTimeout(() => setLent(true), 12000);
+
+        return () => {
+            clearTimeout(minuteur);
+            ecoutes.forEach((arreter) => arreter());
+        };
+    }, [ouverture]);
 
     const style =
         'group card flex flex-col overflow-hidden text-left transition duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-xl hover:shadow-brand-900/8 dark:hover:border-brand-500/40';
@@ -118,10 +159,56 @@ export default function AppCard({ application, variant = 'app' }: { application:
                     href={routes.openApp(application.slug)}
                     target={application.opensNewTab ? '_blank' : undefined}
                     rel={application.opensNewTab ? 'noopener' : undefined}
+                    onClick={() => horsPortail && setOuverture(true)}
                     className={style}
                 >
                     {contenu}
                 </Link>
+            )}
+
+            {ouverture && (
+                <div
+                    role="status"
+                    aria-live="polite"
+                    className="fixed inset-0 z-[69] flex items-center justify-center bg-ink-900/35 p-4 backdrop-blur-[2px]"
+                >
+                    <div className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-2xl dark:bg-ink-800">
+                        <span
+                            className="mx-auto flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-ink-900/5 dark:bg-ink-700 dark:ring-white/10"
+                            style={{ color: application.color }}
+                        >
+                            {application.logoUrl ? (
+                                <img src={application.logoUrl} alt="" className="h-full w-full object-contain p-1" />
+                            ) : (
+                                <Icon name={application.icon} className="h-6 w-6" />
+                            )}
+                        </span>
+
+                        <p className="mt-4 flex items-center justify-center gap-2 text-sm font-semibold text-ink-900 dark:text-white">
+                            <Spinner className="h-4 w-4" />
+                            {t('Ouverture de :application…', { application: application.name })}
+                        </p>
+
+                        <p className="mt-1.5 text-xs text-ink-500 dark:text-ink-400">
+                            {lent
+                                ? t('C’est plus long que d’habitude. Réessayez, ou prévenez l’administration si cela persiste.')
+                                : t('Vous êtes reconnu automatiquement : aucun mot de passe à saisir.')}
+                        </p>
+
+                        {lent && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setOuverture(false);
+                                    setLent(false);
+                                }}
+                                className="btn-ghost mt-4 w-full justify-center"
+                            >
+                                {t('Fermer')}
+                            </button>
+                        )}
+                    </div>
+                </div>
             )}
 
             {annonce && (

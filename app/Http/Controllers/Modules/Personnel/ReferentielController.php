@@ -20,6 +20,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Les briques dont la paie se sert : employeurs, grille des categories et
@@ -113,6 +114,91 @@ class ReferentielController extends Controller
                     ];
                 })->all(),
         ]);
+    }
+
+    /**
+     * Les profils de salaire en tableur.
+     *
+     * Un profil par ligne, avec son net a quotite pleine et le detail de ses
+     * indemnites et retenues en clair : c'est ce que la RH relit, transmet et
+     * archive. Les montants viennent du moteur de paie lui-meme — un export
+     * qui recalculerait de son cote finirait par dire autre chose que les
+     * bulletins.
+     */
+    public function exporterProfils(Request $request, PaieService $paie): StreamedResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $profils = ProfilSalaire::with(['echelon.categorie', 'categorie', 'indemnites', 'retenues'])
+            ->withCount(['contrats as contratsActifs' => fn ($q) => $q->where('statut', 'actif')])
+            ->orderBy('nom')->get();
+
+        $nom = 'profils-salaire-la-majestueuse-'.now()->format('Y-m-d').'.csv';
+
+        return response()->streamDownload(function () use ($profils, $paie) {
+            $sortie = fopen('php://output', 'w');
+
+            // Excel reconnait l'UTF-8 a ce marqueur, sans quoi les accents
+            // arrivent en charabia.
+            fwrite($sortie, "\xEF\xBB\xBF");
+
+            fputcsv($sortie, [
+                'Profil', 'Description', 'Catégorie', 'Échelon', 'Salaire de base',
+                'Indemnités', 'Total indemnités', 'Retenues', 'Total retenues',
+                'Salaire net', 'Contrats actifs', 'État',
+            ], ';');
+
+            foreach ($profils as $profil) {
+                $apercu = $paie->apercuProfil($profil);
+
+                fputcsv($sortie, [
+                    $profil->nom,
+                    $profil->description ?? '',
+                    $profil->categorie?->libelle ?? '',
+                    $profil->echelon?->nomComplet() ?? '',
+                    $apercu['salaire_base'],
+                    $this->enClair($apercu['indemnites']),
+                    $apercu['total_indemnites'],
+                    $this->enClair($apercu['retenues']),
+                    $apercu['total_retenues'],
+                    $apercu['salaire_net'],
+                    (int) $profil->contratsActifs,
+                    $profil->actif ? 'actif' : 'retiré',
+                ], ';');
+            }
+
+            fclose($sortie);
+        }, $nom, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Les lignes d'un profil en une phrase lisible : « Transport : 25 000 »,
+     * « Logement : 10 % du salaire de base = 15 000 ». Le pourcentage sans son
+     * assiette ne veut rien dire, et le montant seul masque la regle.
+     *
+     * @param  array<int, array<string, mixed>>  $lignes
+     */
+    private function enClair(array $lignes): string
+    {
+        return collect($lignes)->map(function (array $ligne) {
+            if ($ligne['type'] === 'pourcentage') {
+                $valeur = rtrim(rtrim(number_format((float) $ligne['valeur'], 2, ',', ' '), '0'), ',');
+
+                // « sur » et non « de » : l'assiette s'ecrit « le salaire de
+                // base » ou « Transport », et « de le » ne se lit pas.
+                return sprintf(
+                    '%s : %s %% sur %s = %s',
+                    $ligne['libelle'],
+                    $valeur,
+                    $ligne['assietteLibelle'],
+                    number_format((float) $ligne['montant'], 0, ',', ' ')
+                );
+            }
+
+            return sprintf('%s : %s', $ligne['libelle'], number_format((float) $ligne['montant'], 0, ',', ' '));
+        })->implode(' ; ');
     }
 
     // ---------------------------------------------------------- employeurs

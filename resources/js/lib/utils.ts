@@ -131,6 +131,7 @@ export const routes = {
         retenues: '/personnel/retenues',
         retenue: (id: number) => `/personnel/retenues/${id}`,
         profils: '/personnel/profils',
+        profilsExport: '/personnel/profils/export',
         profil: (id: number) => `/personnel/profils/${id}`,
     },
     admin: {

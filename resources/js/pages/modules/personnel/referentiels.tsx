@@ -1093,7 +1093,18 @@ function Profils({
 
     return (
         <Card className="p-5">
-            <div className="flex justify-end">
+            <div className="flex flex-wrap justify-end gap-2">
+                {/* Le fichier porte le net et le detail de chaque ligne, tels
+                    que le moteur de paie les calcule. */}
+                <a
+                    href={routes.personnel.profilsExport}
+                    className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200 dark:hover:bg-white/10"
+                    title="Les profils de salaire en tableur, nets et détail compris"
+                >
+                    <Icon name="download" className="h-4 w-4" />
+                    Exporter
+                </a>
+
                 <Bouton icon="plus" onClick={() => ouvrir(null)}>
                     Nouveau profil
                 </Bouton>

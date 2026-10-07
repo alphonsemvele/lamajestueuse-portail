@@ -199,6 +199,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/employeurs', [ReferentielController::class, 'employeurs'])->name('employeurs');
         Route::get('/categories', [ReferentielController::class, 'categories'])->name('categories');
         Route::get('/profils', [ReferentielController::class, 'profils'])->name('profils');
+        Route::get('/profils/export', [ReferentielController::class, 'exporterProfils'])->name('profils.export');
         Route::get('/indemnites', [ReferentielController::class, 'indemnites'])->name('indemnites');
         Route::get('/retenues', [ReferentielController::class, 'retenues'])->name('retenues');
 

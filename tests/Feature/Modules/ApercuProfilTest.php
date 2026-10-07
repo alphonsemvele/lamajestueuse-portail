@@ -135,6 +135,60 @@ class ApercuProfilTest extends TestCase
         );
     }
 
+    // ------------------------------------------------------------- export
+
+    /**
+     * Le fichier doit dire la meme chose que l'ecran : meme net, et le detail
+     * des lignes en clair. Un export qui recalculerait de son cote finirait
+     * par dire autre chose que les bulletins.
+     */
+    public function test_la_rh_exporte_les_profils_en_tableur(): void
+    {
+        $this->profil(
+            ['Transport' => ['fixe', 30000], 'Technicité' => ['pourcentage', 12.5]],
+            ['Avance' => ['fixe', 5000]],
+        );
+
+        $reponse = $this->actingAs($this->gestionnaire())->get(route('personnel.profils.export'));
+
+        $reponse->assertOk();
+        $reponse->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+
+        $csv = $reponse->streamedContent();
+
+        // L'en-tete, le net, et le detail lisible de chaque ligne.
+        $this->assertStringContainsString('Salaire net', $csv);
+        $this->assertStringContainsString('Transport : 30 000', $csv);
+        $this->assertStringContainsString('Technicité : 12,5 % sur le salaire de base = 25 000', $csv);
+        $this->assertStringContainsString('Avance : 5 000', $csv);
+
+        // 200 000 + 30 000 + 25 000 - 5 000
+        $this->assertStringContainsString('250000', $csv);
+    }
+
+    /** Le fichier s'ouvre dans Excel sans charabia : il porte le marqueur UTF-8. */
+    public function test_l_export_s_ouvre_dans_excel(): void
+    {
+        $this->profil();
+
+        $csv = $this->actingAs($this->gestionnaire())
+            ->get(route('personnel.profils.export'))->streamedContent();
+
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
+        $this->assertStringContainsString(';', $csv);
+    }
+
+    public function test_un_employe_n_exporte_pas_les_profils(): void
+    {
+        $this->actingAs(User::factory()->create(['status' => 'active']))
+            ->get(route('personnel.profils.export'))->assertForbidden();
+    }
+
+    private function gestionnaire(): User
+    {
+        return User::factory()->create(['role' => 'superadmin', 'status' => 'active']);
+    }
+
     public function test_l_ecran_des_profils_porte_le_net(): void
     {
         $this->profil(['Transport' => ['fixe', 30000]], ['Avance' => ['fixe', 5000]]);

@@ -278,6 +278,10 @@ class PaieService
             'total_indemnites' => $indemnites,
             'total_retenues' => $retenues,
             'salaire_net' => round($base + $indemnites - $retenues, 2),
+            // Le detail resolu, assiettes comprises : l'export s'en sert, et
+            // le recalculer ailleurs serait le risque de le calculer autrement.
+            'indemnites' => $resolues['indemnites'],
+            'retenues' => $resolues['retenues'],
         ];
     }
 

@@ -5,6 +5,7 @@ import Icon from '@/components/icon';
 import PhotoField from '@/components/photo-field';
 import { Card, ErrorSummary, Input, Select, Textarea } from '@/components/ui';
 import PersonnelLayout from '@/layouts/personnel-layout';
+import { type Cadrage, lireCadrage, pourEnvoi } from '@/lib/cadrage';
 import { cn, routes } from '@/lib/utils';
 import { Bouton, Champ, fcfa, Modale, Statut, Tableau, Vide } from '../parts';
 
@@ -23,6 +24,7 @@ interface Agent {
     email: string | null;
     telephone: string | null;
     photoUrl: string | null;
+    photoCadrage: Cadrage | null;
     initiales: string | null;
     dateNaissance: string | null;
     lieuNaissance: string | null;
@@ -161,6 +163,7 @@ interface SaisieDossier {
     phone: string;
     poste: string;
     avatar_file: File | null;
+    avatar_cadrage: string | null;
     remove_avatar: boolean;
     date_naissance: string;
     lieu_naissance: string;
@@ -219,7 +222,12 @@ export default function FicheAgent({
 
             <Card className="p-6">
                 <div className="flex flex-wrap items-start gap-5">
-                    <Avatar url={agent.photoUrl} initials={agent.initiales ?? '?'} className="h-16 w-16 text-lg" />
+                    <Avatar
+                        url={agent.photoUrl}
+                        cadrage={agent.photoCadrage}
+                        initials={agent.initiales ?? '?'}
+                        className="h-16 w-16 text-lg"
+                    />
                     <div className="min-w-0 flex-1">
                         <h1 className="text-xl font-semibold text-ink-900 dark:text-white">{agent.nom}</h1>
                         <p className="mt-0.5 text-sm text-ink-500 dark:text-ink-400">
@@ -354,6 +362,10 @@ function Rattachement({ agent }: { agent: Agent }) {
 function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
     const [edition, setEdition] = useState(false);
     const [apercu, setApercu] = useState<string | null>(agent.photoUrl);
+
+    // Recadrer n'entame pas le fichier : on peut le refaire sur une photo
+    // déjà en place, sans la remplacer.
+    const [cadrage, setCadrage] = useState<Cadrage>(lireCadrage(agent.photoCadrage));
     const [cherche, setCherche] = useState(false);
 
     const formulaire = useForm<SaisieDossier>({
@@ -365,6 +377,7 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
         phone: agent.telephone ?? '',
         poste: agent.poste ?? '',
         avatar_file: null,
+        avatar_cadrage: pourEnvoi(lireCadrage(agent.photoCadrage)),
         remove_avatar: false,
         // Dossier administratif.
         date_naissance: agent.dateNaissance ?? '',
@@ -468,6 +481,11 @@ function Dossier({ agent, peutGerer }: { agent: Agent; peutGerer: boolean }) {
                         preview={apercu}
                         initials={agent.initiales ?? '?'}
                         error={formulaire.errors.avatar_file}
+                        cadrage={cadrage}
+                        onCadrage={(valeur) => {
+                            setCadrage(valeur);
+                            formulaire.setData('avatar_cadrage', pourEnvoi(valeur));
+                        }}
                         onPick={(fichier) => {
                             formulaire.setData((actuel) => ({ ...actuel, avatar_file: fichier, remove_avatar: false }));
                             setApercu(URL.createObjectURL(fichier));

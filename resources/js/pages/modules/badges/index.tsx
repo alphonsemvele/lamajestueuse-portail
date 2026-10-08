@@ -4,6 +4,7 @@ import Icon from '@/components/icon';
 import PhotoField from '@/components/photo-field';
 import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
+import { type Cadrage, lireCadrage, pourEnvoi } from '@/lib/cadrage';
 import { cn, routes } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { ApercuBadge, estLeGroupe, LE_GROUPE, type DonneesBadge, type Institut } from './carte';
@@ -21,6 +22,7 @@ interface Demande {
     statutLibelle: string;
     motifRefus: string | null;
     institut: Institut | null;
+    photoCadrage: Cadrage | null;
     demandeLe: string | null;
     traiteLe: string | null;
     traitePar: string | null;
@@ -35,6 +37,7 @@ interface Props {
         matricule: string | null;
         poste: string | null;
         photoUrl: string | null;
+        photoCadrage: Cadrage | null;
         initiales: string;
     };
     motifs: Record<string, string>;
@@ -77,6 +80,10 @@ export default function MonBadge({
 
     const [photoApercu, setPhotoApercu] = useState<string | null>(identite.photoUrl);
 
+    // Le cadrage de départ est celui du compte : la photo du badge est la
+    // sienne tant qu'on n'en joint pas une autre.
+    const [cadrage, setCadrage] = useState<Cadrage>(lireCadrage(identite.photoCadrage));
+
     const formulaire = useForm<{
         nom_affiche: string;
         poste_affiche: string;
@@ -84,6 +91,7 @@ export default function MonBadge({
         application_id: string;
         commentaire: string;
         photo_file: File | null;
+        photo_cadrage: string | null;
     }>({
         nom_affiche: identite.nom,
         poste_affiche: institutUnique?.poste ?? identite.poste ?? '',
@@ -91,6 +99,7 @@ export default function MonBadge({
         application_id: choixParDefaut ? String(choixParDefaut.id) : '',
         commentaire: '',
         photo_file: null,
+        photo_cadrage: pourEnvoi(lireCadrage(identite.photoCadrage)),
     });
 
     const institutChoisi =
@@ -101,6 +110,7 @@ export default function MonBadge({
         posteAffiche: formulaire.data.poste_affiche || null,
         matricule: identite.matricule,
         photoUrl: photoApercu,
+        photoCadrage: cadrage,
         initiales: identite.initiales,
         institut: institutChoisi,
     };
@@ -210,6 +220,11 @@ export default function MonBadge({
                                         initials={identite.initiales}
                                         error={formulaire.errors.photo_file}
                                         hint="Par défaut, la photo de votre compte."
+                                        cadrage={cadrage}
+                                        onCadrage={(valeur) => {
+                                            setCadrage(valeur);
+                                            formulaire.setData('photo_cadrage', pourEnvoi(valeur));
+                                        }}
                                         onPick={(fichier) => {
                                             formulaire.setData('photo_file', fichier);
                                             setPhotoApercu(URL.createObjectURL(fichier));
@@ -217,6 +232,8 @@ export default function MonBadge({
                                         onDrop={() => {
                                             formulaire.setData('photo_file', null);
                                             setPhotoApercu(identite.photoUrl);
+                                            setCadrage(lireCadrage(identite.photoCadrage));
+                                            formulaire.setData('photo_cadrage', pourEnvoi(lireCadrage(identite.photoCadrage)));
                                         }}
                                     />
                                 </div>
@@ -396,6 +413,7 @@ export default function MonBadge({
                                                 posteAffiche: demande.posteAffiche,
                                                 matricule: demande.matricule,
                                                 photoUrl: demande.photoUrl,
+                                                photoCadrage: demande.photoCadrage,
                                                 initiales: identite.initiales,
                                                 institut: demande.institut,
                                                 numero: demande.numero,

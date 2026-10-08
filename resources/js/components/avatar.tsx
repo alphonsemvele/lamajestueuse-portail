@@ -1,19 +1,22 @@
+import { type Cadrage, styleCadrage } from '@/lib/cadrage';
 import { cn } from '@/lib/utils';
 
 interface Props {
     url?: string | null;
     initials: string;
     className?: string;
+    /** Où regarder dans la photo. Absent, elle se montre centrée. */
+    cadrage?: Cadrage | null;
 }
 
 /** Photo de profil, avec repli sur les initiales. */
-export default function Avatar({ url, initials, className }: Props) {
+export default function Avatar({ url, initials, className, cadrage }: Props) {
     const base = 'flex shrink-0 items-center justify-center overflow-hidden rounded-full';
 
     if (url) {
         return (
             <span className={cn(base, 'ring-1 ring-ink-900/10 dark:ring-white/15', className)}>
-                <img src={url} alt="" className="h-full w-full object-cover" />
+                <img src={url} alt="" className="h-full w-full" style={styleCadrage(cadrage)} />
             </span>
         );
     }

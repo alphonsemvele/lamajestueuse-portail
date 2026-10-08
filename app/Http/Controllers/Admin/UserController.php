@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\AttributionMatricules;
 use App\Services\BulletinPdf;
 use App\Services\CourrielsPortail;
+use App\Support\Cadrage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -415,6 +416,8 @@ class UserController extends Controller
             'locale' => ['required', Rule::in(['fr', 'en'])],
             'password' => [$user ? 'nullable' : 'required', 'confirmed', Password::min(8)],
             'avatar_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Le cadrage ne touche pas au fichier : il dit ou regarder.
+            'avatar_cadrage' => ['nullable', 'string', 'max:200'],
         ]);
 
         if (blank($data['password'] ?? null)) {
@@ -423,6 +426,7 @@ class UserController extends Controller
 
         unset($data['avatar_file']);
         $data['avatar'] = $this->resolveMedia($request, $user?->avatar, 'avatar', 'utilisateurs/photos');
+        $data['avatar_cadrage'] = Cadrage::depuis($data['avatar_cadrage'] ?? null);
 
         return $data;
     }

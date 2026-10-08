@@ -1,3 +1,5 @@
+import type { Cadrage } from '@/lib/cadrage';
+
 export type Role = 'superadmin' | 'admin' | 'manager' | 'employee';
 export type Status = 'active' | 'suspended' | 'pending';
 export type AppType = 'application' | 'quick_link' | 'module';
@@ -10,6 +12,8 @@ export interface AuthUser {
     fullName: string;
     initials: string;
     avatarUrl: string | null;
+    /** Où regarder dans la photo : le fichier reste entier. */
+    avatarCadrage: Cadrage | null;
     email: string | null;
     poste: string | null;
     entite: string | null;
@@ -103,6 +107,8 @@ export interface PortalUser {
     fullName: string;
     initials: string;
     avatarUrl: string | null;
+    /** Où regarder dans la photo : le fichier reste entier. */
+    avatarCadrage: Cadrage | null;
     sexe: 'M' | 'F' | null;
     matricule: string | null;
     email: string | null;

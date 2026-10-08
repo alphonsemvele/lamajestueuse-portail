@@ -2,8 +2,10 @@ import { Link, router, useForm } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
+import PhotoField from '@/components/photo-field';
 import { Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
+import { type Cadrage, lireCadrage, pourEnvoi } from '@/lib/cadrage';
 import { cn, routes } from '@/lib/utils';
 import { ApercuBadge, LE_GROUPE, type Institut } from '@/pages/modules/badges/carte';
 
@@ -49,6 +51,7 @@ interface Props {
         telephone: string | null;
         poste: string | null;
         photoUrl: string | null;
+        photoCadrage: Cadrage | null;
         initiales: string | null;
         inscritLe: string | null;
         employeur: { sigle: string; nom: string } | null;
@@ -100,6 +103,7 @@ interface BadgeDemande {
     posteAffiche: string | null;
     matricule: string | null;
     photoUrl: string | null;
+    photoCadrage: Cadrage | null;
     statut: string;
     statutLibelle: string;
     motifRefus: string | null;
@@ -276,10 +280,18 @@ export default function MonProfil({
     );
     const [modification, setModification] = useState(false);
     const [apercuPhoto, setApercuPhoto] = useState<string | null>(identite.photoUrl);
+
+    // Recadrer n'entame pas le fichier : chacun peut reprendre le cadrage de
+    // sa photo sans la redéposer.
+    const [cadragePhoto, setCadragePhoto] = useState<Cadrage>(lireCadrage(identite.photoCadrage));
     const [ouvertDiplome, setOuvertDiplome] = useState(false);
     const [ouvertDocument, setOuvertDocument] = useState(false);
 
-    const mesInfos = useForm({ ...saisie, photo: null as File | null });
+    const mesInfos = useForm({
+        ...saisie,
+        photo: null as File | null,
+        photo_cadrage: pourEnvoi(lireCadrage(identite.photoCadrage)),
+    });
 
     const enregistrer = (event: FormEvent) => {
         event.preventDefault();
@@ -343,6 +355,7 @@ export default function MonProfil({
                         <div className="-mt-10 flex flex-wrap items-end gap-4">
                             <Avatar
                                 url={identite.photoUrl}
+                                cadrage={identite.photoCadrage}
                                 initials={identite.initiales ?? '?'}
                                 className="h-24 w-24 text-2xl ring-4 ring-white dark:ring-ink-900"
                             />
@@ -459,21 +472,23 @@ export default function MonProfil({
                         }
                     >
                         <form onSubmit={enregistrer} className="space-y-5">
-                            <div className="flex flex-wrap items-center gap-4">
-                                <Avatar url={apercuPhoto} initials={identite.initiales ?? '?'} className="h-16 w-16 text-lg" />
-                                <div>
-                                    <label className="text-xs text-ink-600 dark:text-ink-300">Photo de profil</label>
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(event) => {
-                                            const fichier = event.target.files?.[0] ?? null;
-                                            mesInfos.setData('photo', fichier);
-                                            setApercuPhoto(fichier ? URL.createObjectURL(fichier) : identite.photoUrl);
+                            <div>
+                                <label className="text-xs text-ink-600 dark:text-ink-300">Photo de profil</label>
+                                <div className="mt-2">
+                                    <PhotoField
+                                        preview={apercuPhoto}
+                                        initials={identite.initiales ?? '?'}
+                                        error={mesInfos.errors.photo}
+                                        cadrage={cadragePhoto}
+                                        onCadrage={(valeur) => {
+                                            setCadragePhoto(valeur);
+                                            mesInfos.setData('photo_cadrage', pourEnvoi(valeur));
                                         }}
-                                        className="mt-1 block text-sm text-ink-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-2 file:text-sm file:text-ink-700 dark:text-ink-300 dark:file:bg-white/10 dark:file:text-ink-200"
+                                        onPick={(fichier) => {
+                                            mesInfos.setData('photo', fichier);
+                                            setApercuPhoto(URL.createObjectURL(fichier));
+                                        }}
                                     />
-                                    {mesInfos.errors.photo && <p className="mt-1 text-xs text-red-600">{mesInfos.errors.photo}</p>}
                                 </div>
                             </div>
 

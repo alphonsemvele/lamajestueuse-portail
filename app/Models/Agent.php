@@ -107,6 +107,7 @@ class Agent extends Model
             'email' => $this->user?->email,
             'telephone' => $this->user?->phone,
             'photoUrl' => $this->user?->avatarUrl(),
+            'photoCadrage' => $this->user?->avatar_cadrage,
             'initiales' => $this->user?->initials(),
             'dateNaissance' => $this->date_naissance?->format('Y-m-d'),
             'lieuNaissance' => $this->lieu_naissance,

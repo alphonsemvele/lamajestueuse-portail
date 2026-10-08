@@ -2,9 +2,11 @@ import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { type FormEvent, useState } from 'react';
 import Avatar from '@/components/avatar';
 import Icon from '@/components/icon';
+import PhotoField from '@/components/photo-field';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
+import { type Cadrage, CADRAGE_NEUTRE, pourEnvoi } from '@/lib/cadrage';
 import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes } from '@/lib/utils';
 import type { Paginated, SharedProps } from '@/types';
@@ -27,6 +29,7 @@ interface Demande {
     institut: Institut | null;
     demandeLe: string | null;
     deposePar: string | null;
+    photoCadrage: Cadrage | null;
     traiteLe: string | null;
     traitePar: string | null;
 }
@@ -123,16 +126,27 @@ export default function GestionBadges({
         poste_affiche: '',
         application_id: '',
         photo_file: null as File | null,
+        photo_cadrage: null as string | null,
     });
 
+    // Recadrer une demande existante n'exige pas d'en changer la photo : on
+    // repart de celle qui est déjà là, et de son cadrage.
+    const [apercuEdition, setApercuEdition] = useState<string | null>(null);
+    const [cadrageEdition, setCadrageEdition] = useState<Cadrage>(CADRAGE_NEUTRE);
+
     const ouvrirEdition = (demande: Demande) => {
+        const cadrage = demande.photoCadrage ?? CADRAGE_NEUTRE;
+
         formulaireEdition.setData({
             nom_affiche: demande.nomAffiche,
             poste_affiche: demande.posteAffiche ?? '',
             application_id: String(demande.institut?.id ?? LE_GROUPE.id),
             photo_file: null,
+            photo_cadrage: pourEnvoi(cadrage),
         });
         formulaireEdition.clearErrors();
+        setApercuEdition(demande.photoUrl);
+        setCadrageEdition(cadrage);
         setEdition(demande);
     };
 
@@ -160,7 +174,12 @@ export default function GestionBadges({
         application_id: '',
         commentaire: '',
         photo_file: null as File | null,
+        photo_cadrage: null as string | null,
     });
+
+    // L'aperçu et le cadrage de la photo jointe, le temps de la saisie.
+    const [apercuDepot, setApercuDepot] = useState<string | null>(null);
+    const [cadrageDepot, setCadrageDepot] = useState<Cadrage>(CADRAGE_NEUTRE);
 
     const choisie = personnel.find((p) => String(p.id) === formulaireDepot.data.user_id) ?? null;
 
@@ -187,6 +206,8 @@ export default function GestionBadges({
         formulaireDepot.reset();
         formulaireDepot.clearErrors();
         setRecherchePersonne('');
+        setApercuDepot(null);
+        setCadrageDepot(CADRAGE_NEUTRE);
         setDepot(true);
     };
 
@@ -586,22 +607,29 @@ export default function GestionBadges({
                                     </label>
                                 </div>
 
-                                <label className="block">
+                                <div>
                                     <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
                                         Photo (facultative)
                                     </span>
-                                    <input
-                                        type="file"
-                                        accept="image/jpeg,image/png,image/webp"
-                                        onChange={(event) =>
-                                            formulaireDepot.setData('photo_file', event.target.files?.[0] ?? null)
-                                        }
-                                        className="block w-full text-sm text-ink-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-700 dark:text-ink-300 dark:file:bg-white/10 dark:file:text-ink-200"
+                                    <PhotoField
+                                        preview={apercuDepot}
+                                        initials="?"
+                                        hint="Sans photo jointe, le badge reprend celle de son compte."
+                                        cadrage={cadrageDepot}
+                                        onCadrage={(valeur) => {
+                                            setCadrageDepot(valeur);
+                                            formulaireDepot.setData('photo_cadrage', pourEnvoi(valeur));
+                                        }}
+                                        onPick={(fichier) => {
+                                            formulaireDepot.setData('photo_file', fichier);
+                                            setApercuDepot(URL.createObjectURL(fichier));
+                                        }}
+                                        onDrop={() => {
+                                            formulaireDepot.setData('photo_file', null);
+                                            setApercuDepot(null);
+                                        }}
                                     />
-                                    <span className="mt-1 block text-xs text-ink-400">
-                                        Sans photo jointe, le badge reprend celle de son compte.
-                                    </span>
-                                </label>
+                                </div>
                             </>
                         )}
 
@@ -689,24 +717,26 @@ export default function GestionBadges({
                             )}
                         </label>
 
-                        <label className="block">
+                        <div>
                             <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
-                                Remplacer la photo (facultatif)
+                                Photo et cadrage
                             </span>
-                            <input
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                onChange={(event) =>
-                                    formulaireEdition.setData('photo_file', event.target.files?.[0] ?? null)
-                                }
-                                className="block w-full text-sm text-ink-600 file:mr-3 file:rounded-lg file:border-0 file:bg-ink-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-700 dark:text-ink-300 dark:file:bg-white/10 dark:file:text-ink-200"
+                            <PhotoField
+                                preview={apercuEdition}
+                                initials="?"
+                                hint="Le cadrage se change sans remplacer la photo."
+                                error={formulaireEdition.errors.photo_file}
+                                cadrage={cadrageEdition}
+                                onCadrage={(valeur) => {
+                                    setCadrageEdition(valeur);
+                                    formulaireEdition.setData('photo_cadrage', pourEnvoi(valeur));
+                                }}
+                                onPick={(fichier) => {
+                                    formulaireEdition.setData('photo_file', fichier);
+                                    setApercuEdition(URL.createObjectURL(fichier));
+                                }}
                             />
-                            {formulaireEdition.errors.photo_file && (
-                                <p className="mt-1 text-xs font-medium text-red-600">
-                                    {formulaireEdition.errors.photo_file}
-                                </p>
-                            )}
-                        </label>
+                        </div>
 
                         <div className="flex justify-end gap-2">
                             <button

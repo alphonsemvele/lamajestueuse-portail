@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\AttributionMatricules;
 use App\Services\CourrielsPortail;
 use App\Services\PaieService;
+use App\Support\Cadrage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -630,10 +631,13 @@ class PersonnelController extends Controller
             'phone' => ['nullable', 'string', 'max:40'],
             'poste' => ['nullable', 'string', 'max:120'],
             'avatar_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Le cadrage ne touche pas au fichier : il dit ou regarder.
+            'avatar_cadrage' => ['nullable', 'string', 'max:200'],
         ]);
 
         unset($donnees['avatar_file']);
         $donnees['avatar'] = $this->resolveMedia($request, $user?->avatar, 'avatar', 'utilisateurs/photos');
+        $donnees['avatar_cadrage'] = Cadrage::depuis($donnees['avatar_cadrage'] ?? null);
 
         return $donnees;
     }

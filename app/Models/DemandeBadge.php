@@ -17,11 +17,11 @@ class DemandeBadge extends Model
 
     protected $fillable = [
         'numero', 'user_id', 'depose_par', 'application_id', 'nom_affiche', 'poste_affiche',
-        'modele', 'motif', 'photo', 'commentaire', 'statut', 'motif_refus',
+        'modele', 'motif', 'photo', 'photo_cadrage', 'commentaire', 'statut', 'motif_refus',
         'traite_par', 'traite_le',
     ];
 
-    protected $casts = ['traite_le' => 'datetime'];
+    protected $casts = ['traite_le' => 'datetime', 'photo_cadrage' => 'array'];
 
     /** Pourquoi le badge est demande. */
     public const MOTIFS = [
@@ -108,6 +108,17 @@ class DemandeBadge extends Model
         return $this->user?->avatarUrl();
     }
 
+    /**
+     * Le cadrage qui va avec cette photo.
+     *
+     * Une photo jointe a le sien ; a defaut, c'est la photo du compte qui est
+     * reprise, et c'est donc son cadrage qu'il faut suivre.
+     */
+    public function photoCadrage(): ?array
+    {
+        return filled($this->photo) ? $this->photo_cadrage : $this->user?->avatar_cadrage;
+    }
+
     /** Le nom qui va avec le logo imprime : l'institut retenu, ou le groupe. */
     public function logoLibelle(): string
     {
@@ -154,6 +165,7 @@ class DemandeBadge extends Model
             'motif' => $this->motif,
             'motifLibelle' => self::MOTIFS[$this->motif] ?? $this->motif,
             'photoUrl' => $this->photoUrl(),
+            'photoCadrage' => $this->photoCadrage(),
             'commentaire' => $this->commentaire,
             'statut' => $this->statut,
             'statutLibelle' => self::STATUTS[$this->statut] ?? $this->statut,

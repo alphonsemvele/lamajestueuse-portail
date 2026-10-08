@@ -12,6 +12,7 @@ use App\Models\Diplome;
 use App\Models\DocumentAgent;
 use App\Models\EvenementCarriere;
 use App\Models\User;
+use App\Support\Cadrage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -63,6 +64,7 @@ class ProfilController extends Controller
                 'poste' => $moi->poste,
                 'sexe' => $moi->sexe,
                 'photoUrl' => $moi->avatarUrl(),
+                'photoCadrage' => $moi->avatar_cadrage,
                 'initiales' => $moi->initials(),
                 'inscritLe' => $moi->created_at?->format('d/m/Y'),
                 'employeur' => $moi->employeurDeRattachement()?->toUiArray(),
@@ -229,6 +231,8 @@ class ProfilController extends Controller
             'email' => ['nullable', 'email', 'max:150', Rule::unique('users', 'email')->ignore($moi->id)],
             'phone' => ['nullable', 'string', 'max:40'],
             'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Le cadrage ne touche pas au fichier : il dit ou regarder.
+            'photo_cadrage' => ['nullable', 'string', 'max:200'],
 
             'date_naissance' => ['nullable', 'date', 'before:today'],
             'lieu_naissance' => ['nullable', 'string', 'max:120'],
@@ -252,6 +256,7 @@ class ProfilController extends Controller
             'avatar' => $request->hasFile('photo')
                 ? $request->file('photo')->store('utilisateurs/photos', 'public')
                 : $moi->avatar,
+            'avatar_cadrage' => Cadrage::depuis($donnees['photo_cadrage'] ?? null),
         ]);
 
         $this->monDossier($moi)->update(

@@ -10,6 +10,7 @@ import MultiSelect from '@/components/multi-select';
 import PhotoField from '@/components/photo-field';
 import { Card, Input, Select } from '@/components/ui';
 import AdminLayout from '@/layouts/admin-layout';
+import { type Cadrage, lireCadrage, pourEnvoi } from '@/lib/cadrage';
 import { routes, useT } from '@/lib/utils';
 import type { Application, PortalUser } from '@/types';
 
@@ -35,6 +36,7 @@ interface UserFormData {
     password: string;
     password_confirmation: string;
     avatar: string;
+    avatar_cadrage: string | null;
     avatar_file: File | null;
     remove_avatar: boolean;
     applications: number[];
@@ -60,6 +62,7 @@ export default function UserForm({ user, applications, assigned, postes }: Props
         password: '',
         password_confirmation: '',
         avatar: '',
+        avatar_cadrage: pourEnvoi(lireCadrage(user?.avatarCadrage)),
         avatar_file: null,
         remove_avatar: false,
         applications: Object.keys(assigned).map(Number),
@@ -80,6 +83,10 @@ export default function UserForm({ user, applications, assigned, postes }: Props
         }));
 
     const [photoPreview, setPhotoPreview] = useState<string | null>(user?.avatarUrl ?? null);
+
+    // Recadrer n'entame pas le fichier : le cadrage se change aussi sur une
+    // photo déjà en place, sans la remplacer.
+    const [cadrage, setCadrage] = useState<Cadrage>(lireCadrage(user?.avatarCadrage));
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -125,6 +132,11 @@ export default function UserForm({ user, applications, assigned, postes }: Props
                                     preview={photoPreview}
                                     initials={user?.initials}
                                     error={errors.avatar_file}
+                                    cadrage={cadrage}
+                                    onCadrage={(valeur) => {
+                                        setCadrage(valeur);
+                                        setData((current) => ({ ...current, avatar_cadrage: pourEnvoi(valeur) }));
+                                    }}
                                     onPick={(file) => {
                                         setData((current) => ({ ...current, avatar_file: file, remove_avatar: false }));
                                         setPhotoPreview(URL.createObjectURL(file));

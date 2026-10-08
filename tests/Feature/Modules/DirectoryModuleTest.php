@@ -115,7 +115,9 @@ class DirectoryModuleTest extends TestCase
         $this->actingAs($lecteur)->get(route('annuaire.index', ['q' => 'ngono']))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('personnel.data.0', fn (Assert $fiche) => $fiche
-                    ->hasAll(['id', 'fullName', 'initials', 'avatarUrl', 'poste', 'entite', 'matricule', 'email', 'phone', 'sexe', 'instituts'])
+                    // « avatarCadrage » dit ou regarder dans la photo : trois
+                    // nombres d'affichage, rien de la personne.
+                    ->hasAll(['id', 'fullName', 'initials', 'avatarUrl', 'avatarCadrage', 'poste', 'entite', 'matricule', 'email', 'phone', 'sexe', 'instituts'])
                     // Rien d'autre ne doit sortir.
                     ->missingAll(['password', 'remember_token', 'role', 'status', 'locale', 'last_login_at', 'self_registered', 'approved_at'])));
     }

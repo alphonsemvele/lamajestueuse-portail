@@ -14,6 +14,7 @@ use App\Models\Application;
 use App\Models\DemandeBadge;
 use App\Models\User;
 use App\Services\CourrielsPortail;
+use App\Support\Cadrage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -60,6 +61,7 @@ class BadgeController extends Controller
                 'matricule' => $utilisateur->matricule,
                 'poste' => $utilisateur->poste,
                 'photoUrl' => $utilisateur->avatarUrl(),
+                'photoCadrage' => $utilisateur->avatar_cadrage,
                 'initiales' => $utilisateur->initials(),
             ],
             'motifs' => DemandeBadge::MOTIFS,
@@ -103,6 +105,8 @@ class BadgeController extends Controller
             ],
             'commentaire' => ['nullable', 'string', 'max:500'],
             'photo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Le cadrage ne touche pas au fichier : il dit ou regarder.
+            'photo_cadrage' => ['nullable', 'string', 'max:200'],
         ], [
             'application_id.required' => __('Choisissez le logo qui figurera sur votre badge.'),
             'application_id.in' => __('Vous n’êtes pas rattaché à cet institut.'),
@@ -156,6 +160,8 @@ class BadgeController extends Controller
             ],
             'commentaire' => ['nullable', 'string', 'max:500'],
             'photo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Le cadrage ne touche pas au fichier : il dit ou regarder.
+            'photo_cadrage' => ['nullable', 'string', 'max:200'],
         ], [
             'application_id.required' => __('Choisissez le logo qui figurera sur le badge.'),
             'application_id.in' => __(':nom n’est pas rattaché à cet institut.', ['nom' => $personne->fullName()]),
@@ -188,6 +194,8 @@ class BadgeController extends Controller
 
         $photo = $this->resolveMedia($request, null, 'photo', 'badges/photos');
         unset($donnees['photo_file']);
+
+        $donnees['photo_cadrage'] = Cadrage::depuis($donnees['photo_cadrage'] ?? null);
 
         $demande = DemandeBadge::create($donnees + [
             'modele' => 'classique',
@@ -313,6 +321,8 @@ class BadgeController extends Controller
             'poste_affiche' => ['nullable', 'string', 'max:120'],
             'application_id' => ['nullable', Rule::in([...$instituts, DemandeBadge::LOGO_GROUPE])],
             'photo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+            // Le cadrage ne touche pas au fichier : il dit ou regarder.
+            'photo_cadrage' => ['nullable', 'string', 'max:200'],
         ], [
             'application_id.in' => __('Cet institut n’est pas en service.'),
         ]);
@@ -323,6 +333,8 @@ class BadgeController extends Controller
 
         $photo = $this->resolveMedia($request, $demande->photo, 'photo', 'badges/photos');
         unset($donnees['photo_file']);
+
+        $donnees['photo_cadrage'] = Cadrage::depuis($donnees['photo_cadrage'] ?? null);
 
         $demande->update($donnees + ['photo' => $photo]);
 

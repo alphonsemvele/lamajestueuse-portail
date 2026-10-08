@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Icon from '@/components/icon';
+import { type Cadrage, styleCadrage } from '@/lib/cadrage';
 import { cn } from '@/lib/utils';
 
 export interface Institut {
@@ -52,6 +53,8 @@ const DEVISE: { mot: string; icone: string }[] = [
 
 export interface DonneesBadge {
     nomAffiche: string;
+    /** Où regarder dans la photo : le fichier reste entier. */
+    photoCadrage?: Cadrage | null;
     posteAffiche: string | null;
     matricule: string | null;
     photoUrl: string | null;
@@ -107,7 +110,16 @@ function Photo({ donnees, taille, accent }: { donnees: DonneesBadge; taille: num
     const style = { width: taille, height: taille, ...anneau };
 
     if (donnees.photoUrl) {
-        return <img src={donnees.photoUrl} alt="" style={style} className="shrink-0 rounded-full object-cover" />;
+        return (
+            <span style={style} className="shrink-0 overflow-hidden rounded-full">
+                <img
+                    src={donnees.photoUrl}
+                    alt=""
+                    className="h-full w-full"
+                    style={styleCadrage(donnees.photoCadrage)}
+                />
+            </span>
+        );
     }
 
     return (

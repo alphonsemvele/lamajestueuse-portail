@@ -19,7 +19,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name', 'lastname', 'sexe', 'matricule', 'email', 'phone', 'poste', 'entite',
-        'avatar', 'role', 'status', 'locale', 'password', 'last_login_at',
+        'avatar', 'avatar_cadrage', 'role', 'status', 'locale', 'password', 'last_login_at',
         'self_registered', 'approved_at', 'dans_le_personnel', 'employeur_id',
     ];
 
@@ -33,6 +33,7 @@ class User extends Authenticatable
             'approved_at' => 'datetime',
             'self_registered' => 'boolean',
             'dans_le_personnel' => 'boolean',
+            'avatar_cadrage' => 'array',
             'password' => 'hashed',
         ];
     }
@@ -308,6 +309,7 @@ class User extends Authenticatable
             'fullName' => $this->fullName(),
             'initials' => $this->initials(),
             'avatarUrl' => $this->avatarUrl(),
+            'avatarCadrage' => $this->avatar_cadrage,
             'sexe' => $this->sexe,
             'matricule' => $this->matricule,
             'email' => $this->email,
@@ -353,6 +355,7 @@ class User extends Authenticatable
             'fullName' => $this->fullName(),
             'initials' => $this->initials(),
             'avatarUrl' => $this->avatarUrl(),
+            'avatarCadrage' => $this->avatar_cadrage,
             'poste' => $this->poste,
             'entite' => $this->entite,
             'matricule' => $this->matricule,

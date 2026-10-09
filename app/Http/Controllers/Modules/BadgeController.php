@@ -283,6 +283,12 @@ class BadgeController extends Controller
                     'nom' => $personne->fullName(),
                     'matricule' => $personne->matricule,
                     'poste' => $personne->poste,
+                    // Sa photo de compte : c'est elle que le badge portera si
+                    // l'on n'en joint pas d'autre. Autant la montrer d'emblee,
+                    // et laisser la recadrer.
+                    'photoUrl' => $personne->avatarUrl(),
+                    'photoCadrage' => $personne->avatar_cadrage,
+                    'initiales' => $personne->initials(),
                     'instituts' => $personne->applications
                         ->map(fn ($a) => ['id' => $a->id, 'name' => $a->name])->all(),
                 ])->all(),
@@ -336,6 +342,29 @@ class BadgeController extends Controller
         $demande->update($donnees + ['photo' => $photo]);
 
         return back()->with('status', __('Demande :numero mise à jour.', ['numero' => $demande->numero]));
+    }
+
+    /**
+     * Le guichet supprime une demande.
+     *
+     * Un doublon, un essai, une demande deposee pour la mauvaise personne :
+     * elle n'a pas a encombrer la file. La photo jointe part avec elle —
+     * elle n'a plus de raison d'occuper le disque.
+     *
+     * Aucun etat n'est protege : une carte deja remise peut avoir ete
+     * enregistree par erreur, et c'est au guichet de juger. L'ecran previent,
+     * il n'interdit pas.
+     */
+    public function supprimer(Request $request, DemandeBadge $demande): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $numero = $demande->numero;
+
+        $this->deleteUploaded($demande->photo);
+        $demande->delete();
+
+        return back()->with('status', __('Demande :numero supprimée.', ['numero' => $numero]));
     }
 
     /**

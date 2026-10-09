@@ -77,6 +77,7 @@ export const routes = {
         destroy: (id: number) => `/badges/${id}`,
         gestion: '/badges/gestion',
         pour: '/badges/pour',
+        supprimer: (id: number) => `/badges/${id}/guichet`,
         modifier: (id: number) => `/badges/${id}/modifier`,
         rouvrir: (id: number) => `/badges/${id}/rouvrir`,
         impression: '/badges/impression',

@@ -6,7 +6,7 @@ import PhotoField from '@/components/photo-field';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
-import { type Cadrage, CADRAGE_NEUTRE, pourEnvoi } from '@/lib/cadrage';
+import { type Cadrage, CADRAGE_NEUTRE, lireCadrage, pourEnvoi } from '@/lib/cadrage';
 import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes } from '@/lib/utils';
 import type { Paginated, SharedProps } from '@/types';
@@ -51,6 +51,9 @@ interface Personne {
     nom: string;
     matricule: string | null;
     poste: string | null;
+    photoUrl: string | null;
+    photoCadrage: Cadrage | null;
+    initiales: string;
     instituts: { id: number; name: string }[];
 }
 
@@ -185,16 +188,29 @@ export default function GestionBadges({
           )
         : personnel;
 
+    /*
+     * Changer de personne remet tout ce qui la concerne, photo comprise.
+     * Sans cela, un fichier joint pour l'un suivait sur le badge de l'autre
+     * — et le guichet déposait une carte avec le visage d'un collègue.
+     */
     const choisirPersonne = (personne: Personne) => {
+        const cadrage = lireCadrage(personne.photoCadrage);
+
         formulaireDepot.setData((donnees) => ({
             ...donnees,
             user_id: String(personne.id),
-            // Le nom et la fonction du dossier, corrigeables avant l'envoi.
             nom_affiche: personne.nom,
             // Un seul institut : retenu d'office, comme pour l'intéressé.
             application_id:
                 personne.instituts.length === 1 ? String(personne.instituts[0].id) : String(LE_GROUPE.id),
+            // On repart de sa photo de compte : c'est elle que le badge
+            // portera, et le guichet peut la recadrer sans la remplacer.
+            photo_file: null,
+            photo_cadrage: pourEnvoi(cadrage),
         }));
+
+        setApercuDepot(personne.photoUrl);
+        setCadrageDepot(cadrage);
     };
 
     const ouvrirDepot = () => {
@@ -409,6 +425,24 @@ export default function GestionBadges({
                                         </button>
                                     )}
 
+                                    <button
+                                        type="button"
+                                        title="Supprimer cette demande"
+                                        onClick={() => {
+                                            const remise = demande.statut === 'remise';
+                                            const question = remise
+                                                ? `${demande.numero} a déjà été remise à ${demande.demandeur}. La supprimer effacera toute trace de ce badge. Continuer ?`
+                                                : `Supprimer définitivement ${demande.numero} (${demande.demandeur}) ?`;
+
+                                            if (confirm(question)) {
+                                                router.delete(routes.badges.supprimer(demande.id), { preserveScroll: true });
+                                            }
+                                        }}
+                                        className="rounded-lg p-2 text-ink-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
+                                    >
+                                        <Icon name="trash" className="h-4 w-4" />
+                                    </button>
+
                                     {/* Revenir sur un refus : la seule porte qui rouvre une demande. */}
                                     {demande.statut === 'refusee' && (
                                         <button
@@ -594,12 +628,16 @@ export default function GestionBadges({
 
                                 <div>
                                     <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
-                                        Photo (facultative)
+                                        Photo du badge
                                     </span>
                                     <PhotoField
                                         preview={apercuDepot}
-                                        initials="?"
-                                        hint="Sans photo jointe, le badge reprend celle de son compte."
+                                        initials={choisie.initiales}
+                                        hint={
+                                            apercuDepot
+                                                ? 'La photo de son compte. Recadrez-la, ou remplacez-la pour ce badge seulement.'
+                                                : 'Cette personne n’a pas de photo : joignez-en une, sinon le badge en sortira sans.'
+                                        }
                                         cadrage={cadrageDepot}
                                         onCadrage={(valeur) => {
                                             setCadrageDepot(valeur);
@@ -610,8 +648,10 @@ export default function GestionBadges({
                                             setApercuDepot(URL.createObjectURL(fichier));
                                         }}
                                         onDrop={() => {
+                                            // On revient à sa photo de compte, pas à rien.
                                             formulaireDepot.setData('photo_file', null);
-                                            setApercuDepot(null);
+                                            setApercuDepot(choisie.photoUrl);
+                                            setCadrageDepot(lireCadrage(choisie.photoCadrage));
                                         }}
                                     />
                                 </div>

@@ -660,6 +660,46 @@ class BadgeModuleTest extends TestCase
         $this->actingAs($this->employe($this->ium))->get(route('badges.photos'))->assertForbidden();
     }
 
+    // ------------------------------------------------ suppression au guichet
+
+    /** Un doublon, un essai, une demande pour la mauvaise personne. */
+    public function test_le_guichet_supprime_une_demande(): void
+    {
+        Storage::fake('public');
+
+        $employe = $this->employe($this->ium);
+        $demande = $this->demande($employe, ['photo' => 'badges/photos/claire.png']);
+        Storage::disk('public')->put('badges/photos/claire.png', 'image');
+
+        $this->actingAs($this->guichet())->delete(route('badges.supprimer', $demande))
+            ->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertSame(0, DemandeBadge::count());
+        // La photo part avec elle : elle n'a plus de raison d'occuper le disque.
+        Storage::disk('public')->assertMissing('badges/photos/claire.png');
+    }
+
+    /** Meme une carte remise : c'est au guichet de juger, l'ecran previent. */
+    public function test_une_demande_remise_se_supprime_aussi(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'remise']);
+
+        $this->actingAs($this->guichet())->delete(route('badges.supprimer', $demande))
+            ->assertRedirect();
+
+        $this->assertSame(0, DemandeBadge::count());
+    }
+
+    public function test_un_employe_ne_supprime_pas_au_guichet(): void
+    {
+        $demande = $this->demande($this->employe($this->ium));
+
+        $this->actingAs($this->employe($this->ium))
+            ->delete(route('badges.supprimer', $demande))->assertForbidden();
+
+        $this->assertSame(1, DemandeBadge::count());
+    }
+
     // ------------------------------------------------- depot pour un employe
 
     /**
@@ -690,6 +730,27 @@ class BadgeModuleTest extends TestCase
 
         // C'est le titulaire qu'on previent, pas celui qui a depose.
         Mail::assertSent(DemandeEnregistree::class, fn ($mail) => $mail->hasTo('claire@lamajestueuse.cm'));
+    }
+
+    /**
+     * L'ecran du guichet doit montrer la photo de chacun : c'est elle que le
+     * badge portera, et il faut pouvoir la recadrer avant de deposer.
+     */
+    public function test_l_ecran_du_guichet_porte_la_photo_de_chaque_personne(): void
+    {
+        $employe = $this->employe($this->ium);
+        $employe->update([
+            'avatar' => 'utilisateurs/photos/claire.png',
+            'avatar_cadrage' => ['x' => 40.0, 'y' => 20.0, 'zoom' => 1.5],
+        ]);
+
+        $this->actingAs($this->guichet())->get(route('badges.gestion'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('personnel', fn ($personnel) => collect($personnel)
+                    ->contains(fn ($p) => $p['id'] === $employe->id
+                        && $p['photoUrl'] !== null
+                        && $p['photoCadrage'] === ['x' => 40, 'y' => 20, 'zoom' => 1.5])));
     }
 
     /** Le guichet ne rattache personne : le logo reste un institut qu'il sert. */

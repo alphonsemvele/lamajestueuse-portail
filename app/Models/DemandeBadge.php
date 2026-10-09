@@ -114,12 +114,13 @@ class DemandeBadge extends Model
     /**
      * Le cadrage qui va avec cette photo.
      *
-     * Une photo jointe a le sien ; a defaut, c'est la photo du compte qui est
-     * reprise, et c'est donc son cadrage qu'il faut suivre.
+     * Celui de la demande prime : on peut recadrer la photo du compte pour
+     * ce badge sans la remplacer, et sans toucher au profil. A defaut, on
+     * suit le cadrage du compte, dont la photo est alors reprise telle quelle.
      */
     public function photoCadrage(): ?array
     {
-        return filled($this->photo) ? $this->photo_cadrage : $this->user?->avatar_cadrage;
+        return $this->photo_cadrage ?? $this->user?->avatar_cadrage;
     }
 
     /** Le nom qui va avec le logo imprime : l'institut retenu, ou le groupe. */

@@ -109,9 +109,15 @@ function Photo({ donnees, taille, accent }: { donnees: DonneesBadge; taille: num
     const anneau = { boxShadow: `0 0 0 ${taille * 0.02}px #fff, 0 0 0 ${taille * 0.05}px ${accent}` };
     const style = { width: taille, height: taille, ...anneau };
 
+    /*
+     * « block » n'est pas decoratif : un span est inline par defaut, et la
+     * largeur comme la hauteur n'y produisent aucun effet. Sans lui, le cadre
+     * s'effondre, l'image n'a plus de hauteur de reference et deborde la
+     * carte entiere.
+     */
     if (donnees.photoUrl) {
         return (
-            <span style={style} className="shrink-0 overflow-hidden rounded-full">
+            <span style={style} className="block shrink-0 overflow-hidden rounded-full">
                 <img
                     src={donnees.photoUrl}
                     alt=""

@@ -677,7 +677,6 @@ class BadgeModuleTest extends TestCase
         $this->actingAs($guichet)->post(route('badges.pour'), [
             'user_id' => $employe->id,
             'nom_affiche' => 'Claire NKOA',
-            'poste_affiche' => 'Chargée de scolarité',
             'motif' => 'premiere',
             'application_id' => $this->ium->id,
         ])->assertSessionHasNoErrors()->assertRedirect();
@@ -757,14 +756,12 @@ class BadgeModuleTest extends TestCase
 
         $this->actingAs($this->guichet())->post(route('badges.modifier', $demande), [
             'nom_affiche' => 'Claire NKOA ÉPOUSE MBALLA',
-            'poste_affiche' => 'Chargée de scolarité',
             'application_id' => $this->ifpm->id,
         ])->assertSessionHasNoErrors()->assertRedirect();
 
         $demande->refresh();
 
         $this->assertSame('Claire NKOA ÉPOUSE MBALLA', $demande->nom_affiche);
-        $this->assertSame('Chargée de scolarité', $demande->poste_affiche);
         // Le guichet n'est pas tenu par les rattachements du demandeur.
         $this->assertSame($this->ifpm->id, $demande->application_id);
     }

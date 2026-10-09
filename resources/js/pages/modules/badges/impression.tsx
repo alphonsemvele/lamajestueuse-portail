@@ -8,7 +8,6 @@ interface Demande {
     numero: string;
     demandeur: string | null;
     nomAffiche: string;
-    posteAffiche: string | null;
     matricule: string | null;
     photoUrl: string | null;
     modele: string;

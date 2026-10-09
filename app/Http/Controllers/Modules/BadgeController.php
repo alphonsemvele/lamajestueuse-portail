@@ -91,7 +91,6 @@ class BadgeController extends Controller
 
         $donnees = $request->validate([
             'nom_affiche' => ['required', 'string', 'max:80'],
-            'poste_affiche' => ['nullable', 'string', 'max:120'],
             // Le formulaire ne propose plus de choix : un seul modele existe.
             'modele' => ['nullable', Rule::in(array_keys(config('badges.modeles')))],
             'motif' => ['required', Rule::in(array_keys(DemandeBadge::MOTIFS))],
@@ -152,7 +151,6 @@ class BadgeController extends Controller
         $donnees = $request->validate([
             'user_id' => ['required', 'integer', 'exists:users,id'],
             'nom_affiche' => ['required', 'string', 'max:80'],
-            'poste_affiche' => ['nullable', 'string', 'max:120'],
             'motif' => ['required', Rule::in(array_keys(DemandeBadge::MOTIFS))],
             'application_id' => [
                 $instituts === [] ? 'nullable' : 'required',
@@ -318,7 +316,6 @@ class BadgeController extends Controller
 
         $donnees = $request->validate([
             'nom_affiche' => ['required', 'string', 'max:80'],
-            'poste_affiche' => ['nullable', 'string', 'max:120'],
             'application_id' => ['nullable', Rule::in([...$instituts, DemandeBadge::LOGO_GROUPE])],
             'photo_file' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
             // Le cadrage ne touche pas au fichier : il dit ou regarder.

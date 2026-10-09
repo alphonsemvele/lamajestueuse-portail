@@ -16,6 +16,9 @@ class DemandeBadge extends Model
     protected $table = 'demandes_badge';
 
     protected $fillable = [
+        // « poste_affiche » n'est plus ni saisi ni imprime — une mutation
+        // rendrait la carte fausse, et un badge se garde des annees. La
+        // colonne demeure : les demandes deja deposees la portent.
         'numero', 'user_id', 'depose_par', 'application_id', 'nom_affiche', 'poste_affiche',
         'modele', 'motif', 'photo', 'photo_cadrage', 'commentaire', 'statut', 'motif_refus',
         'traite_par', 'traite_le',

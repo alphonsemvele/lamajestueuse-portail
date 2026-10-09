@@ -100,7 +100,6 @@ interface BadgeDemande {
     id: number;
     numero: string;
     nomAffiche: string;
-    posteAffiche: string | null;
     matricule: string | null;
     photoUrl: string | null;
     photoCadrage: Cadrage | null;

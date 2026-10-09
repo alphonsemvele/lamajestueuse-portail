@@ -13,7 +13,6 @@ interface Demande {
     id: number;
     numero: string;
     nomAffiche: string;
-    posteAffiche: string | null;
     matricule: string | null;
     photoUrl: string | null;
     modele: string;
@@ -86,7 +85,6 @@ export default function MonBadge({
 
     const formulaire = useForm<{
         nom_affiche: string;
-        poste_affiche: string;
         motif: string;
         application_id: string;
         commentaire: string;
@@ -94,7 +92,6 @@ export default function MonBadge({
         photo_cadrage: string | null;
     }>({
         nom_affiche: identite.nom,
-        poste_affiche: institutUnique?.poste ?? identite.poste ?? '',
         motif: 'premiere',
         application_id: choixParDefaut ? String(choixParDefaut.id) : '',
         commentaire: '',
@@ -107,7 +104,6 @@ export default function MonBadge({
 
     const apercu = {
         nomAffiche: formulaire.data.nom_affiche,
-        posteAffiche: formulaire.data.poste_affiche || null,
         matricule: identite.matricule,
         photoUrl: photoApercu,
         photoCadrage: cadrage,
@@ -193,22 +189,6 @@ export default function MonBadge({
                                             </span>
                                         )}
                                     </label>
-
-                                    <label className="block">
-                                        <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
-                                            Fonction
-                                        </span>
-                                        <Input
-                                            value={formulaire.data.poste_affiche}
-                                            onChange={(event) => formulaire.setData('poste_affiche', event.target.value)}
-                                            maxLength={120}
-                                        />
-                                        {formulaire.errors.poste_affiche && (
-                                            <span className="mt-1 block text-xs font-medium text-red-600">
-                                                {formulaire.errors.poste_affiche}
-                                            </span>
-                                        )}
-                                    </label>
                                 </div>
 
                                 <div className="mt-5">
@@ -268,12 +248,7 @@ export default function MonBadge({
                                                     <button
                                                         key={institut.id}
                                                         type="button"
-                                                        onClick={() => {
-                                                            formulaire.setData('application_id', String(institut.id));
-                                                            if (institut.poste) {
-                                                                formulaire.setData('poste_affiche', institut.poste);
-                                                            }
-                                                        }}
+                                                        onClick={() => formulaire.setData('application_id', String(institut.id))}
                                                         className={cn(
                                                             'flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition',
                                                             actif
@@ -410,7 +385,6 @@ export default function MonBadge({
                                             setEnvoye(false);
                                             setAgrandi({
                                                 nomAffiche: demande.nomAffiche,
-                                                posteAffiche: demande.posteAffiche,
                                                 matricule: demande.matricule,
                                                 photoUrl: demande.photoUrl,
                                                 photoCadrage: demande.photoCadrage,

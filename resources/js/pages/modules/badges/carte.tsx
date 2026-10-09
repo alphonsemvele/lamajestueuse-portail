@@ -55,7 +55,6 @@ export interface DonneesBadge {
     nomAffiche: string;
     /** Où regarder dans la photo : le fichier reste entier. */
     photoCadrage?: Cadrage | null;
-    posteAffiche: string | null;
     matricule: string | null;
     photoUrl: string | null;
     initiales?: string | null;
@@ -203,16 +202,11 @@ export default function CarteBadge({
                 >
                     {enTete(32)}
 
-                    {donnees.posteAffiche && (
-                        <p
-                            className="w-full truncate text-center font-medium"
-                            style={{ marginTop: px(3), fontSize: px(7.5), color: '#475569' }}
-                        >
-                            {donnees.posteAffiche}
-                        </p>
-                    )}
-
-                    <span className="rounded-full" style={{ marginTop: px(8), width: px(44), height: px(2.5), backgroundColor: accent }} />
+                    {/*
+                      * Pas de fonction sur la carte : une mutation la rend
+                      * fausse, et un badge se garde des annees.
+                      */}
+                    <span className="rounded-full" style={{ marginTop: px(10), width: px(44), height: px(2.5), backgroundColor: accent }} />
 
                     {/* La devise, un mot par colonne, séparés d'un filet. */}
                     <div className="flex w-full items-start justify-center" style={{ marginTop: px(16), gap: px(10) }}>

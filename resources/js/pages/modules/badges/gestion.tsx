@@ -18,7 +18,6 @@ interface Demande {
     demandeur: string | null;
     matricule: string | null;
     nomAffiche: string;
-    posteAffiche: string | null;
     photoUrl: string | null;
     modele: string;
     motifLibelle: string;
@@ -123,7 +122,6 @@ export default function GestionBadges({
      */
     const formulaireEdition = useForm({
         nom_affiche: '',
-        poste_affiche: '',
         application_id: '',
         photo_file: null as File | null,
         photo_cadrage: null as string | null,
@@ -139,7 +137,6 @@ export default function GestionBadges({
 
         formulaireEdition.setData({
             nom_affiche: demande.nomAffiche,
-            poste_affiche: demande.posteAffiche ?? '',
             application_id: String(demande.institut?.id ?? LE_GROUPE.id),
             photo_file: null,
             photo_cadrage: pourEnvoi(cadrage),
@@ -169,7 +166,6 @@ export default function GestionBadges({
     const formulaireDepot = useForm({
         user_id: '',
         nom_affiche: '',
-        poste_affiche: '',
         motif: 'premiere',
         application_id: '',
         commentaire: '',
@@ -195,7 +191,6 @@ export default function GestionBadges({
             user_id: String(personne.id),
             // Le nom et la fonction du dossier, corrigeables avant l'envoi.
             nom_affiche: personne.nom,
-            poste_affiche: personne.poste ?? '',
             // Un seul institut : retenu d'office, comme pour l'intéressé.
             application_id:
                 personne.instituts.length === 1 ? String(personne.instituts[0].id) : String(LE_GROUPE.id),
@@ -557,16 +552,6 @@ export default function GestionBadges({
                                     )}
                                 </label>
 
-                                <label className="block">
-                                    <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
-                                        Fonction (facultative)
-                                    </span>
-                                    <Input
-                                        value={formulaireDepot.data.poste_affiche}
-                                        onChange={(event) => formulaireDepot.setData('poste_affiche', event.target.value)}
-                                    />
-                                </label>
-
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <label className="block">
                                         <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
@@ -683,16 +668,6 @@ export default function GestionBadges({
                                     {formulaireEdition.errors.nom_affiche}
                                 </p>
                             )}
-                        </label>
-
-                        <label className="block">
-                            <span className="mb-1 block text-[13px] font-medium text-ink-700 dark:text-ink-200">
-                                Fonction (facultative)
-                            </span>
-                            <Input
-                                value={formulaireEdition.data.poste_affiche}
-                                onChange={(event) => formulaireEdition.setData('poste_affiche', event.target.value)}
-                            />
                         </label>
 
                         <label className="block">

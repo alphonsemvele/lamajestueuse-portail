@@ -80,6 +80,22 @@ class DiffusionEffectifTest extends TestCase
         $this->assertFalse($enAttente['peut_se_connecter']);
     }
 
+    public function test_un_compte_hors_effectifs_est_annonce_mais_signale_comme_tel(): void
+    {
+        $app = $this->application();
+        $employe = User::factory()->create(['status' => 'active', 'dans_le_personnel' => true]);
+        $technique = User::factory()->create(['status' => 'active', 'dans_le_personnel' => false]);
+
+        $app->users()->attach($employe);
+        $app->users()->attach($technique);
+
+        $charge = app(DiffusionEffectif::class)->charge($app->fresh());
+
+        // Les deux entrent dans l'application ; seul le premier est un employe.
+        $this->assertTrue(collect($charge['effectif'])->firstWhere('portail_id', $employe->id)['dans_le_personnel']);
+        $this->assertFalse(collect($charge['effectif'])->firstWhere('portail_id', $technique->id)['dans_le_personnel']);
+    }
+
     public function test_modifier_les_acces_previent_lapplication(): void
     {
         Http::fake(['*' => Http::response(['resultat' => []], 200)]);

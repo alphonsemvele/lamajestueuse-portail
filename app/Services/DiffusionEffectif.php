@@ -61,6 +61,13 @@ class DiffusionEffectif
                 'photo' => $user->avatarUrl(),
                 'roles' => Application::pivotRoles($user->pivot),
                 'statut' => $user->status,
+                /*
+                 * Figure-t-il aux effectifs ? Un administrateur technique ou
+                 * un compte de service ouvre l'application sans etre un
+                 * employe : l'institut le laisse entrer, mais ne l'inscrit
+                 * pas dans son personnel.
+                 */
+                'dans_le_personnel' => (bool) $user->dans_le_personnel,
                 // Un compte en attente de validation existe déjà, mais n'entre
                 // nulle part : l'application le crée sans lui ouvrir l'accès.
                 'peut_se_connecter' => $user->status === 'active',

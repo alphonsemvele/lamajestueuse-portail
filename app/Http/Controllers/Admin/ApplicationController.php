@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Employeur;
 use App\Models\User;
 use App\Services\ApplicationDirectorySync;
+use App\Services\DiffusionEffectif;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -172,7 +173,15 @@ class ApplicationController extends Controller
                 ->each(fn (User $ancien) => $ancien->employeursRh()->detach());
         }
 
-        return back()->with('status', 'Les accès ont été enregistrés.');
+        /*
+         * L'application doit connaitre son personnel avant la premiere
+         * connexion de chacun : sans cela, impossible d'affecter un
+         * enseignant a une specialite ou de lui demander un document.
+         */
+        $echecs = app(DiffusionEffectif::class)->pousserVers([$application]);
+
+        return back()->with('status', DiffusionEffectif::avertissement($echecs)
+            ?? 'Les accès ont été enregistrés.');
     }
 
     /**

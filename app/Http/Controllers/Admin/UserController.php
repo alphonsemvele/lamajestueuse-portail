@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\AttributionMatricules;
 use App\Services\BulletinPdf;
 use App\Services\CourrielsPortail;
+use App\Services\DiffusionEffectif;
 use App\Support\Cadrage;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -96,8 +97,13 @@ class UserController extends Controller
         $user = User::create($data);
         $user->applications()->sync($acces);
 
+        // Les applications concernees apprennent le nouvel agent tout de
+        // suite : elles doivent pouvoir l'affecter avant sa premiere entree.
+        $echecs = app(DiffusionEffectif::class)->pousserVers(array_keys($acces));
+
         return redirect()->route('admin.users.index')
-            ->with('status', "Le compte de {$user->fullName()} a été créé.");
+            ->with('status', DiffusionEffectif::avertissement($echecs)
+                ?? "Le compte de {$user->fullName()} a été créé.");
     }
 
     public function edit(User $user): Response
@@ -140,10 +146,18 @@ class UserController extends Controller
          */
         $ouverture = ($data['status'] ?? $user->status) === 'active' && $user->status !== 'active';
 
+        // Les applications d'avant comptent autant que celles d'apres : celle
+        // dont on retire l'acces doit l'apprendre, elle aussi.
+        $avant = $user->applications()->pluck('applications.id')->all();
+
         $user->update($data);
         $user->applications()->sync($acces);
 
-        $fait = "Le compte de {$user->fullName()} a été mis à jour.";
+        $echecs = app(DiffusionEffectif::class)
+            ->pousserVers(array_unique(array_merge($avant, array_keys($acces))));
+
+        $fait = DiffusionEffectif::avertissement($echecs)
+            ?? "Le compte de {$user->fullName()} a été mis à jour.";
 
         if (! $ouverture) {
             return back()->with('status', $fait);
@@ -181,13 +195,19 @@ class UserController extends Controller
         }
 
         $name = $user->fullName();
+        $applications = $user->applications()->pluck('applications.id')->all();
         $this->deleteUploaded($user->avatar);
 
         // Le dossier part avec le compte : on ne compte pas sur la base.
         $dossier?->delete();
         $user->delete();
 
-        return redirect()->route('admin.users.index')->with('status', "Le compte de {$name} a été supprimé.");
+        // Les applications ferment l'acces de leur cote. Elles ne suppriment
+        // rien : l'agent garde ses affectations et son historique.
+        $echecs = app(DiffusionEffectif::class)->pousserVers($applications);
+
+        return redirect()->route('admin.users.index')->with('status', DiffusionEffectif::avertissement($echecs)
+            ?? "Le compte de {$name} a été supprimé.");
     }
 
     /**
@@ -202,6 +222,11 @@ class UserController extends Controller
 
         $user->approve();
 
+        // Le compte valide devient utilisable : les applications passent son
+        // acces de « en attente » a « ouvert ».
+        $echecs = app(DiffusionEffectif::class)
+            ->pousserVers($user->applications()->pluck('applications.id')->all());
+
         $parti = $courriels->envoyerA($user, new CompteValide(
             $user->fullName(),
             $user->matricule,
@@ -209,7 +234,8 @@ class UserController extends Controller
         ));
 
         return $this->rendreCompte(
-            __('Le compte de :nom a été validé.', ['nom' => $user->fullName()]),
+            DiffusionEffectif::avertissement($echecs)
+                ?? __('Le compte de :nom a été validé.', ['nom' => $user->fullName()]),
             $parti ? __('Le message d’ouverture est parti à :adresse.', ['adresse' => $user->email]) : null,
             $courriels->dernierEchec(),
         );
@@ -225,13 +251,18 @@ class UserController extends Controller
             return back()->with('status', __("Ce compte n'est pas en attente de validation."));
         }
 
+        $applications = $user->applications()->pluck('applications.id')->all();
+
         $user->forceFill(['status' => 'suspended'])->save();
         $user->applications()->detach();
+
+        $echecs = app(DiffusionEffectif::class)->pousserVers($applications);
 
         $parti = $courriels->envoyerA($user, new DemandeRefusee($user->fullName()));
 
         return $this->rendreCompte(
-            __('La demande de :nom a été refusée.', ['nom' => $user->fullName()]),
+            DiffusionEffectif::avertissement($echecs)
+                ?? __('La demande de :nom a été refusée.', ['nom' => $user->fullName()]),
             $parti ? __('Le message est parti à :adresse.', ['adresse' => $user->email]) : null,
             $courriels->dernierEchec(),
         );

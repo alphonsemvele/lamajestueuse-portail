@@ -29,6 +29,30 @@
 
     $statuts = ['brouillon' => 'Provisoire', 'valide' => 'Arrêté', 'paye' => 'Payé'];
     $couleur = $enTete['couleur'];
+
+    /*
+     * Un bulletin tient sur une page, quel que soit le profil de salaire.
+     * Au-dela d'une dizaine de lignes, interlignes et corps se resserrent
+     * progressivement, jusqu'a vingt-quatre lignes.
+     */
+    $lignes = count($indemnites) + count($retenues);
+    $serre = max(0.0, min(1.0, ($lignes - 9) / 15));
+
+    /*
+     * Au-dela de vingt-quatre lignes — plus du double de ce que porte le plus
+     * charge des profils de la grille — tout le gabarit se reduit encore,
+     * d'un cran par ligne supplementaire : le document reste sur une page.
+     */
+    $reduction = max(0.72, 1 - 0.022 * max(0, $lignes - 24));
+
+    /** Une mesure qui va de « au large » a « au plus serre » avec le profil. */
+    $px = fn (float $large, float $etroit) => round(($large - ($large - $etroit) * $serre) * $reduction, 2) . 'px';
+
+    /** Un interligne, resserre de meme, sans jamais coller les lignes. */
+    $interligne = fn (float $large, float $etroit) => round(max(1.08, ($large - ($large - $etroit) * $serre) * $reduction), 3);
+
+    /** Hauteur du logo : il recule lui aussi quand les lignes s'accumulent. */
+    $hauteurLogo = $px(64, 46);
 @endphp
 <!doctype html>
 <html lang="fr">
@@ -38,7 +62,8 @@
     <style>
         @page { margin: 12mm 13mm 12mm; }
 
-        body { font-family: DejaVu Sans, sans-serif; font-size: 11.5px; color: #111827; line-height: 1.4; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: {{ $px(11.5, 9.4) }}; color: #111827;
+               line-height: {{ $interligne(1.4, 1.23) }}; }
         table { border-collapse: collapse; width: 100%; }
         td, th { vertical-align: top; }
         .nombre { text-align: right; }
@@ -51,49 +76,49 @@
         .titre { font-size: 17px; font-weight: bold; color: {{ $couleur }}; letter-spacing: 1.4px; }
         .periode { font-size: 12.5px; color: #374151; font-weight: bold; margin-top: 3px; }
         .reference { font-size: 9px; color: #374151; margin-top: 4px; }
-        .filet { height: 1.6px; background: {{ $couleur }}; margin: 12px 0 14px; }
+        .filet { height: 1.6px; background: {{ $couleur }}; margin: {{ $px(12, 7) }} 0 {{ $px(14, 8) }}; }
         .sceau { border: .8px solid {{ $couleur }}; color: {{ $couleur }}; font-size: 8.4px; font-weight: bold;
                  text-transform: uppercase; letter-spacing: .9px; padding: 2.5px 7px; }
 
         /* identité */
-        .cartouche { border: .6px solid #dfe3ec; margin-bottom: 13px; }
-        .cartouche td { padding: 7px 10px; border-right: .6px solid #f1f2f4; border-bottom: .6px solid #f1f2f4; }
+        .cartouche { border: .6px solid #dfe3ec; margin-bottom: {{ $px(13, 8) }}; }
+        .cartouche td { padding: {{ $px(7, 4) }} 10px; border-right: .6px solid #f1f2f4; border-bottom: .6px solid #f1f2f4; }
         .cartouche tr:last-child td { border-bottom: none; }
         .cartouche td:last-child { border-right: none; }
         .etiquette { font-size: 8.4px; text-transform: uppercase; letter-spacing: .6px; color: #4b5563;
                      display: block; margin-bottom: 1px; }
-        .valeur { font-size: 11.5px; color: #000; }
+        .valeur { font-size: {{ $px(11.5, 9.6) }}; color: #000; }
         .valeur-forte { font-weight: bold; }
 
         /* décompte */
         .decompte th { color: #374151; font-size: 8.6px; text-transform: uppercase;
-                       letter-spacing: .9px; padding: 4px 9px; text-align: left;
+                       letter-spacing: .9px; padding: {{ $px(4, 2.6) }} 9px; text-align: left;
                        border-bottom: .6px solid #e2e6ee; }
-        .decompte td { padding: 6.5px 10px; border-bottom: .6px solid #f3f4f6; }
+        .decompte td { padding: {{ $px(6.5, 2.9) }} 10px; border-bottom: .6px solid #f3f4f6; }
         .rubrique td { background: #f4f6fa; color: {{ $couleur }}; font-size: 8.5px; font-weight: bold;
-                       text-transform: uppercase; letter-spacing: .9px; padding: 6px 9px;
+                       text-transform: uppercase; letter-spacing: .9px; padding: {{ $px(6, 3) }} 9px;
                        border-top: 1px solid {{ $couleur }}; border-bottom: .6px solid #e2e6ee; }
-        .base { font-size: 9.2px; color: #374151; }
+        .base { font-size: {{ $px(9.2, 7.4) }}; color: #374151; }
         .soustotal td { background: #fbfcfe; font-weight: bold; border-top: .6px solid #e2e6ee;
                         border-bottom: .6px solid #e2e6ee; }
         .rien td { color: #9ca3af; font-style: italic; }
 
         /* net */
-        .net { margin-top: 12px; }
-        .net td { padding: 11px 13px; }
+        .net { margin-top: {{ $px(12, 7) }}; }
+        .net td { padding: {{ $px(11, 6.5) }} 13px; }
         .net-bande { background: {{ $couleur }}; color: #fff; }
         .net-libelle { font-size: 9.5px; text-transform: uppercase; letter-spacing: 1px; }
-        .net-montant { font-size: 23px; font-weight: bold; letter-spacing: .3px; }
+        .net-montant { font-size: {{ $px(23, 18) }}; font-weight: bold; letter-spacing: .3px; }
         .recapitulatif { border: .6px solid #e5e7eb; }
-        .recapitulatif td { padding: 5.5px 9px; font-size: 10.5px; border-bottom: .6px solid #f3f4f6; }
+        .recapitulatif td { padding: {{ $px(5.5, 3.2) }} 9px; font-size: {{ $px(10.5, 9.2) }}; border-bottom: .6px solid #f3f4f6; }
         .recapitulatif tr:last-child td { border-bottom: none; }
 
         /* pied */
-        .signature { margin-top: 20px; }
+        .signature { margin-top: {{ $px(20, 9) }}; }
         .signature td { font-size: 10px; color: #111827; }
         .cadre-signature { border-top: .6px solid #d1d5db; padding-top: 4px; width: 60%; }
-        .mentions { margin-top: 14px; padding-top: 8px; border-top: .6px solid #d1d5db;
-                    font-size: 8.8px; color: #374151; line-height: 1.6; }
+        .mentions { margin-top: {{ $px(14, 7) }}; padding-top: {{ $px(8, 5) }}; border-top: .6px solid #d1d5db;
+                    font-size: {{ $px(8.8, 8) }}; color: #374151; line-height: {{ $interligne(1.6, 1.35) }}; }
     </style>
 </head>
 <body>
@@ -102,7 +127,7 @@
     <tr>
         <td width="58%">
             @if ($enTete['logo'])
-                <img src="{{ $enTete['logo'] }}" style="height: 64px;" alt="">
+                <img src="{{ $enTete['logo'] }}" style="height: {{ $hauteurLogo }};" alt="">
             @else
                 <div class="marque">{{ $enTete['nom'] }}</div>
             @endif

@@ -11,6 +11,7 @@ use App\Models\Echelon;
 use App\Models\Employeur;
 use App\Models\Indemnite;
 use App\Models\ProfilSalaire;
+use App\Models\Retenue;
 use App\Models\User;
 use App\Services\BulletinPdf;
 use App\Services\PaieService;
@@ -111,6 +112,34 @@ class ApercuBulletinPdfTest extends TestCase
         ]);
     }
 
+    /** Charge le profil d'un contrat de lignes, pour voir le document grossir. */
+    private function charger(Contrat $contrat, int $indemnites, int $retenues): void
+    {
+        $profil = $contrat->profil;
+
+        for ($i = 1; $i <= $indemnites; $i++) {
+            $profil->indemnites()->attach(
+                Indemnite::create(['libelle' => 'Indemnité numéro '.$i, 'imposable' => true, 'actif' => true])->id,
+                ['type_calcul' => $i % 2 ? 'fixe' : 'pourcentage', 'valeur' => $i % 2 ? 15000 : 5],
+            );
+        }
+
+        for ($r = 1; $r <= $retenues; $r++) {
+            $profil->retenues()->attach(
+                Retenue::create(['libelle' => 'Retenue numéro '.$r, 'actif' => true])->id,
+                ['type_calcul' => $r % 2 ? 'fixe' : 'pourcentage', 'valeur' => $r % 2 ? 4000 : 2],
+            );
+        }
+    }
+
+    /** Le nombre de pages d'un PDF, lu dans son objet « Pages ». */
+    private function pages(string $pdf): int
+    {
+        preg_match('#/Type /Pages.*?/Count (\\d+)#s', $pdf, $trouve);
+
+        return (int) ($trouve[1] ?? 0);
+    }
+
     // ------------------------------------- le bulletin qu'un contrat produirait
 
     /**
@@ -130,6 +159,30 @@ class ApercuBulletinPdfTest extends TestCase
 
         // Rien n'a ete emis : c'est tout l'interet.
         $this->assertSame(0, Bulletin::count());
+    }
+
+    /**
+     * Un bulletin tient sur une page, quel que soit le profil : au-dela d'une
+     * dizaine de lignes, le gabarit se resserre au lieu de deborder.
+     */
+    public function test_le_bulletin_tient_sur_une_page_meme_charge(): void
+    {
+        $gestionnaire = $this->gestionnaire();
+
+        foreach ([[3, 2], [9, 6], [14, 10], [18, 14]] as [$indemnites, $retenues]) {
+            $contrat = $this->contrat();
+            $this->charger($contrat, $indemnites, $retenues);
+
+            $reponse = $this->actingAs($gestionnaire)
+                ->get(route('personnel.contrat.bulletin', [$contrat, 'apercu' => 1]))
+                ->assertOk();
+
+            $this->assertSame(
+                1,
+                $this->pages($reponse->getContent()),
+                "Le bulletin deborde avec $indemnites indemnites et $retenues retenues.",
+            );
+        }
     }
 
     public function test_l_apercu_n_exige_pas_de_profil_de_salaire(): void

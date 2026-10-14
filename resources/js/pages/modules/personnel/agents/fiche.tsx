@@ -949,8 +949,27 @@ function Contrats({
                                 </p>
                             </div>
 
-                            {peutGerer && (
-                                <div className="flex gap-1">
+                            <div className="flex items-center gap-1">
+                                {/*
+                                  * Le bulletin que ce contrat produirait, des
+                                  * qu'un profil lui donne une base : il fallait
+                                  * jusqu'ici generer la paie du mois pour le voir.
+                                  */}
+                                {contrat.salaireBase > 0 && (
+                                    <a
+                                        href={routes.personnel.contratBulletin(contrat.id)}
+                                        target="_blank"
+                                        rel="noopener"
+                                        title="Voir le bulletin que ce contrat produirait"
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-ink-200 px-2.5 py-1.5 text-xs font-medium text-ink-600 transition hover:bg-ink-50 dark:border-white/10 dark:text-ink-300 dark:hover:bg-white/5"
+                                    >
+                                        <Icon name="wallet" className="h-3.5 w-3.5" />
+                                        Aperçu du bulletin
+                                    </a>
+                                )}
+
+                                {peutGerer && (
+                                    <>
                                     <button
                                         type="button"
                                         onClick={() => ouvrir(contrat)}
@@ -967,8 +986,9 @@ function Contrats({
                                     >
                                         <Icon name="trash" className="h-4 w-4" />
                                     </button>
-                                </div>
-                            )}
+                                    </>
+                                )}
+                            </div>
                         </div>
 
                         <div className="mt-3 grid gap-4 border-t border-ink-100 pt-3 sm:grid-cols-4 dark:border-white/5">

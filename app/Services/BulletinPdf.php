@@ -30,9 +30,9 @@ class BulletinPdf
      * `$apercu` sert le document en ligne, pour la previsualisation ; sinon
      * le navigateur propose de l'enregistrer.
      */
-    public function reponse(Bulletin $bulletin, bool $apercu = false, ?string $mention = null): Response
+    public function reponse(Bulletin $bulletin, bool $apercu = false, ?string $mention = null, bool $modele = false): Response
     {
-        $pdf = $this->rendre($bulletin, $mention);
+        $pdf = $this->rendre($bulletin, $mention, $modele);
         $nom = $this->nomDuFichier($bulletin);
 
         return $apercu
@@ -41,7 +41,11 @@ class BulletinPdf
     }
 
     /** Le document lui-meme, sans decider de ce qu'on en fait. */
-    public function rendre(Bulletin $bulletin, ?string $mention = null): \Barryvdh\DomPDF\PDF
+    /**
+     * @param  bool  $modele  Un bulletin calcule mais jamais emis : il n'a ni
+     *                        numero de piece ni etat, et le document le dit.
+     */
+    public function rendre(Bulletin $bulletin, ?string $mention = null, bool $modele = false): \Barryvdh\DomPDF\PDF
     {
         $bulletin->loadMissing([
             'agent.user', 'employeur.application',
@@ -61,6 +65,7 @@ class BulletinPdf
             'contrat' => $bulletin->contrat,
             'agent' => $agent,
             'salarie' => $agent?->user,
+            'modele' => $modele,
             'mention' => $mention ?? "Document remis à titre d'information. Conservez-le : il fait foi de votre rémunération.",
         ])->setPaper('a4');
     }

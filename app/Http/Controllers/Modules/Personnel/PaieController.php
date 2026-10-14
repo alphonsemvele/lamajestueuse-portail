@@ -443,6 +443,71 @@ class PaieController extends Controller
         }
     }
 
+    /**
+     * Le bulletin qu'un contrat produirait, sans rien emettre.
+     *
+     * Jusqu'ici il fallait generer la paie du mois pour voir ce qu'un profil
+     * de salaire donnait reellement. On peut desormais le lire des qu'il est
+     * affecte, depuis la fiche de l'agent : meme moteur de calcul, meme
+     * document, mais rien n'est enregistre et aucun mois n'est engage.
+     */
+    public function apercuContrat(Request $request, Contrat $contrat, PaieService $paie, BulletinPdf $pdf): SymfonyResponse|RedirectResponse
+    {
+        $this->autoriserAcces($request->user());
+
+        $contrat->loadMissing(['agent.user', 'employeur.application', 'echelon.categorie', 'profil.echelon.categorie']);
+
+        $this->verifierEntite($request, $contrat->employeur_id);
+
+        if ($contrat->echelonApplique() === null) {
+            return back()->withErrors([
+                'paie' => __('Ce contrat n’a ni échelon ni profil de salaire : il n’y a pas de bulletin à montrer.'),
+            ]);
+        }
+
+        $mois = (int) now()->month;
+        $annee = (int) now()->year;
+        $calcul = $paie->calculer($contrat, $mois, $annee);
+
+        /*
+         * Un bulletin qui n'ira jamais en base : il sert a dessiner le
+         * document, et disparait avec la requete. Ses relations sont posees a
+         * la main, puisqu'il n'a pas de cle pour les retrouver.
+         */
+        $modele = new Bulletin($calcul + [
+            'contrat_id' => $contrat->id,
+            'employeur_id' => $contrat->employeur_id,
+            'agent_id' => $contrat->agent_id,
+            'mois' => $mois,
+            'annee' => $annee,
+            'statut' => 'brouillon',
+        ]);
+
+        $modele->setRelation('contrat', $contrat);
+        $modele->setRelation('agent', $contrat->agent);
+        $modele->setRelation('employeur', $contrat->employeur);
+
+        try {
+            return $pdf->reponse(
+                $modele,
+                $request->boolean('apercu'),
+                "Modèle calculé sur le profil de salaire en cours, pour {$modele->periode()}. "
+                .'Aucun bulletin n’a été émis : les ajustements du mois y figurent, les prochains non.',
+                modele: true,
+            );
+        } catch (\Throwable $erreur) {
+            Log::error('Aperçu de bulletin impossible à produire', [
+                'contrat' => $contrat->id,
+                'erreur' => $erreur::class,
+                'message' => $erreur->getMessage(),
+            ]);
+
+            return back()->withErrors([
+                'paie' => __('L’aperçu n’a pas pu être produit. Signalez-le à l’administration du portail.'),
+            ]);
+        }
+    }
+
     public function annoter(Request $request, Bulletin $bulletin): RedirectResponse
     {
         $this->autoriserGestion($request->user());

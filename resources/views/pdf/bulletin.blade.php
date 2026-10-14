@@ -120,8 +120,14 @@
             <div class="titre">BULLETIN DE PAIE</div>
             <div class="periode">{{ ucfirst($bulletin->periode()) }}</div>
             <div class="reference">
-                Pièce n° {{ str_pad((string) $bulletin->id, 6, '0', STR_PAD_LEFT) }}
-                &nbsp;<span class="sceau">{{ $statuts[$bulletin->statut] ?? $bulletin->statut }}</span>
+                {{-- Un modele n'a pas ete emis : il n'a donc ni numero de piece
+                     ni etat, et le dire vaut mieux qu'afficher « n° 000000 ». --}}
+                @if (! empty($modele))
+                    <span class="sceau">Modèle — aucun bulletin émis</span>
+                @else
+                    Pièce n° {{ str_pad((string) $bulletin->id, 6, '0', STR_PAD_LEFT) }}
+                    &nbsp;<span class="sceau">{{ $statuts[$bulletin->statut] ?? $bulletin->statut }}</span>
+                @endif
             </div>
         </td>
     </tr>

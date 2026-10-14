@@ -189,6 +189,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/paie/bulletins/{bulletin}', [PaieController::class, 'destroy'])->name('paie.bulletin.destroy');
         Route::post('/paie/bulletins/{bulletin}/relancer', [PaieController::class, 'relancer'])->name('paie.relancer');
         Route::delete('/paie/periode', [PaieController::class, 'viderMois'])->name('paie.vider');
+        Route::get('/contrats/{contrat}/bulletin', [PaieController::class, 'apercuContrat'])->name('contrat.bulletin');
         Route::post('/contrats/{contrat}/ajustements', [PaieController::class, 'storeAjustement'])->name('ajustements.store');
         Route::delete('/ajustements/{ajustement}', [PaieController::class, 'destroyAjustement'])->name('ajustements.destroy');
 

@@ -122,12 +122,8 @@ class InformationController extends Controller
         $titre = $post->title;
         $this->deleteUploaded($post->image);
 
-        // Les pieces partent avec l'article : la cascade efface les lignes,
-        // pas les fichiers.
-        foreach ($post->medias as $piece) {
-            Storage::disk('public')->delete($piece->chemin);
-        }
-
+        // Les pieces et les lectures partent avec l'article : le modele s'en
+        // charge, fichiers compris.
         $post->delete();
 
         return redirect()->route('informations.index')

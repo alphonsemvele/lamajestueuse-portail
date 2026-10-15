@@ -263,6 +263,33 @@ class InfoPubliqueTest extends TestCase
         $this->assertDatabaseMissing('post_medias', ['id' => $piece->id]);
     }
 
+    /**
+     * Rien ne doit survivre a un article supprime : ni ses pieces, ni leurs
+     * fichiers, ni le compte de ses lectures. La base de production porte
+     * des tables qui ne savent pas tenir de cascade.
+     */
+    public function test_supprimer_un_article_emporte_ses_pieces_et_ses_lectures(): void
+    {
+        Storage::fake('public');
+
+        $article = $this->article();
+        $piece = $article->medias()->create([
+            'genre' => 'image',
+            'chemin' => UploadedFile::fake()->image('vue.jpg')->store('publications/'.$article->id, 'public'),
+            'nom' => 'vue.jpg',
+            'taille' => 2048,
+        ]);
+
+        $this->get(route('info.article', $article))->assertOk();
+        $this->assertDatabaseCount('post_vues', 1);
+
+        $article->delete();
+
+        Storage::disk('public')->assertMissing($piece->chemin);
+        $this->assertDatabaseCount('post_medias', 0);
+        $this->assertDatabaseCount('post_vues', 0);
+    }
+
     /** Un article public n'a qu'une adresse : celle de la salle de presse. */
     public function test_le_lien_interne_renvoie_vers_la_page_publique(): void
     {

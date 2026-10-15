@@ -36,6 +36,25 @@ class Post extends Model
         ];
     }
 
+    /**
+     * Supprimer un article emporte ses pieces et ses lectures.
+     *
+     * Le menage est fait ici, et non par une cascade SQL : la base de
+     * production porte des tables qui ne savent pas tenir de contrainte, et
+     * un fichier televerse ne disparait de toute facon pas tout seul.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function (self $post) {
+            foreach ($post->medias as $piece) {
+                Storage::disk('public')->delete($piece->chemin);
+            }
+
+            $post->medias()->delete();
+            DB::table('post_vues')->where('post_id', $post->id)->delete();
+        });
+    }
+
     public function author(): BelongsTo
     {
         return $this->belongsTo(User::class, 'author_id');

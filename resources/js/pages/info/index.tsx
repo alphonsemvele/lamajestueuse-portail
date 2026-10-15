@@ -155,12 +155,23 @@ export default function InfoIndex({ articles, laUne, rubriques, filtres }: Props
             )}
 
             {articles.data.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-ink-200 bg-white p-14 text-center dark:border-white/10 dark:bg-ink-900">
-                    <Icon name="newspaper" className="mx-auto h-10 w-10 text-ink-300 dark:text-ink-600" />
-                    <p className="mt-3 font-medium text-ink-700 dark:text-ink-200">Aucun article ne correspond.</p>
-                    <p className="mt-1 text-sm text-ink-500 dark:text-ink-400">
-                        {filtres.q ? 'Essayez un autre mot.' : 'Les publications paraîtront ici.'}
+                <div className="flex min-h-[38vh] flex-col items-center justify-center rounded-2xl border border-dashed border-ink-200 bg-white p-14 text-center dark:border-white/10 dark:bg-ink-900">
+                    <Icon name="newspaper" className="h-10 w-10 text-ink-300 dark:text-ink-600" />
+                    <p className="mt-3 font-medium text-ink-700 dark:text-ink-200">
+                        {filtres.q || filtres.rubrique ? 'Aucun article ne correspond.' : 'Rien n’est encore paru.'}
                     </p>
+                    <p className="mt-1 max-w-sm text-sm text-ink-500 dark:text-ink-400">
+                        {filtres.q
+                            ? 'Essayez un autre mot, ou revenez à la une.'
+                            : filtres.rubrique
+                              ? 'Cette rubrique n’a pas encore d’article.'
+                              : 'Les articles du groupe paraîtront ici dès leur publication.'}
+                    </p>
+                    {(filtres.q || filtres.rubrique) && (
+                        <Link href={routes.info.index} className="mt-5 text-sm font-medium text-brand-600 transition hover:text-brand-700">
+                            Revenir à la une
+                        </Link>
+                    )}
                 </div>
             ) : (
                 <>

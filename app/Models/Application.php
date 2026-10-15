@@ -52,12 +52,45 @@ class Application extends Model
      */
     public function roleCatalogue(): array
     {
-        return collect($this->roles ?? [])
+        /*
+         * Une application metier envoie son catalogue au portail (bouton
+         * « Synchroniser »). Un module n'a personne pour le faire : ses
+         * roles sont ceux que config/modules.php declare, sans quoi
+         * l'administrateur devrait taper le code a la main.
+         */
+        $roles = $this->roles ?: $this->rolesDuModule();
+
+        return collect($roles)
             ->map(fn ($role) => is_array($role)
                 ? ['code' => (string) ($role['code'] ?? ''), 'libelle' => (string) ($role['libelle'] ?? $role['code'] ?? ''), 'description' => $role['description'] ?? null]
                 : ['code' => (string) $role, 'libelle' => (string) $role, 'description' => null])
             ->filter(fn (array $role) => $role['code'] !== '')
             ->unique('code')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Les roles qu'un module declare : ceux qui donnent la main dessus,
+     * avec leur libelle quand il y en a un.
+     *
+     * @return array<int, array{code: string, libelle: string}>
+     */
+    private function rolesDuModule(): array
+    {
+        $module = $this->module();
+
+        if ($module === null) {
+            return [];
+        }
+
+        $libelles = $module['roles'] ?? [];
+
+        return collect($module['manage_roles'] ?? [])
+            // « admin » n'est pas un role d'application : c'est le portail
+            // qui le porte, et il ouvre deja tous les modules.
+            ->reject(fn (string $code) => $code === 'admin')
+            ->map(fn (string $code) => ['code' => $code, 'libelle' => $libelles[$code] ?? $code])
             ->values()
             ->all();
     }

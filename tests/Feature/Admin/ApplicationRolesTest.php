@@ -4,12 +4,14 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Application;
 use App\Models\User;
+use App\Services\ApplicationDirectorySync;
 use App\Services\PortalIdentityToken;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ApplicationRolesTest extends TestCase
@@ -67,6 +69,28 @@ class ApplicationRolesTest extends TestCase
         $charge = JWT::decode(app(PortalIdentityToken::class)->pour($employe->fresh(), $app), new Key(self::SECRET, 'HS256'));
         $this->assertSame(['coordonnateur', 'enseignant'], $charge->roles);
         $this->assertSame('coordonnateur', $charge->role);
+    }
+
+    /**
+     * Un module n'a personne pour synchroniser son catalogue : il doit
+     * offrir lui-meme ses roles, sinon l'administrateur en est reduit a
+     * taper le code a la main pour designer un responsable.
+     */
+    public function test_un_module_offre_les_roles_quil_declare(): void
+    {
+        $module = Application::factory()->module('informations')->create(['name' => 'LA MAJESTUEUSE Info']);
+
+        // L'ordre est celui de la configuration : du plus large au plus etroit.
+        $this->assertSame(['editeur', 'redacteur'], $module->roleCodes());
+        $this->assertStringContainsString('Éditeur', $module->roleCatalogue()[0]['libelle']);
+
+        // « admin » n'en fait pas partie : le portail le porte deja.
+        $this->assertNotContains('admin', $module->roleCodes());
+
+        $this->actingAs(User::factory()->superadmin()->create())
+            ->get(route('admin.applications.access', $module))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('application.roles', 2));
     }
 
     public function test_un_role_inconnu_dans_la_liste_est_refuse(): void
@@ -174,7 +198,7 @@ class ApplicationRolesTest extends TestCase
         User::factory()->create(['name' => 'Jean', 'lastname' => 'Mballa']);
         User::factory()->create(['name' => 'Jean', 'lastname' => 'Mballa']);
 
-        $resultat = app(\App\Services\ApplicationDirectorySync::class)->apply($ium, [
+        $resultat = app(ApplicationDirectorySync::class)->apply($ium, [
             'roles' => [['code' => 'enseignant', 'libelle' => 'Enseignant']],
             'personnel' => [
                 // Autre adresse, meme nom (accents et ordre des mots ignores) : meme personne.

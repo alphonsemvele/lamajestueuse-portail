@@ -54,6 +54,10 @@ return [
         'admin_route' => 'admin.posts.index',
         'icon' => 'newspaper',
         'color' => '#7c3aed',
+        'roles' => [
+            'redacteur' => 'Rédacteur — écrit, publie et retire les articles.',
+            'editeur' => 'Éditeur — publie et tient les rubriques du site public.',
+        ],
         'manage_roles' => ['admin', 'editeur', 'redacteur'],
     ],
 
@@ -68,6 +72,11 @@ return [
         // sans attribution prealable. La tuile, elle, s'attribue.
         'ouvert_a_tous' => true,
         // Seuls ces roles traitent les demandes et impriment les badges.
+        'roles' => [
+            'accueil' => 'Accueil — reçoit les demandes, imprime et remet les badges.',
+            'rh' => 'RH — suit les demandes du personnel.',
+            'drh' => 'DRH — valide et tranche les demandes.',
+        ],
         'manage_roles' => ['admin', 'drh', 'rh', 'accueil'],
     ],
 
@@ -93,6 +102,11 @@ return [
         'color' => '#0f766e',
         // Les donnees sont sensibles : la tuile donne la consultation, ces
         // roles seuls ouvrent la saisie et la mise en paiement.
+        'roles' => [
+            'gestionnaire_paie' => 'Gestionnaire de paie — prépare et édite les bulletins.',
+            'rh' => 'RH — tient les dossiers du personnel.',
+            'drh' => 'DRH — pilote le module, périmètre compris.',
+        ],
         'manage_roles' => ['admin', 'drh', 'rh', 'gestionnaire_paie'],
     ],
 

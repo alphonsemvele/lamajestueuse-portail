@@ -26,7 +26,7 @@ export default function InfoLayout({
         <>
             <Head title={titre} />
 
-            <div className="min-h-dvh bg-ink-50 dark:bg-ink-950">
+            <div className="flex min-h-dvh flex-col bg-ink-50 dark:bg-ink-950">
                 <header className="sticky top-0 z-30 border-b border-ink-100 bg-white/90 backdrop-blur dark:border-white/10 dark:bg-ink-900/90">
                     <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-3 sm:px-6">
                         <Link href={routes.info.index} className="flex shrink-0 items-center gap-2.5">
@@ -103,9 +103,14 @@ export default function InfoLayout({
                     )}
                 </header>
 
-                <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
+                {/*
+                  * « flex-1 » tient le pied de page en bas : une page courte
+                  * — une rubrique vide, un article bref — le laissait
+                  * flotter au milieu de l'ecran.
+                  */}
+                <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">{children}</main>
 
-                <footer className="border-t border-ink-100 bg-white py-8 dark:border-white/10 dark:bg-ink-900">
+                <footer className="mt-auto border-t border-ink-100 bg-white py-8 dark:border-white/10 dark:bg-ink-900">
                     <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 text-sm text-ink-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 dark:text-ink-400">
                         <p className="font-medium text-ink-700 dark:text-ink-200">Groupe La Majestueuse — Yaoundé</p>
                         <p>IUM · IFPM · GSBM — © {new Date().getFullYear()}</p>

@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -115,6 +116,50 @@ class InfoPubliqueTest extends TestCase
         $reponse->assertSee('huit cents étudiants', false);
         // Et cette page-la, contrairement au portail, s'indexe.
         $reponse->assertSee('<meta name="robots" content="index, follow">', false);
+    }
+
+    /**
+     * WhatsApp renonce a telecharger une image trop lourde et n'affiche
+     * alors aucun apercu, la ou Facebook, lui, l'accepte. L'affiche d'un
+     * concours fait couramment 650 Ko : on en publie une copie au format.
+     */
+    public function test_l_image_de_partage_est_une_copie_au_format_des_reseaux(): void
+    {
+        Storage::fake('public');
+
+        // Une affiche carree, comme celles de l'institut.
+        $article = $this->article([
+            'image' => UploadedFile::fake()->image('affiche.jpg', 1600, 1600)->store('publications', 'public'),
+        ]);
+
+        $reponse = $this->get(route('info.article', $article));
+
+        preg_match('#<meta property="og:image" content="([^"]+)"#', $reponse->getContent(), $trouve);
+        $this->assertNotEmpty($trouve, "La page n'annonce aucune image de partage.");
+
+        $vignette = Str::after($trouve[1], Storage::disk('public')->url(''));
+        $this->assertStringStartsWith('publications/partage/', $vignette);
+
+        // Le format attendu, et un poids que WhatsApp accepte de charger.
+        [$largeur, $hauteur] = getimagesize(Storage::disk('public')->path($vignette));
+        $this->assertSame([1200, 630], [$largeur, $hauteur]);
+        $this->assertLessThan(300 * 1024, Storage::disk('public')->size($vignette));
+
+        // L'originale n'est pas touchee : c'est elle qui illustre l'article.
+        Storage::disk('public')->assertExists($article->image);
+
+        // Et la vignette ne se refabrique pas a chaque visite.
+        $horodatage = Storage::disk('public')->lastModified($vignette);
+        $this->get(route('info.article', $article));
+        $this->assertSame($horodatage, Storage::disk('public')->lastModified($vignette));
+    }
+
+    public function test_un_article_sans_image_reprend_la_vignette_du_groupe(): void
+    {
+        $article = $this->article(['image' => null]);
+
+        $this->get(route('info.article', $article))
+            ->assertSee('images/info-partage.png', false);
     }
 
     public function test_le_portail_reste_hors_des_moteurs(): void

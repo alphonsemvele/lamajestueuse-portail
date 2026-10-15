@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Rubrique;
+use App\Support\VignettePartage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -95,7 +96,9 @@ class InfoPublicController extends Controller
             'meta' => $this->meta(
                 titre: $post->title,
                 description: $post->chapeau(),
-                image: $post->imageUrl() ?: asset(self::VIGNETTE),
+                // Pas l'image d'origine : une copie au format des reseaux.
+                // Une affiche de 650 Ko ne franchit pas le filtre de WhatsApp.
+                image: VignettePartage::pour($post, asset(self::VIGNETTE)),
                 url: route('info.article', $post),
                 type: 'article',
                 publieLe: $post->published_at?->toIso8601String(),

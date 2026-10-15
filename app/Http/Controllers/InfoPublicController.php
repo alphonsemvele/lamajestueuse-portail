@@ -24,6 +24,13 @@ class InfoPublicController extends Controller
 {
     private const PAR_PAGE = 9;
 
+    /**
+     * La vignette de la salle de presse, a defaut de visuel propre a
+     * l'article : 1200 x 630, le format qu'attendent WhatsApp et Facebook
+     * pour afficher une grande image plutot qu'un timbre-poste.
+     */
+    private const VIGNETTE = 'images/info-partage.png';
+
     public function index(Request $request): Response
     {
         $recherche = trim((string) $request->query('q'));
@@ -68,7 +75,7 @@ class InfoPublicController extends Controller
             'meta' => $this->meta(
                 titre: 'LA MAJESTUEUSE Info',
                 description: "Toute l'actualité du groupe La Majestueuse : IUM, IFPM, GSBM.",
-                image: asset('images/marque-la-majestueuse.png'),
+                image: asset(self::VIGNETTE),
                 url: route('info.index'),
             ),
         ]);
@@ -88,7 +95,7 @@ class InfoPublicController extends Controller
             'meta' => $this->meta(
                 titre: $post->title,
                 description: $post->chapeau(),
-                image: $post->imageUrl() ?: asset('images/marque-la-majestueuse.png'),
+                image: $post->imageUrl() ?: asset(self::VIGNETTE),
                 url: route('info.article', $post),
                 type: 'article',
                 publieLe: $post->published_at?->toIso8601String(),

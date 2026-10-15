@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Application;
 use App\Models\Post;
+use App\Models\Rubrique;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -26,6 +27,8 @@ class PublicationMediaTest extends TestCase
             'title' => 'Journée portes ouvertes',
             'excerpt' => 'Samedi de 9h à 16h.',
             'type' => 'announcement',
+            // La rubrique classe l'article ; elle porte sa famille.
+            'rubrique_id' => Rubrique::where('slug', 'annonces')->value('id'),
             'published_at' => now()->toDateTimeString(),
         ], $overrides);
     }
@@ -51,9 +54,10 @@ class PublicationMediaTest extends TestCase
         $redacteur = User::factory()->create();
         $redacteur->applications()->attach($module, ['role_in_app' => 'redacteur']);
 
+        // Publier ouvre la fiche : c'est la qu'on ajoute images et documents.
         $this->actingAs($redacteur)->post(route('informations.store'), $this->payload([
             'image_file' => UploadedFile::fake()->image('affiche.png', 900, 600),
-        ]))->assertRedirect(route('informations.index'));
+        ]))->assertRedirect(route('informations.edit', Post::firstOrFail()));
 
         $post = Post::firstOrFail();
 

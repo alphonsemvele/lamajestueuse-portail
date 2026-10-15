@@ -4,6 +4,7 @@ namespace Tests\Feature\Modules;
 
 use App\Models\Application;
 use App\Models\Post;
+use App\Models\Rubrique;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -75,13 +76,15 @@ class InformationModuleTest extends TestCase
         $this->actingAs($user)->post(route('informations.store'), [
             'title' => 'Réunion de rentrée',
             'excerpt' => 'Le lundi à 8h.',
-            'type' => 'announcement',
+            'rubrique_id' => Rubrique::where('slug', 'annonces')->value('id'),
             'published_at' => now()->toDateTimeString(),
-        ])->assertRedirect(route('informations.index'));
+        ])->assertRedirect(route('informations.edit', Post::firstOrFail()));
 
         $post = Post::firstOrFail();
         $this->assertSame('Réunion de rentrée', $post->title);
         $this->assertSame($user->id, $post->author_id);
+        // La famille de la rubrique garnit l'ancienne colonne « type ».
+        $this->assertSame('announcement', $post->type);
     }
 
     public function test_un_administrateur_du_portail_publie_toujours(): void
@@ -114,13 +117,18 @@ class InformationModuleTest extends TestCase
     public function test_la_recherche_et_le_filtre_par_rubrique(): void
     {
         $module = $this->module();
-        Post::create(['title' => 'Rentrée académique', 'slug' => 'a', 'type' => 'news', 'published_at' => now()]);
-        Post::create(['title' => 'Maintenance ERP', 'slug' => 'b', 'type' => 'announcement', 'published_at' => now()]);
+        $actualites = Rubrique::where('slug', 'actualites')->value('id');
+        $annonces = Rubrique::where('slug', 'annonces')->value('id');
+
+        Post::create(['title' => 'Rentrée académique', 'slug' => 'a', 'type' => 'news',
+            'rubrique_id' => $actualites, 'published_at' => now()]);
+        Post::create(['title' => 'Maintenance ERP', 'slug' => 'b', 'type' => 'announcement',
+            'rubrique_id' => $annonces, 'published_at' => now()]);
 
         $user = User::factory()->create();
         $user->applications()->attach($module);
 
-        $this->actingAs($user)->get(route('informations.index', ['type' => 'announcement']))
+        $this->actingAs($user)->get(route('informations.index', ['rubrique' => 'annonces']))
             ->assertInertia(fn (Assert $page) => $page->has('posts.data', 1)->where('posts.data.0.title', 'Maintenance ERP'));
 
         $this->actingAs($user)->get(route('informations.index', ['q' => 'Rentrée']))

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Concerns\HandlesMediaUploads;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
+use App\Models\Rubrique;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -85,6 +86,15 @@ class PostController extends Controller
         $data['slug'] = $post?->slug ?: Str::slug($data['title']).'-'.Str::lower(Str::random(5));
         $data['is_featured'] = $request->boolean('is_featured');
         $data['is_visible'] = $request->boolean('is_visible');
+        $data['is_public'] = $request->boolean('is_public', true);
+
+        /*
+         * L'administration classe encore par famille ; le site public, lui,
+         * classe par rubrique. On rattache donc l'article a la premiere
+         * rubrique de sa famille, sans quoi il sortirait du classement.
+         */
+        $data['rubrique_id'] = $post?->rubrique_id
+            ?: Rubrique::where('famille', $data['type'])->orderBy('ordre')->value('id');
 
         unset($data['image_file']);
         $data['image'] = $this->resolveMedia($request, $post?->image, 'image', 'publications');

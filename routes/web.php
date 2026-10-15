@@ -4,9 +4,9 @@ use App\Http\Controllers\Admin\AccessLogController;
 use App\Http\Controllers\Admin\ApplicationController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\ModeleEmailController;
 use App\Http\Controllers\Admin\ModuleController;
 use App\Http\Controllers\Admin\PostController as AdminPostController;
-use App\Http\Controllers\Admin\ModeleEmailController;
 use App\Http\Controllers\Admin\ReglageEmailController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ApplicationLaunchController;
@@ -14,16 +14,17 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegistrationController;
 use App\Http\Controllers\CheckInController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InfoPublicController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\Modules\BadgeController;
 use App\Http\Controllers\Modules\DirectoryController;
-use App\Http\Controllers\Modules\MesBulletinsController;
-use App\Http\Controllers\Modules\ProfilController;
-use App\Http\Controllers\Modules\TutorielController;
 use App\Http\Controllers\Modules\InformationController;
+use App\Http\Controllers\Modules\MesBulletinsController;
 use App\Http\Controllers\Modules\Personnel\PaieController;
 use App\Http\Controllers\Modules\Personnel\PersonnelController;
 use App\Http\Controllers\Modules\Personnel\ReferentielController;
-use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\Modules\ProfilController;
+use App\Http\Controllers\Modules\TutorielController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\SupportController;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +46,22 @@ Route::get('/support', SupportController::class)->name('support');
 Route::prefix('tutoriels')->name('tutoriels.')->group(function () {
     Route::get('/', [TutorielController::class, 'index'])->name('index');
     Route::get('/{cle}', [TutorielController::class, 'show'])->name('show');
+});
+
+/*
+ * LA MAJESTUEUSE Info : la salle de presse du groupe.
+ *
+ * Publique, et c'est tout l'objet : un article doit s'ouvrir depuis un lien
+ * recu sur WhatsApp, sans compte et sans detour par la connexion.
+ */
+Route::prefix('info')->name('info.')->group(function () {
+    Route::get('/', [InfoPublicController::class, 'index'])->name('index');
+    Route::get('/{post}', [InfoPublicController::class, 'show'])->name('article');
+
+    // Le bouton ouvre le reseau de son cote ; ici on tient seulement le compte.
+    Route::post('/{post}/partage', [InfoPublicController::class, 'partager'])
+        ->middleware('throttle:60,1')
+        ->name('partage');
 });
 
 /*
@@ -85,6 +102,16 @@ Route::middleware('auth')->group(function () {
         Route::put('/{post}', [InformationController::class, 'update'])->name('update');
         Route::delete('/{post}', [InformationController::class, 'destroy'])->name('destroy');
         Route::post('/{post}/visibilite', [InformationController::class, 'toggleVisibility'])->name('visibility');
+
+        // Pieces jointes : galerie d'images et documents a telecharger.
+        Route::delete('/medias/{media}', [InformationController::class, 'supprimerPiece'])->name('medias.destroy');
+        Route::post('/medias/{media}/legende', [InformationController::class, 'legenderPiece'])->name('medias.legende');
+
+        // Rubriques : le classement du site public.
+        Route::get('/rubriques', [InformationController::class, 'rubriques'])->name('rubriques.index');
+        Route::post('/rubriques', [InformationController::class, 'storeRubrique'])->name('rubriques.store');
+        Route::put('/rubriques/{rubrique}', [InformationController::class, 'updateRubrique'])->name('rubriques.update');
+        Route::delete('/rubriques/{rubrique}', [InformationController::class, 'destroyRubrique'])->name('rubriques.destroy');
     });
 
     /*

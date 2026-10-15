@@ -46,6 +46,12 @@ export const routes = {
     checkIn: '/pointage',
     post: (slug: string) => `/actualites/${slug}`,
     annuaire: '/annuaire',
+    // LA MAJESTUEUSE Info, cote public : lisible sans compte.
+    info: {
+        index: '/info',
+        article: (slug: string) => `/info/${slug}`,
+        partage: (slug: string) => `/info/${slug}/partage`,
+    },
     informations: {
         index: '/informations',
         create: '/informations/nouvelle',
@@ -54,6 +60,10 @@ export const routes = {
         update: (slug: string) => `/informations/${slug}`,
         destroy: (slug: string) => `/informations/${slug}`,
         visibility: (slug: string) => `/informations/${slug}/visibilite`,
+        mediaDestroy: (id: number) => `/informations/medias/${id}`,
+        mediaLegende: (id: number) => `/informations/medias/${id}/legende`,
+        rubriques: '/informations/rubriques',
+        rubriqueUpdate: (id: number) => `/informations/rubriques/${id}`,
     },
     tutoriels: {
         index: '/tutoriels',

@@ -27,7 +27,7 @@ return [
 
     'profil' => [
         'name' => 'Mon profil',
-        'description' => "Vos informations, votre parcours et vos pièces.",
+        'description' => 'Vos informations, votre parcours et vos pièces.',
         'route' => 'profil.index',
         'admin_route' => null,
         'icon' => 'user',
@@ -38,7 +38,7 @@ return [
 
     'tutoriels' => [
         'name' => 'Tutoriels',
-        'description' => "Apprendre à se servir du portail, module par module.",
+        'description' => 'Apprendre à se servir du portail, module par module.',
         'route' => 'tutoriels.index',
         'admin_route' => null,
         'icon' => 'book',
@@ -48,8 +48,8 @@ return [
     ],
 
     'informations' => [
-        'name' => "Centre d'information",
-        'description' => "Actualités, annonces et affichage du groupe.",
+        'name' => 'LA MAJESTUEUSE Info',
+        'description' => 'La salle de presse du groupe : articles, images et documents, publiés sur le site public.',
         'route' => 'informations.index',
         'admin_route' => 'admin.posts.index',
         'icon' => 'newspaper',
@@ -59,7 +59,7 @@ return [
 
     'badges' => [
         'name' => 'Badges',
-        'description' => "Demander son badge professionnel et suivre sa fabrication.",
+        'description' => 'Demander son badge professionnel et suivre sa fabrication.',
         'route' => 'badges.index',
         'admin_route' => 'badges.gestion',
         'icon' => 'key',
@@ -73,7 +73,7 @@ return [
 
     'bulletins' => [
         'name' => 'Mon bulletin de paie',
-        'description' => "Consulter et télécharger ses bulletins de paie.",
+        'description' => 'Consulter et télécharger ses bulletins de paie.',
         'route' => 'mes-bulletins.index',
         // Chacun consulte les siens : le module s'ouvre a tout le personnel.
         'ouvert_a_tous' => true,
@@ -86,7 +86,7 @@ return [
 
     'personnel' => [
         'name' => 'Personnel & paie',
-        'description' => "Dossiers du personnel, carrière, contrats et paie mensuelle du groupe.",
+        'description' => 'Dossiers du personnel, carrière, contrats et paie mensuelle du groupe.',
         'route' => 'personnel.index',
         'admin_route' => 'personnel.index',
         'icon' => 'briefcase',
@@ -98,7 +98,7 @@ return [
 
     'annuaire' => [
         'name' => 'Annuaire',
-        'description' => "Rechercher un membre du personnel et consulter ses informations de contact.",
+        'description' => 'Rechercher un membre du personnel et consulter ses informations de contact.',
         'route' => 'annuaire.index',
         // L'annuaire se consulte : les fiches se modifient dans /admin/users.
         'admin_route' => null,

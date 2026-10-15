@@ -98,6 +98,62 @@ export interface Post {
     publishedAtLabel: string | null;
     views: number;
     author: string | null;
+    /** Visible sur le site public, sans compte. */
+    isPublic: boolean;
+    coverLegende: string | null;
+    rubriqueId: number | null;
+    rubrique: Rubrique | null;
+    partages: number;
+    partagesDetail: { whatsapp: number; facebook: number; lien: number };
+    images: PieceJointe[];
+    documents: PieceJointe[];
+}
+
+export interface Rubrique {
+    id: number;
+    nom: string;
+    slug: string;
+    description: string | null;
+    couleur: string;
+    famille: PostType;
+    familleLibelle: string;
+    ordre: number;
+    actif: boolean;
+    articles: number | null;
+}
+
+/** Une image de la galerie ou un document a telecharger. */
+export interface PieceJointe {
+    id: number;
+    genre: 'image' | 'document';
+    url: string;
+    nom: string;
+    legende: string | null;
+    poids: string;
+    extension: string;
+    ordre: number;
+}
+
+/** Un article tel que le site public l'affiche. */
+export interface Article {
+    id: number;
+    titre: string;
+    slug: string;
+    chapeau: string;
+    imageUrl: string | null;
+    rubrique: { nom: string; slug: string; couleur: string } | null;
+    aLaUne: boolean;
+    publieLe: string | null;
+    publieLeLibelle: string | null;
+    auteur: string | null;
+    vues: number;
+    partages: number;
+    lecture: number;
+    corps?: string | null;
+    legende?: string | null;
+    images?: PieceJointe[];
+    documents?: PieceJointe[];
+    partagesDetail?: { whatsapp: number; facebook: number; lien: number };
 }
 
 export interface PortalUser {

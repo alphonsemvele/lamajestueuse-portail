@@ -17,6 +17,8 @@ interface Props {
     announcements: Post[];
     billboard: Post[];
     filters: { q: string | null; category: string | null };
+    /** La salle de presse publique : ouverte a tous, connecte ou non. */
+    lienInfo: string;
 }
 
 function Section({
@@ -45,7 +47,7 @@ function Section({
     );
 }
 
-export default function Dashboard({ apps, quickLinks, categories, checkIn, today, news, announcements, billboard, filters }: Props) {
+export default function Dashboard({ apps, quickLinks, categories, checkIn, today, news, announcements, billboard, filters, lienInfo }: Props) {
     const t = useT();
     const { auth } = usePage<SharedProps>().props;
     const [tab, setTab] = useState<PostType>('news');
@@ -139,10 +141,22 @@ export default function Dashboard({ apps, quickLinks, categories, checkIn, today
                 <aside id="centre-information" className="min-w-0">
                     <Card className="sticky top-24 overflow-hidden">
                         <div className="border-b border-ink-100 px-5 pt-5 dark:border-white/10">
-                            <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">
-                                {t("Centre d'information")}
-                                <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                            </p>
+                            <div className="flex items-center justify-between gap-2">
+                                <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">
+                                    LA MAJESTUEUSE Info
+                                    <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                </p>
+                                {/* La page publique s'ouvre aussi depuis le portail. */}
+                                <a
+                                    href={lienInfo}
+                                    target="_blank"
+                                    rel="noopener"
+                                    className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 transition hover:text-brand-700 dark:text-brand-300"
+                                >
+                                    {t('Tout voir')}
+                                    <Icon name="external" className="h-3 w-3" />
+                                </a>
+                            </div>
 
                             <div className="mt-3 flex gap-1 overflow-x-auto">
                                 {(

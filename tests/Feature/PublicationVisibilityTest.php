@@ -39,7 +39,14 @@ class PublicationVisibilityTest extends TestCase
         $this->actingAs($this->employe())->get(route('dashboard'))
             ->assertInertia(fn (Assert $page) => $page->has('announcements', 1));
 
-        $this->actingAs($this->employe())->get(route('posts.show', $post))->assertOk();
+        /*
+         * Ouverte au public, elle vit desormais dans la salle de presse :
+         * l'ancien lien y conduit.
+         */
+        $this->actingAs($this->employe())->get(route('posts.show', $post))
+            ->assertRedirect(route('info.article', $post));
+
+        $this->get(route('info.article', $post))->assertOk();
     }
 
     public function test_une_publication_inactive_disparait_partout(): void

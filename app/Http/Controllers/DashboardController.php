@@ -67,6 +67,7 @@ class DashboardController extends Controller
         $checkIn = $user->checkIns()->whereDate('work_date', today())->first();
 
         $posts = fn (string $type) => Post::published()->where('type', $type)
+            ->with('rubrique')
             ->latest('published_at')->take(5)->get()->map->toUiArray()->all();
 
         return Inertia::render('dashboard', [
@@ -87,6 +88,9 @@ class DashboardController extends Controller
             'announcements' => $posts('announcement'),
             'billboard' => $posts('billboard'),
             'filters' => ['q' => $search, 'category' => $categoryFilter],
+            // La salle de presse publique, ouverte a tous : on y entre aussi
+            // depuis le portail.
+            'lienInfo' => route('info.index'),
         ]);
     }
 }

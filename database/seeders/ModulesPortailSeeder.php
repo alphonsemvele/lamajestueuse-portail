@@ -26,16 +26,33 @@ use Illuminate\Database\Seeder;
  */
 class ModulesPortailSeeder extends Seeder
 {
+    /** La tuile de la salle de presse, retenue le temps de l'attribuer. */
+    private ?Application $presse = null;
+
     public function run(): void
     {
         $this->expediteurParDefaut();
 
         $existante = Application::where('module_key', 'personnel')->exists();
+        $presseExistante = Application::where('module_key', 'informations')->exists();
 
         $module = $this->tuile();
         $this->employeurs();
         $this->call(GrilleIumSeeder::class);
         $this->call(GrilleSalarialeSeeder::class);
+
+        /*
+         * La salle de presse arrive apres les autres modules : on la confie
+         * aux administrateurs le jour ou elle est posee, meme si le reste
+         * du portail est installe depuis longtemps.
+         */
+        if (! $presseExistante && $this->presse !== null) {
+            foreach (User::whereIn('role', ['admin', 'superadmin'])->get() as $administrateur) {
+                $administrateur->applications()->syncWithoutDetaching([
+                    $this->presse->id => ['role_in_app' => 'editeur', 'roles' => json_encode(['editeur'])],
+                ]);
+            }
+        }
 
         if ($existante) {
             return;
@@ -146,6 +163,46 @@ class ModulesPortailSeeder extends Seeder
                 'sort_order' => 8,
             ],
         );
+
+        /*
+         * LA MAJESTUEUSE Info : la salle de presse. Sans cette tuile, la
+         * console de redaction n'existe pour personne — le module est
+         * introuvable, et son site public n'a plus personne pour l'alimenter.
+         */
+        $presse = $this->poserTuile(
+            ['module_key' => 'informations'],
+            [
+                'name' => 'LA MAJESTUEUSE Info',
+                'slug' => 'la-majestueuse-info',
+                'description' => 'La salle de presse du groupe : articles, images et documents, publiés sur le site public.',
+                'type' => 'module',
+                'url' => null,
+                'category_id' => Category::firstWhere('slug', 'information')?->id ?? $categorie?->id,
+                'icon' => 'newspaper',
+                'color' => '#7c3aed',
+                'is_active' => true,
+                'sort_order' => 6,
+            ],
+        );
+
+        // L'annuaire : il se consulte, il n'a pas de redaction.
+        $this->poserTuile(
+            ['module_key' => 'annuaire'],
+            [
+                'name' => 'Annuaire',
+                'slug' => 'annuaire-du-personnel',
+                'description' => 'Rechercher un membre du personnel et consulter ses informations de contact.',
+                'type' => 'module',
+                'url' => null,
+                'category_id' => $categorie?->id,
+                'icon' => 'users',
+                'color' => '#1d4ed8',
+                'is_active' => true,
+                'sort_order' => 10,
+            ],
+        );
+
+        $this->presse = $presse;
 
         return $this->poserTuile(
             ['module_key' => 'personnel'],

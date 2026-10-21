@@ -6,6 +6,7 @@ use App\Models\Application;
 use App\Models\Post;
 use App\Models\Rubrique;
 use App\Models\User;
+use Database\Seeders\ModulesPortailSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -64,6 +65,33 @@ class InformationModuleTest extends TestCase
         $this->actingAs($user)->get(route('informations.create'))->assertForbidden();
         $this->actingAs($user)->post(route('informations.store'), ['title' => 'Tentative', 'type' => 'news'])
             ->assertForbidden();
+    }
+
+    /**
+     * Le deploiement installe les modules du portail. Sans la tuile, la
+     * salle de presse n'existe pour personne : le module repond 404 et son
+     * site public n'a plus de redaction.
+     */
+    public function test_le_deploiement_installe_la_tuile_de_la_salle_de_presse(): void
+    {
+        $patron = User::factory()->superadmin()->create();
+
+        $this->seed(ModulesPortailSeeder::class);
+
+        $tuile = Application::where('module_key', 'informations')->first();
+
+        $this->assertNotNull($tuile, "La tuile LA MAJESTUEUSE Info n'a pas ete posee.");
+        $this->assertSame('module', $tuile->type);
+        $this->assertTrue($tuile->is_active);
+
+        // Elle est confiee aux administrateurs : ils la voient le jour meme.
+        $this->assertTrue($patron->applications()->where('applications.id', $tuile->id)->exists());
+
+        $this->actingAs($patron)->get(route('informations.index'))->assertOk();
+
+        // Et le deploiement suivant ne la remet pas deux fois.
+        $this->seed(ModulesPortailSeeder::class);
+        $this->assertSame(1, Application::where('module_key', 'informations')->count());
     }
 
     public function test_un_redacteur_publie_dans_le_module(): void

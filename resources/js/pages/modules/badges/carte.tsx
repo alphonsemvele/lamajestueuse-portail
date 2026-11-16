@@ -150,6 +150,7 @@ export default function CarteBadge({
     validite = 2,
     face = 'recto',
     mention,
+    sansRelief = false,
     className,
 }: {
     donnees: DonneesBadge;
@@ -158,6 +159,11 @@ export default function CarteBadge({
     face?: 'recto' | 'verso';
     /** La mention imprimée au verso, venue de config/badges.php. */
     mention?: string | null;
+    /**
+     * Sans l'ombre ni le filet de l'écran : ce qui part à l'impression ou
+     * dans un PDF ne porte que le dessin de la carte.
+     */
+    sansRelief?: boolean;
     className?: string;
 }) {
     // Rien de choisi — ou rien à choisir : le badge est celui du groupe.
@@ -187,7 +193,7 @@ export default function CarteBadge({
 
     const cadre = cn(
         'relative flex flex-col items-center overflow-hidden bg-white',
-        'shadow-lg shadow-ink-900/10 ring-1 ring-ink-900/10',
+        !sansRelief && 'shadow-lg shadow-ink-900/10 ring-1 ring-ink-900/10',
         className,
     );
 
@@ -200,7 +206,7 @@ export default function CarteBadge({
                     className="relative flex w-full flex-1 flex-col items-center"
                     style={{ paddingTop: px(20), paddingLeft: px(16), paddingRight: px(16) }}
                 >
-                    {enTete(32)}
+                    {enTete(44)}
 
                     {/*
                       * Pas de fonction sur la carte : une mutation la rend
@@ -278,7 +284,7 @@ export default function CarteBadge({
                 className="relative flex w-full flex-1 flex-col items-center"
                 style={{ paddingTop: px(18), paddingLeft: px(14), paddingRight: px(14) }}
             >
-                {enTete(36)}
+                {enTete(48)}
 
                 <p
                     className="flex items-center font-semibold uppercase"

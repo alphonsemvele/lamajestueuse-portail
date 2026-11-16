@@ -44,6 +44,17 @@ export const IDENTITE_GROUPE = {
     email: 'contact@lamajestueuse.cm',
 };
 
+/**
+ * Le format de la carte, en millimètres.
+ *
+ * C'est la mesure qui fait foi : le PDF pose la carte sur une page de cette
+ * taille, et l'écran la dessine à la même échelle. Les points d'écran s'en
+ * déduisent — 3,78 points le millimètre, la résolution de référence du web.
+ */
+export const CARTE_MM = { largeur: 56, hauteur: 87 };
+
+const POINTS_PAR_MM = 96 / 25.4;
+
 /** La devise, et l'icône qui va avec chaque mot. */
 const DEVISE: { mot: string; icone: string }[] = [
     { mot: 'Travail', icone: 'academic' },
@@ -140,7 +151,7 @@ function Photo({ donnees, taille, accent }: { donnees: DonneesBadge; taille: num
 /**
  * Le nom du porteur : entier, ou amputé de ses derniers prénoms.
  *
- * Une carte fait 54 mm de large. Un nom de famille suivi de trois prénoms
+ * Une carte fait 56 mm de large. Un nom de famille suivi de trois prénoms
  * n'y tient pas, et des points de suspension n'apprennent rien à qui lit le
  * badge — ils donnent même un nom faux. On retire donc les prénoms en trop
  * en partant de la fin ; le nom de famille, qui vient en tête, reste
@@ -218,7 +229,7 @@ function NomDuPorteur({ nom, className, style }: { nom: string; className?: stri
 }
 
 /**
- * Le badge, au format carte (54 × 86 mm, portrait).
+ * Le badge, au format carte (56 × 87 mm, portrait).
  *
  * `echelle` multiplie toutes les dimensions : 1 pour l'aperçu à l'écran,
  * 1.35 pour l'impression. `face` donne le recto — logo, portrait, identité —
@@ -227,7 +238,6 @@ function NomDuPorteur({ nom, className, style }: { nom: string; className?: stri
 export default function CarteBadge({
     donnees,
     echelle = 1,
-    validite = 2,
     face = 'recto',
     mention,
     sansRelief = false,
@@ -235,7 +245,6 @@ export default function CarteBadge({
 }: {
     donnees: DonneesBadge;
     echelle?: number;
-    validite?: number;
     face?: 'recto' | 'verso';
     /** La mention imprimée au verso, venue de config/badges.php. */
     mention?: string | null;
@@ -250,13 +259,9 @@ export default function CarteBadge({
     const institut = donnees.institut ?? LE_GROUPE;
     const { marine, accent } = palette(institut);
 
-    const L = 204 * echelle;
-    const H = 324 * echelle;
+    const L = CARTE_MM.largeur * POINTS_PAR_MM * echelle;
+    const H = CARTE_MM.hauteur * POINTS_PAR_MM * echelle;
     const px = (v: number) => v * echelle;
-
-    const expiration = new Date();
-    expiration.setFullYear(expiration.getFullYear() + validite);
-    const finValidite = `${String(expiration.getMonth() + 1).padStart(2, '0')}/${expiration.getFullYear()}`;
 
     // L'en-tête des deux faces : le logo, puis le nom de l'institut.
     const enTete = (hauteurLogo: number) => (
@@ -273,13 +278,19 @@ export default function CarteBadge({
 
     const cadre = cn(
         'relative flex flex-col items-center overflow-hidden bg-white',
-        !sansRelief && 'shadow-lg shadow-ink-900/10 ring-1 ring-ink-900/10',
+        !sansRelief && 'shadow-lg shadow-ink-900/10',
         className,
     );
 
+    /*
+     * Le filet du pourtour. Il part aussi à l'impression : c'est lui qui
+     * donne le trait de coupe, et il tient la carte sur une planche blanche.
+     */
+    const bordure = { border: `${Math.max(1, px(1))}px solid ${MARINE}66` };
+
     if (face === 'verso') {
         return (
-            <div className={cadre} style={{ width: L, height: H, borderRadius: px(10) }}>
+            <div className={cadre} style={{ width: L, height: H, borderRadius: px(10), ...bordure }}>
                 <Decor marine={marine} accent={accent} />
 
                 <div
@@ -357,7 +368,7 @@ export default function CarteBadge({
     }
 
     return (
-        <div className={cadre} style={{ width: L, height: H, borderRadius: px(10) }}>
+        <div className={cadre} style={{ width: L, height: H, borderRadius: px(10), ...bordure }}>
             <Decor marine={marine} accent={accent} />
 
             <div
@@ -410,14 +421,6 @@ export default function CarteBadge({
                     </span>
                 )}
             </div>
-
-            <div
-                className="relative flex w-full items-center justify-between"
-                style={{ paddingLeft: px(14), paddingRight: px(14), paddingBottom: px(8), fontSize: px(6.5) }}
-            >
-                <span className="font-mono text-white/80">{donnees.numero ?? ''}</span>
-                <span className="font-medium text-white/85">Valide {finValidite}</span>
-            </div>
         </div>
     );
 }
@@ -432,13 +435,11 @@ export default function CarteBadge({
 export function ApercuBadge({
     donnees,
     echelle = 1,
-    validite = 2,
     mention,
     className,
 }: {
     donnees: DonneesBadge;
     echelle?: number;
-    validite?: number;
     mention?: string | null;
     className?: string;
 }) {
@@ -446,7 +447,7 @@ export function ApercuBadge({
 
     return (
         <div className={cn('flex flex-col items-center gap-3', className)}>
-            <CarteBadge donnees={donnees} echelle={echelle} validite={validite} face={face} mention={mention} />
+            <CarteBadge donnees={donnees} echelle={echelle} face={face} mention={mention} />
 
             <div className="inline-flex rounded-full border border-ink-200 p-0.5 dark:border-white/10">
                 {(['recto', 'verso'] as const).map((cote) => (

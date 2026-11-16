@@ -60,7 +60,6 @@ interface Props {
     instituts: { id: number; nom: string; logoUrl: string | null; couleur: string | null; poste: string | null }[];
     badge: {
         demande: BadgeDemande | null;
-        validite: number;
         mention: string | null;
         moduleOuvert: boolean;
     };
@@ -771,7 +770,7 @@ export default function MonProfil({
                             <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
                                 <ApercuBadge
                                     donnees={badge.demande}
-                                    validite={badge.validite}
+                                   
                                     mention={badge.mention}
                                     className="shrink-0"
                                 />

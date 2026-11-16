@@ -70,7 +70,6 @@ class BadgeController extends Controller
                 'initiales' => $utilisateur->initials(),
             ],
             'motifs' => DemandeBadge::MOTIFS,
-            'validite' => (int) config('badges.validite_annees'),
             // Le verso de la carte la porte : elle vient d'un seul endroit.
             'mention' => config('badges.mention'),
             'peutGerer' => $this->peutGerer($utilisateur),
@@ -320,7 +319,6 @@ class BadgeController extends Controller
                 ])->all(),
             'compteurs' => DemandeBadge::selectRaw('statut, count(*) as total')
                 ->groupBy('statut')->pluck('total', 'statut')->all(),
-            'validite' => (int) config('badges.validite_annees'),
             'mention' => config('badges.mention'),
         ]);
     }
@@ -561,7 +559,6 @@ class BadgeController extends Controller
 
         return Inertia::render('modules/badges/impression', [
             'demandes' => $demandes,
-            'validite' => (int) config('badges.validite_annees'),
             'mention' => config('badges.mention'),
         ]);
     }
@@ -631,7 +628,6 @@ class BadgeController extends Controller
 
         return Inertia::render('modules/badges/planche-partagee', [
             'demandes' => $demandes,
-            'validite' => (int) config('badges.validite_annees'),
             'mention' => config('badges.mention'),
         ]);
     }

@@ -26,9 +26,6 @@ return [
         ],
     ],
 
-    // Duree de validite indiquee sur le badge, en annees.
-    'validite_annees' => 2,
-
     // Mention imprimee au verso, sous les coordonnees.
     'mention' => 'Ce badge est la propriété du groupe La Majestueuse. En cas de perte, prévenir le service des ressources humaines.',
 

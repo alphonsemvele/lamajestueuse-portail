@@ -1,22 +1,24 @@
 import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
+import { CARTE_MM } from '@/pages/modules/badges/carte';
+
 /**
  * Les badges en PDF, au format de la carte.
  *
  * La carte est dessinée une seule fois, en React : plutôt que de la refaire
  * côté serveur — deux dessins qui finiraient par diverger — on photographie
- * celle qui est à l'écran et on la pose, telle quelle, sur une page de
- * 54 × 86 mm. Le PDF sort donc exactement comme l'aperçu validé au guichet.
+ * celle qui est à l'écran et on la pose, telle quelle, sur une page au format
+ * de la carte. Le PDF sort donc exactement comme l'aperçu validé au guichet.
  */
 
-/** Le format carte, en millimètres. */
-export const CARTE = { largeur: 54, hauteur: 86 };
+/** Le format carte, en millimètres, tel que la carte le définit. */
+export const CARTE = { largeur: CARTE_MM.largeur, hauteur: CARTE_MM.hauteur };
 
 /**
- * Finesse de la capture. Une carte mesure 204 × 324 points à l'écran ; à 4,
- * l'image fait 816 × 1296 pixels, soit environ 380 points par pouce — ce que
- * demande une imprimerie.
+ * Finesse de la capture. Une carte mesure environ 212 × 329 points à l'écran ;
+ * à 4, l'image fait plus de 800 × 1300 pixels, soit environ 380 points par
+ * pouce — ce que demande une imprimerie.
  */
 const FINESSE = 4;
 

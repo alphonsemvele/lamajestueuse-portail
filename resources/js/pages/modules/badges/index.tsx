@@ -40,7 +40,6 @@ interface Props {
         initiales: string;
     };
     motifs: Record<string, string>;
-    validite: number;
     mention: string | null;
     peutGerer: boolean;
 }
@@ -59,7 +58,6 @@ export default function MonBadge({
     instituts,
     identite,
     motifs,
-    validite,
     mention,
     peutGerer,
 }: Props) {
@@ -344,7 +342,7 @@ export default function MonBadge({
                             <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-400">
                                 Aperçu
                             </p>
-                            <ApercuBadge donnees={apercu} validite={validite} mention={mention} />
+                            <ApercuBadge donnees={apercu} mention={mention} />
                             <p className="mt-3 text-xs text-ink-400">
                                 Rendu indicatif. Le numéro du badge est attribué à la fabrication.
                             </p>
@@ -441,7 +439,7 @@ export default function MonBadge({
                             </p>
                         )}
 
-                        <ApercuBadge donnees={agrandi} echelle={1.2} validite={validite} mention={mention} />
+                        <ApercuBadge donnees={agrandi} echelle={1.2} mention={mention} />
 
                         <button
                             type="button"

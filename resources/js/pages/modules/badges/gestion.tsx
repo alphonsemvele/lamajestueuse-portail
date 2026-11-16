@@ -42,7 +42,6 @@ interface Props {
     statuts: Record<string, string>;
     motifs: Record<string, string>;
     compteurs: Record<string, number>;
-    validite: number;
     mention: string | null;
     personnel: Personne[];
 }
@@ -82,7 +81,6 @@ export default function GestionBadges({
     statuts,
     motifs,
     compteurs,
-    validite,
     mention,
     personnel,
 }: Props) {
@@ -657,7 +655,7 @@ export default function GestionBadges({
                 >
                     <div className="absolute inset-0 bg-ink-900/60 backdrop-blur-[2px]" />
                     <div className="relative" onClick={(event) => event.stopPropagation()}>
-                        <ApercuBadge donnees={apercu} echelle={1.25} validite={validite} mention={mention} />
+                        <ApercuBadge donnees={apercu} echelle={1.25} mention={mention} />
                         <button
                             type="button"
                             onClick={() => setApercu(null)}

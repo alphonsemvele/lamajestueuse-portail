@@ -121,7 +121,6 @@ class ProfilController extends Controller
             'badge' => [
                 'demande' => DemandeBadge::with('institut')
                     ->where('user_id', $moi->id)->latest()->first()?->toUiArray(),
-                'validite' => (int) config('badges.validite_annees'),
                 'mention' => config('badges.mention'),
                 'moduleOuvert' => Application::active()->where('module_key', 'badges')->exists(),
             ],

@@ -18,7 +18,6 @@ interface Demande {
 
 interface Props {
     demandes: Demande[];
-    validite: number;
     mention: string;
 }
 
@@ -27,10 +26,10 @@ interface Props {
  * Tout ce qui est écran disparaît à l'impression.
  *
  * Le PDF est fabriqué à partir de ces cartes-là, celles qui sont affichées :
- * une page par face, au format 54 × 86 mm. C'est le fichier qu'on envoie à la
+ * une page par face, au format 56 × 87 mm. C'est le fichier qu'on envoie à la
  * reprographie.
  */
-export default function PlancheImpression({ demandes, validite, mention }: Props) {
+export default function PlancheImpression({ demandes, mention }: Props) {
     // Chaque face est repérée pour la capture : « 12-recto », « 12-verso ».
     const faces = useRef(new Map<string, HTMLDivElement>());
     const [enCours, setEnCours] = useState<string | null>(null);
@@ -90,7 +89,7 @@ export default function PlancheImpression({ demandes, validite, mention }: Props
                     </Link>
 
                     <p className="text-sm text-ink-500">
-                        {demandes.length} badge(s) · format carte 54 × 86 mm
+                        {demandes.length} badge(s) · format carte 56 × 87 mm
                     </p>
 
                     <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -137,13 +136,13 @@ export default function PlancheImpression({ demandes, validite, mention }: Props
                             {/* Recto et verso côte à côte : la planche se tire en un passage. */}
                             <div className="flex gap-4">
                                 <div ref={retenir(`${demande.id}-recto`)}>
-                                    <CarteBadge donnees={demande} echelle={1.35} validite={validite} sansRelief />
+                                    <CarteBadge donnees={demande} echelle={1.35} sansRelief />
                                 </div>
                                 <div ref={retenir(`${demande.id}-verso`)}>
                                     <CarteBadge
                                         donnees={demande}
                                         echelle={1.35}
-                                        validite={validite}
+                                       
                                         face="verso"
                                         mention={mention}
                                         sansRelief

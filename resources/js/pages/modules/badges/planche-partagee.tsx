@@ -18,7 +18,6 @@ interface Badge {
 
 interface Props {
     demandes: Badge[];
-    validite: number;
     mention: string | null;
 }
 
@@ -26,9 +25,9 @@ interface Props {
  * La planche telle que la reçoit la reprographie : un lien, pas de compte.
  *
  * Chaque badge se télécharge en PDF recto-verso — deux pages au format de la
- * carte, 54 × 86 mm — et la planche entière en un seul fichier.
+ * carte, 56 × 87 mm — et la planche entière en un seul fichier.
  */
-export default function PlanchePartagee({ demandes, validite, mention }: Props) {
+export default function PlanchePartagee({ demandes, mention }: Props) {
     const faces = useRef(new Map<string, HTMLDivElement>());
     const [enCours, setEnCours] = useState<string | null>(null);
 
@@ -76,7 +75,7 @@ export default function PlanchePartagee({ demandes, validite, mention }: Props) 
                     <div>
                         <h1 className="text-lg font-semibold text-ink-900">Badges à imprimer</h1>
                         <p className="text-sm text-ink-500">
-                            {demandes.length} badge(s) · format carte 54 × 86 mm · recto-verso
+                            {demandes.length} badge(s) · format carte 56 × 87 mm · recto-verso
                         </p>
                     </div>
 
@@ -128,13 +127,13 @@ export default function PlanchePartagee({ demandes, validite, mention }: Props) 
                         >
                             <div className="flex gap-4">
                                 <div ref={retenir(`${badge.id}-recto`)}>
-                                    <CarteBadge donnees={badge} echelle={1.2} validite={validite} sansRelief />
+                                    <CarteBadge donnees={badge} echelle={1.2} sansRelief />
                                 </div>
                                 <div ref={retenir(`${badge.id}-verso`)}>
                                     <CarteBadge
                                         donnees={badge}
                                         echelle={1.2}
-                                        validite={validite}
+                                       
                                         face="verso"
                                         mention={mention}
                                         sansRelief

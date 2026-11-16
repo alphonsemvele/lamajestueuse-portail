@@ -108,7 +108,6 @@ class MonProfilTest extends TestCase
                 ->where('badge.demande.numero', $demande->numero)
                 ->where('badge.demande.statut', 'approuvee')
                 ->where('badge.demande.institut.name', 'IUM')
-                ->where('badge.validite', (int) config('badges.validite_annees'))
                 ->where('badge.mention', config('badges.mention'))
                 ->where('badge.moduleOuvert', true));
     }

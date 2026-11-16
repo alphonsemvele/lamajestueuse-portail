@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type CSSProperties, useLayoutEffect, useRef, useState } from 'react';
 import Icon from '@/components/icon';
 import { type Cadrage, styleCadrage } from '@/lib/cadrage';
 import { cn } from '@/lib/utils';
@@ -134,6 +134,86 @@ function Photo({ donnees, taille, accent }: { donnees: DonneesBadge; taille: num
         >
             {donnees.initiales ?? '?'}
         </span>
+    );
+}
+
+/**
+ * Le nom du porteur : entier, ou amputé de ses derniers prénoms.
+ *
+ * Une carte fait 54 mm de large. Un nom de famille suivi de trois prénoms
+ * n'y tient pas, et des points de suspension n'apprennent rien à qui lit le
+ * badge — ils donnent même un nom faux. On retire donc les prénoms en trop
+ * en partant de la fin ; le nom de famille, qui vient en tête, reste
+ * toujours. S'il ne tient pas à lui seul, c'est le corps du texte qui cède.
+ */
+function NomDuPorteur({ nom, className, style }: { nom: string; className?: string; style?: CSSProperties }) {
+    const ligne = useRef<HTMLParagraphElement>(null);
+    const [affiche, setAffiche] = useState(nom);
+    const [corps, setCorps] = useState<number | null>(null);
+
+    // Sans tableau de dépendances : la mesure doit être refaite à chaque
+    // rendu, car l'échelle de la carte change d'un écran à l'impression.
+    useLayoutEffect(() => {
+        const element = ligne.current;
+
+        if (! element) {
+            return;
+        }
+
+        // Un pixel de garde : une mesure au ras du bord laisse l'arrondi
+        // du navigateur rogner la dernière lettre.
+        const place = element.getBoundingClientRect().width - 1;
+        const mots = nom.split(/\s+/).filter(Boolean);
+
+        if (place <= 0 || mots.length === 0) {
+            return;
+        }
+
+        const rendu = getComputedStyle(element);
+        // On mesure toujours au corps prévu, jamais au corps déjà réduit :
+        // sinon la mesure suivante le jugerait à l'aise et le rendrait, en
+        // boucle, à sa taille d'origine.
+        const base = typeof style?.fontSize === 'number' ? style.fontSize : parseFloat(rendu.fontSize);
+        const sonde = document.createElement('span');
+
+        sonde.style.cssText = 'position:absolute;left:-9999px;top:0;white-space:pre;';
+        sonde.style.fontFamily = rendu.fontFamily;
+        sonde.style.fontWeight = rendu.fontWeight;
+        sonde.style.fontStyle = rendu.fontStyle;
+        sonde.style.fontSize = `${base}px`;
+        sonde.style.letterSpacing = String(style?.letterSpacing ?? rendu.letterSpacing);
+        sonde.style.textTransform = rendu.textTransform;
+        document.body.appendChild(sonde);
+
+        const largeur = (texte: string) => {
+            sonde.textContent = texte;
+
+            return sonde.getBoundingClientRect().width;
+        };
+
+        let garde = mots;
+
+        while (garde.length > 1 && largeur(garde.join(' ')) > place) {
+            garde = garde.slice(0, -1);
+        }
+
+        const retenu = garde.join(' ');
+        const seul = largeur(retenu);
+
+        document.body.removeChild(sonde);
+
+        // Le nom de famille seul déborde encore : on le rapetisse plutôt que
+        // de le couper, jusqu'aux deux tiers du corps prévu.
+        const reduit = seul > place ? Math.max(base * 0.66, (base * place) / seul) : null;
+
+        setAffiche((avant) => (avant === retenu ? avant : retenu));
+        setCorps((avant) => (avant === reduit ? avant : reduit));
+    });
+
+    return (
+        <p ref={ligne} className={className} style={corps ? { ...style, fontSize: corps } : style}>
+            {affiche}
+        </p>
     );
 }
 
@@ -302,12 +382,11 @@ export default function CarteBadge({
                     <Photo donnees={donnees} taille={px(90)} accent={accent} />
                 </div>
 
-                <p
-                    className="w-full truncate text-center font-bold uppercase leading-tight"
+                <NomDuPorteur
+                    nom={donnees.nomAffiche || 'Nom du porteur'}
+                    className="w-full overflow-hidden text-center font-bold uppercase leading-tight whitespace-nowrap"
                     style={{ marginTop: px(10), fontSize: px(15), letterSpacing: '-0.01em', color: marine }}
-                >
-                    {donnees.nomAffiche || 'Nom du porteur'}
-                </p>
+                />
 
                 <span className="rounded-full" style={{ marginTop: px(5), width: px(52), height: px(2.5), backgroundColor: accent }} />
 

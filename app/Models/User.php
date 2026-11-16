@@ -292,6 +292,16 @@ class User extends Authenticatable
         return trim($this->name.' '.$this->lastname);
     }
 
+    /**
+     * Le nom tel qu'un document officiel le porte : le nom de famille
+     * d'abord, le prenom ensuite — « MVELE Alphonse ». C'est l'ordre des
+     * badges et des listes, la ou fullName() reste celui des phrases.
+     */
+    public function nomOfficiel(): string
+    {
+        return trim(trim((string) $this->lastname).' '.trim((string) $this->name));
+    }
+
     public function initials(): string
     {
         return Str::upper(Str::substr($this->name, 0, 1).Str::substr($this->lastname ?? '', 0, 1));

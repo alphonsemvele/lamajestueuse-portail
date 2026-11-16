@@ -57,7 +57,8 @@ class BadgeController extends Controller
             'enCours' => DemandeBadge::where('user_id', $utilisateur->id)->enCours()->exists(),
             'instituts' => $this->institutsDe($utilisateur),
             'identite' => [
-                'nom' => $utilisateur->fullName(),
+                // Un badge porte le nom de famille d'abord.
+                'nom' => $utilisateur->nomOfficiel(),
                 'matricule' => $utilisateur->matricule,
                 'poste' => $utilisateur->poste,
                 'photoUrl' => $utilisateur->avatarUrl(),
@@ -280,7 +281,8 @@ class BadgeController extends Controller
                 ->get()
                 ->map(fn (User $personne) => [
                     'id' => $personne->id,
-                    'nom' => $personne->fullName(),
+                    // Meme ordre que sur la carte : nom de famille, puis prenom.
+                    'nom' => $personne->nomOfficiel(),
                     'matricule' => $personne->matricule,
                     'poste' => $personne->poste,
                     // Sa photo de compte : c'est elle que le badge portera si

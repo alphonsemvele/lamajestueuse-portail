@@ -151,7 +151,8 @@ class BadgeModuleTest extends TestCase
 
         $this->actingAs($employe)->get(route('badges.index'))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('identite.nom', 'Claire NKOA')
+                // Un badge porte le nom de famille d'abord.
+                ->where('identite.nom', 'NKOA Claire')
                 ->where('identite.matricule', $employe->matricule)
                 // Plus de choix de modele : le badge du groupe est unique.
                 ->missing('modeles'));

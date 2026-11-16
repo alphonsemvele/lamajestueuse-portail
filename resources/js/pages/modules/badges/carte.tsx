@@ -41,7 +41,7 @@ export const IDENTITE_GROUPE = {
     raisonSociale: 'LA MAJESTUEUSE SARL',
     adresse: 'Mbankomo, NDAZOA',
     telephone: '+237 6 55 34 19 39',
-    email: 'contact@lamajestueuse.cm',
+    email: 'contact@lamajestueuse.com',
 };
 
 /**

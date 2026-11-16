@@ -236,15 +236,17 @@ class BadgeController extends Controller
 
     // ---------------------------------------------------- cote traitement
 
-    public function gestion(Request $request): Response
+    /**
+     * Les demandes que retiennent les filtres du guichet.
+     *
+     * La meme requete sert deux fois : pour la page affichee, et pour la
+     * liste des identifiants que « tout cocher » retient.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<DemandeBadge>
+     */
+    private function filtrer(?string $statut, ?string $institut, string $recherche)
     {
-        $this->autoriserGestion($request->user());
-
-        $statut = $request->query('statut');
-        $institut = $request->query('institut');
-        $recherche = trim((string) $request->query('q'));
-
-        $demandes = DemandeBadge::with(['user', 'institut', 'traitePar'])
+        return DemandeBadge::query()
             ->when(in_array($statut, array_keys(DemandeBadge::STATUTS), true),
                 fn ($q) => $q->where('statut', $statut))
             // « groupe » n'est pas un identifiant : ce sont les badges sans
@@ -258,7 +260,19 @@ class BadgeController extends Controller
                 ->orWhereHas('user', fn ($u) => $u
                     ->where('name', 'like', "%{$recherche}%")
                     ->orWhere('lastname', 'like', "%{$recherche}%")
-                    ->orWhere('matricule', 'like', "%{$recherche}%"))))
+                    ->orWhere('matricule', 'like', "%{$recherche}%"))));
+    }
+
+    public function gestion(Request $request): Response
+    {
+        $this->autoriserGestion($request->user());
+
+        $statut = $request->query('statut');
+        $institut = $request->query('institut');
+        $recherche = trim((string) $request->query('q'));
+
+        $demandes = $this->filtrer($statut, $institut, $recherche)
+            ->with(['user', 'institut', 'traitePar'])
             ->orderByRaw("CASE statut WHEN 'en_attente' THEN 0 WHEN 'approuvee' THEN 1 ELSE 2 END")
             ->latest()
             ->paginate(20)->withQueryString()
@@ -266,6 +280,12 @@ class BadgeController extends Controller
 
         return Inertia::render('modules/badges/gestion', [
             'demandes' => $demandes,
+            /*
+             * Tous les badges que le filtre retient, pages suivantes
+             * comprises : « tout cocher » doit porter sur la recherche en
+             * cours, pas sur les vingt lignes affichees.
+             */
+            'tousLesIds' => $this->filtrer($statut, $institut, $recherche)->pluck('id')->all(),
             'filtres' => ['statut' => $statut, 'institut' => $institut, 'q' => $recherche],
             'instituts' => Application::active()->where('type', 'application')->orderBy('name')->get()
                 ->map(fn (Application $a) => [

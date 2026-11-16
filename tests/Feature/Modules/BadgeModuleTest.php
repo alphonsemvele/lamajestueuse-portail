@@ -941,6 +941,24 @@ class BadgeModuleTest extends TestCase
         $this->assertSame($this->ifpm->id, $demande->institut->id);
     }
 
+    public function test_tout_cocher_porte_sur_le_filtre_et_non_sur_la_page(): void
+    {
+        // Vingt-cinq demandes : deux pages, dont une seule approuvee.
+        foreach (range(1, 25) as $rang) {
+            $this->demande($this->employe($this->ium), [
+                'statut' => $rang === 1 ? 'approuvee' : 'en_attente',
+            ]);
+        }
+
+        $this->actingAs($this->guichet())->get(route('badges.gestion'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('demandes.data', 20)
+                ->has('tousLesIds', 25));
+
+        $this->actingAs($this->guichet())->get(route('badges.gestion', ['statut' => 'approuvee']))
+            ->assertInertia(fn (Assert $page) => $page->has('tousLesIds', 1));
+    }
+
     // ------------------------------------------- la planche et son lien
 
     public function test_la_planche_ne_montre_que_les_badges_choisis(): void

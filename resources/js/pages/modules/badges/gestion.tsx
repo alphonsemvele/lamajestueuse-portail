@@ -35,6 +35,8 @@ interface Demande {
 
 interface Props {
     demandes: Paginated<Demande>;
+    /** Tous les badges que le filtre retient, pages suivantes comprises. */
+    tousLesIds: number[];
     filtres: { statut: string | null; institut: string | null; q: string };
     instituts: Institut[];
     statuts: Record<string, string>;
@@ -74,6 +76,7 @@ const SUITE: Record<string, { statut: string; libelle: string; icon: string } | 
 
 export default function GestionBadges({
     demandes,
+    tousLesIds,
     filtres,
     instituts,
     statuts,
@@ -247,14 +250,23 @@ export default function GestionBadges({
         );
 
     const visibles = demandes.data.map((demande) => demande.id);
-    const toutesCochees = visibles.length > 0 && visibles.every((id) => selection.includes(id));
+    const pageCochee = visibles.length > 0 && visibles.every((id) => selection.includes(id));
 
-    const toutBasculer = () =>
+    const basculerLaPage = () =>
         setSelection((choisis) =>
-            toutesCochees
+            pageCochee
                 ? choisis.filter((id) => !visibles.includes(id))
                 : [...new Set([...choisis, ...visibles])],
         );
+
+    /*
+     * « Tout cocher » porte sur la recherche en cours, pages suivantes
+     * comprises : le guichet filtre sur « approuvées », coche tout, et
+     * envoie la planche sans tourner les pages une à une.
+     */
+    const toutCoche = tousLesIds.length > 0 && tousLesIds.every((id) => selection.includes(id));
+
+    const toutBasculer = () => setSelection(toutCoche ? [] : tousLesIds);
 
     const avecSelection = (chemin: string) => `${chemin}?demandes=${selection.join(',')}`;
 
@@ -457,15 +469,28 @@ export default function GestionBadges({
                 </Card>
 
                 {demandes.data.length > 0 && (
-                    <label className="flex items-center gap-2 px-1 text-xs font-medium text-ink-500 dark:text-ink-400">
-                        <input
-                            type="checkbox"
-                            checked={toutesCochees}
-                            onChange={toutBasculer}
-                            className="h-4 w-4 rounded border-ink-300 text-indigo-600 focus:ring-indigo-500"
-                        />
-                        Tout cocher sur cette page
-                    </label>
+                    <div className="flex flex-wrap items-center gap-4 px-1 text-xs font-medium text-ink-500 dark:text-ink-400">
+                        <label className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={toutCoche}
+                                onChange={toutBasculer}
+                                className="h-4 w-4 rounded border-ink-300 text-indigo-600 focus:ring-indigo-500"
+                            />
+                            Tout cocher ({tousLesIds.length} badge{tousLesIds.length > 1 ? 's' : ''}
+                            {filtres.statut || filtres.institut || filtres.q ? ' filtré(s)' : ''})
+                        </label>
+
+                        {demandes.last_page > 1 && (
+                            <button
+                                type="button"
+                                onClick={basculerLaPage}
+                                className="underline-offset-2 transition hover:underline"
+                            >
+                                {pageCochee ? 'Décocher cette page' : 'Cocher cette page seulement'}
+                            </button>
+                        )}
+                    </div>
                 )}
 
                 <div className="space-y-2">

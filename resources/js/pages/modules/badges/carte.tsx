@@ -389,8 +389,8 @@ export default function CarteBadge({
                     ))}
                 </p>
 
-                <div style={{ marginTop: px(10) }}>
-                    <Photo donnees={donnees} taille={px(90)} accent={accent} />
+                <div style={{ marginTop: px(8) }}>
+                    <Photo donnees={donnees} taille={px(86)} accent={accent} />
                 </div>
 
                 <NomDuPorteur
@@ -405,17 +405,17 @@ export default function CarteBadge({
                     <span
                         className="inline-flex items-center rounded-full"
                         style={{
-                            marginTop: px(10),
-                            gap: px(6),
-                            paddingLeft: px(9),
-                            paddingRight: px(11),
-                            paddingTop: px(4),
-                            paddingBottom: px(4),
+                            marginTop: px(6),
+                            gap: px(7),
+                            paddingLeft: px(11),
+                            paddingRight: px(13),
+                            paddingTop: px(5),
+                            paddingBottom: px(5),
                             backgroundColor: '#eef2f9',
                         }}
                     >
-                        <Icon name="id-card" style={{ width: px(10), height: px(10), color: marine }} />
-                        <span className="font-semibold" style={{ fontSize: px(8), color: marine }}>
+                        <Icon name="id-card" style={{ width: px(13), height: px(13), color: marine }} />
+                        <span className="font-semibold" style={{ fontSize: px(11), color: marine }}>
                             Matricule : {donnees.matricule}
                         </span>
                     </span>

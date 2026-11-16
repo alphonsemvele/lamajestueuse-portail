@@ -940,4 +940,72 @@ class BadgeModuleTest extends TestCase
 
         $this->assertSame($this->ifpm->id, $demande->institut->id);
     }
+
+    // ------------------------------------------- la planche et son lien
+
+    public function test_la_planche_ne_montre_que_les_badges_choisis(): void
+    {
+        $retenu = $this->demande($this->employe($this->ium), ['statut' => 'approuvee']);
+        $this->demande($this->employe($this->ium), ['statut' => 'approuvee']);
+
+        $this->actingAs($this->guichet())
+            ->get(route('badges.impression', ['demandes' => $retenu->id]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('demandes', 1)
+                ->where('demandes.0.numero', $retenu->numero));
+    }
+
+    public function test_le_guichet_cree_un_lien_signe_pour_la_reprographie(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'approuvee']);
+
+        $reponse = $this->actingAs($this->guichet())
+            ->post(route('badges.lien-public'), ['demandes' => [$demande->id]]);
+
+        $reponse->assertSessionHas('lienPublic');
+
+        $lien = $reponse->getSession()->get('lienPublic');
+        $this->assertSame(1, $lien['badges']);
+
+        // Le lien s'ouvre sans compte : c'est tout son objet.
+        $this->get($lien['url'])
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('modules/badges/planche-partagee')
+                ->has('demandes', 1)
+                ->where('demandes.0.numero', $demande->numero));
+    }
+
+    public function test_un_lien_de_planche_sans_signature_est_refuse(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'approuvee']);
+
+        $this->get(route('badges.planche', ['demandes' => $demande->id]))->assertForbidden();
+    }
+
+    public function test_la_planche_partagee_ne_livre_ni_adresse_ni_statut(): void
+    {
+        $employe = $this->employe($this->ium);
+        $demande = $this->demande($employe, ['statut' => 'approuvee']);
+
+        $reponse = $this->actingAs($this->guichet())
+            ->post(route('badges.lien-public'), ['demandes' => [$demande->id]]);
+
+        $lien = $reponse->getSession()->get('lienPublic');
+
+        $this->get($lien['url'])->assertInertia(fn (Assert $page) => $page
+            ->missing('demandes.0.email')
+            ->missing('demandes.0.statut')
+            ->missing('demandes.0.deposePar')
+            ->where('demandes.0.matricule', $employe->matricule));
+    }
+
+    public function test_seul_le_guichet_cree_un_lien(): void
+    {
+        $demande = $this->demande($this->employe($this->ium), ['statut' => 'approuvee']);
+
+        $this->actingAs($this->employe($this->ium))
+            ->post(route('badges.lien-public'), ['demandes' => [$demande->id]])
+            ->assertForbidden();
+    }
 }

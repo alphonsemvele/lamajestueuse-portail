@@ -85,8 +85,11 @@ export default function GestionBadges({
 }: Props) {
     // Les refus qui ne visent aucun champ — « une demande est deja en cours »
     // — arrivent dans les erreurs partagees, pas dans celles du formulaire.
-    const { errors } = usePage<SharedProps & { errors: Record<string, string> }>().props;
+    const { errors, flash } = usePage<SharedProps & { errors: Record<string, string> }>().props;
     const [apercu, setApercu] = useState<Demande | null>(null);
+    // Les badges cochés : ce qu'on envoie à la planche, aux photos ou au lien.
+    const [selection, setSelection] = useState<number[]>([]);
+    const [copie, setCopie] = useState(false);
     const [refus, setRefus] = useState<Demande | null>(null);
     const [edition, setEdition] = useState<Demande | null>(null);
     const [depot, setDepot] = useState(false);
@@ -234,6 +237,44 @@ export default function GestionBadges({
 
     const aImprimer = compteurs.approuvee ?? 0;
 
+    /*
+     * La sélection vit à l'écran : elle suit la page affichée, et sert aux
+     * trois sorties du guichet — la planche, les photos, le lien à envoyer.
+     */
+    const basculer = (id: number) =>
+        setSelection((choisis) =>
+            choisis.includes(id) ? choisis.filter((autre) => autre !== id) : [...choisis, id],
+        );
+
+    const visibles = demandes.data.map((demande) => demande.id);
+    const toutesCochees = visibles.length > 0 && visibles.every((id) => selection.includes(id));
+
+    const toutBasculer = () =>
+        setSelection((choisis) =>
+            toutesCochees
+                ? choisis.filter((id) => !visibles.includes(id))
+                : [...new Set([...choisis, ...visibles])],
+        );
+
+    const avecSelection = (chemin: string) => `${chemin}?demandes=${selection.join(',')}`;
+
+    const creerLeLien = () =>
+        router.post(
+            routes.badges.lienPublic,
+            { demandes: selection },
+            { preserveScroll: true, onSuccess: () => setCopie(false) },
+        );
+
+    const copierLeLien = async (url: string) => {
+        try {
+            await navigator.clipboard.writeText(url);
+            setCopie(true);
+        } catch {
+            // Le presse-papier peut être refusé : le lien reste lisible à l'écran.
+            setCopie(false);
+        }
+    };
+
     return (
         <PortalLayout title="Demandes de badge">
             <div className="mx-auto max-w-[1400px] space-y-6">
@@ -283,6 +324,90 @@ export default function GestionBadges({
                     </div>
                 </div>
 
+                {/*
+                  * Le lien qui vient d'être créé : il ne s'affiche qu'une fois,
+                  * le temps de le copier et de l'envoyer.
+                  */}
+                {flash.lienPublic && (
+                    <Card className="border-indigo-200 bg-indigo-50/60 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/10">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="min-w-[240px] flex-1">
+                                <p className="text-sm font-semibold text-ink-900 dark:text-white">
+                                    Lien de la planche — {flash.lienPublic.badges} badge(s), valable jusqu'au{' '}
+                                    {flash.lienPublic.expire}
+                                </p>
+                                <p className="mt-1 break-all font-mono text-xs text-ink-600 dark:text-ink-300">
+                                    {flash.lienPublic.url}
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => copierLeLien(flash.lienPublic!.url)}
+                                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                            >
+                                <Icon name={copie ? 'check' : 'link'} className="h-4 w-4" />
+                                {copie ? 'Copié' : 'Copier le lien'}
+                            </button>
+
+                            <a
+                                href={flash.lienPublic.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200"
+                            >
+                                <Icon name="eye" className="h-4 w-4" />
+                                Ouvrir
+                            </a>
+                        </div>
+                    </Card>
+                )}
+
+                {/* La barre de sélection : elle n'apparaît que si l'on a coché. */}
+                {selection.length > 0 && (
+                    <Card className="sticky top-4 z-20 flex flex-wrap items-center gap-3 p-4">
+                        <p className="text-sm font-semibold text-ink-900 dark:text-white">
+                            {selection.length} badge(s) sélectionné(s)
+                        </p>
+
+                        <button
+                            type="button"
+                            onClick={() => setSelection([])}
+                            className="text-xs font-medium text-ink-500 underline-offset-2 transition hover:underline"
+                        >
+                            Tout décocher
+                        </button>
+
+                        <div className="ml-auto flex flex-wrap gap-2">
+                            <a
+                                href={avecSelection(routes.badges.photos)}
+                                className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200"
+                            >
+                                <Icon name="image" className="h-4 w-4" />
+                                Photos
+                            </a>
+
+                            <button
+                                type="button"
+                                onClick={creerLeLien}
+                                className="inline-flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3.5 py-2 text-sm font-medium text-ink-700 transition hover:bg-ink-50 dark:border-white/10 dark:bg-white/5 dark:text-ink-200"
+                                title="Un lien à envoyer à la reprographie, valable 30 jours"
+                            >
+                                <Icon name="link" className="h-4 w-4" />
+                                Lien à envoyer
+                            </button>
+
+                            <Link
+                                href={avecSelection(routes.badges.impression)}
+                                className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3.5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700"
+                            >
+                                <Icon name="download" className="h-4 w-4" />
+                                Planche et PDF
+                            </Link>
+                        </div>
+                    </Card>
+                )}
+
                 <Card className="p-4">
                     <form
                         onSubmit={(event) => {
@@ -331,6 +456,18 @@ export default function GestionBadges({
                     </form>
                 </Card>
 
+                {demandes.data.length > 0 && (
+                    <label className="flex items-center gap-2 px-1 text-xs font-medium text-ink-500 dark:text-ink-400">
+                        <input
+                            type="checkbox"
+                            checked={toutesCochees}
+                            onChange={toutBasculer}
+                            className="h-4 w-4 rounded border-ink-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                        Tout cocher sur cette page
+                    </label>
+                )}
+
                 <div className="space-y-2">
                     {demandes.data.length === 0 && (
                         <Card className="p-8">
@@ -345,6 +482,14 @@ export default function GestionBadges({
 
                         return (
                             <Card key={demande.id} className="flex flex-wrap items-center gap-4 p-4">
+                                <input
+                                    type="checkbox"
+                                    checked={selection.includes(demande.id)}
+                                    onChange={() => basculer(demande.id)}
+                                    className="h-4 w-4 shrink-0 rounded border-ink-300 text-indigo-600 focus:ring-indigo-500"
+                                    aria-label={`Sélectionner ${demande.numero}`}
+                                />
+
                                 <Avatar url={demande.photoUrl} initials="?" className="h-11 w-11" />
 
                                 <div className="min-w-[200px] flex-1">

@@ -65,6 +65,15 @@ Route::prefix('info')->name('info.')->group(function () {
 });
 
 /*
+ * Planche de badges partagee : le lien que le guichet envoie a la
+ * reprographie. Il est signe et date — sans compte, mais pas devinable, et
+ * il expire. On n'y voit que les badges designes.
+ */
+Route::get('/badges/planche', [BadgeController::class, 'planchePartagee'])
+    ->middleware('signed')
+    ->name('badges.planche');
+
+/*
  * L'unique page de connexion de tout l'ecosysteme La Majestueuse.
  * Aucune application metier n'expose de formulaire de login.
  */
@@ -149,6 +158,7 @@ Route::middleware('auth')->group(function () {
 
         Route::get('/gestion', [BadgeController::class, 'gestion'])->name('gestion');
         Route::get('/impression', [BadgeController::class, 'impression'])->name('impression');
+        Route::post('/lien-public', [BadgeController::class, 'lienPublic'])->name('lien-public');
         Route::get('/photos', [BadgeController::class, 'photos'])->name('photos');
         Route::post('/{demande}/traiter', [BadgeController::class, 'traiter'])->name('traiter');
         Route::post('/{demande}/renvoyer', [BadgeController::class, 'renvoyerCourriel'])->name('renvoyer');

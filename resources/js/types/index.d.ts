@@ -203,7 +203,12 @@ export interface SharedProps {
     /** Les tutoriels sont-ils en service ? Retirés, on n'y renvoie plus. */
     tutorielsEnService: boolean;
     translations: Record<string, string>;
-    flash: { status: string | null; registered?: { nom: string; identifiant: string | null } | null };
+    flash: {
+        status: string | null;
+        registered?: { nom: string; identifiant: string | null } | null;
+        /** Le lien de planche de badges qui vient d'être créé. */
+        lienPublic?: { url: string; badges: number; expire: string } | null;
+    };
     errors: Record<string, string>;
     [key: string]: unknown;
 }

@@ -57,6 +57,8 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'status' => fn () => $request->session()->get('status'),
                 'registered' => fn () => $request->session()->get('registered'),
+                // Le lien de planche que le guichet vient de creer, a copier.
+                'lienPublic' => fn () => $request->session()->get('lienPublic'),
             ],
         ];
     }

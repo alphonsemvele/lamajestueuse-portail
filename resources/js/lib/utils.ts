@@ -91,6 +91,7 @@ export const routes = {
         modifier: (id: number) => `/badges/${id}/modifier`,
         rouvrir: (id: number) => `/badges/${id}/rouvrir`,
         impression: '/badges/impression',
+        lienPublic: '/badges/lien-public',
         photos: '/badges/photos',
         traiter: (id: number) => `/badges/${id}/traiter`,
         renvoyer: (id: number) => `/badges/${id}/renvoyer`,

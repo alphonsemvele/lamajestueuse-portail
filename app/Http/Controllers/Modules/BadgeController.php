@@ -18,6 +18,7 @@ use App\Support\Cadrage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -39,6 +40,9 @@ class BadgeController extends Controller
     use ServesModule;
 
     public const MODULE = 'badges';
+
+    /** Duree de vie d'un lien partage, faute de precision. */
+    public const JOURS_DE_LIEN = 30;
 
     // --------------------------------------------------- cote demandeur
 
@@ -536,6 +540,76 @@ class BadgeController extends Controller
             ->map(fn (DemandeBadge $d) => $d->toUiArray())->all();
 
         return Inertia::render('modules/badges/impression', [
+            'demandes' => $demandes,
+            'validite' => (int) config('badges.validite_annees'),
+            'mention' => config('badges.mention'),
+        ]);
+    }
+
+    /**
+     * Le lien a envoyer a la reprographie.
+     *
+     * Il est signe et date : il ouvre la planche choisie sans compte, et
+     * cesse de fonctionner au terme fixe. Rien d'autre que les badges
+     * designes n'y est visible.
+     */
+    public function lienPublic(Request $request): RedirectResponse
+    {
+        $this->autoriserGestion($request->user());
+
+        $donnees = $request->validate([
+            'demandes' => ['required', 'array', 'min:1'],
+            'demandes.*' => ['integer', 'exists:'.(new DemandeBadge)->getTable().',id'],
+            'jours' => ['nullable', 'integer', 'min:1', 'max:180'],
+        ], [
+            'demandes.required' => __('Choisissez au moins un badge.'),
+        ]);
+
+        $jours = (int) ($donnees['jours'] ?? self::JOURS_DE_LIEN);
+
+        $lien = URL::temporarySignedRoute('badges.planche', now()->addDays($jours), [
+            'demandes' => implode(',', $donnees['demandes']),
+        ]);
+
+        return back()->with('lienPublic', [
+            'url' => $lien,
+            'badges' => count($donnees['demandes']),
+            'expire' => now()->addDays($jours)->format('d/m/Y'),
+        ]);
+    }
+
+    /**
+     * La planche partagee : ce que voit celui qui recoit le lien.
+     *
+     * Aucun compte n'est demande, donc rien ne sort d'ici qui ne soit deja
+     * imprime sur la carte : le numero, le nom, le matricule, la photo et
+     * l'institut. Ni adresse, ni statut, ni qui a depose la demande.
+     */
+    public function planchePartagee(Request $request): Response
+    {
+        $choisies = array_filter(explode(',', (string) $request->query('demandes')));
+
+        $demandes = DemandeBadge::with(['user', 'institut'])
+            ->whereIn('id', $choisies)
+            ->whereIn('statut', ['approuvee', 'imprimee', 'remise'])
+            ->orderBy('numero')->get()
+            ->map(fn (DemandeBadge $demande) => [
+                'id' => $demande->id,
+                'numero' => $demande->numero,
+                'nomAffiche' => $demande->nom_affiche,
+                'matricule' => $demande->user?->matricule,
+                'photoUrl' => $demande->photoUrl(),
+                'photoCadrage' => $demande->photoCadrage(),
+                'modele' => $demande->modele,
+                'institut' => $demande->institut ? [
+                    'id' => $demande->institut->id,
+                    'name' => $demande->institut->name,
+                    'color' => $demande->institut->color,
+                    'logoUrl' => $demande->institut->logoUrl(),
+                ] : null,
+            ])->all();
+
+        return Inertia::render('modules/badges/planche-partagee', [
             'demandes' => $demandes,
             'validite' => (int) config('badges.validite_annees'),
             'mention' => config('badges.mention'),

@@ -115,11 +115,18 @@ class DemandeBadge extends Model
      * Le cadrage qui va avec cette photo.
      *
      * Celui de la demande prime : on peut recadrer la photo du compte pour
-     * ce badge sans la remplacer, et sans toucher au profil. A defaut, on
-     * suit le cadrage du compte, dont la photo est alors reprise telle quelle.
+     * ce badge sans la remplacer, et sans toucher au profil.
+     *
+     * Le cadrage du compte ne vient qu'a defaut, et seulement quand le badge
+     * reprend justement la photo du compte : sur une photo jointe, il
+     * designerait un point d'une autre image.
      */
     public function photoCadrage(): ?array
     {
+        if (filled($this->photo)) {
+            return $this->photo_cadrage;
+        }
+
         return $this->photo_cadrage ?? $this->user?->avatar_cadrage;
     }
 

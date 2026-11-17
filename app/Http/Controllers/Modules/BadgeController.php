@@ -197,7 +197,11 @@ class BadgeController extends Controller
         $photo = $this->resolveMedia($request, null, 'photo', 'badges/photos');
         unset($donnees['photo_file']);
 
-        $donnees['photo_cadrage'] = Cadrage::depuis($donnees['photo_cadrage'] ?? null);
+        $donnees['photo_cadrage'] = Cadrage::depuis($donnees['photo_cadrage'] ?? null, garderNeutre: true);
+
+        // Le nom de famille passe en tete quand la saisie ne dit rien d'autre
+        // que l'etat civil : une carte le porte dans cet ordre.
+        $donnees['nom_affiche'] = $pour->nomOfficielSi($donnees['nom_affiche'] ?? null);
 
         $demande = DemandeBadge::create($donnees + [
             'modele' => 'classique',
@@ -361,7 +365,11 @@ class BadgeController extends Controller
         $photo = $this->resolveMedia($request, $demande->photo, 'photo', 'badges/photos');
         unset($donnees['photo_file']);
 
-        $donnees['photo_cadrage'] = Cadrage::depuis($donnees['photo_cadrage'] ?? null);
+        $donnees['photo_cadrage'] = Cadrage::depuis($donnees['photo_cadrage'] ?? null, garderNeutre: true);
+
+        if ($demande->user) {
+            $donnees['nom_affiche'] = $demande->user->nomOfficielSi($donnees['nom_affiche'] ?? null);
+        }
 
         $demande->update($donnees + ['photo' => $photo]);
 

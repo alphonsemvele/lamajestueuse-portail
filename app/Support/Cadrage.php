@@ -21,9 +21,14 @@ class Cadrage
     /**
      * Lit un cadrage envoye par un formulaire : un objet JSON, ou rien.
      *
+     * `garderNeutre` sert la ou le cadrage se refait sur une photo qui n'est
+     * pas la sienne — le badge, qui reprend la photo du compte. La, « au
+     * centre » est un choix, et le perdre ferait revenir le cadrage du compte
+     * des qu'on recentre.
+     *
      * @return array{x: float, y: float, zoom: float}|null
      */
-    public static function depuis(mixed $valeur): ?array
+    public static function depuis(mixed $valeur, bool $garderNeutre = false): ?array
     {
         if (is_string($valeur)) {
             $valeur = json_decode($valeur, true);
@@ -40,8 +45,11 @@ class Cadrage
         ];
 
         // Un cadrage neutre ne vaut pas la peine d'etre enregistre : c'est
-        // deja ce que fait l'affichage sans rien.
-        return $cadrage === ['x' => 50.0, 'y' => 50.0, 'zoom' => 1.0] ? null : $cadrage;
+        // deja ce que fait l'affichage sans rien. Sauf quand on tient a le
+        // distinguer de l'absence de cadrage.
+        return ! $garderNeutre && $cadrage === ['x' => 50.0, 'y' => 50.0, 'zoom' => 1.0]
+            ? null
+            : $cadrage;
     }
 
     private static function borne(mixed $valeur, float $min, float $max, float $defaut): float

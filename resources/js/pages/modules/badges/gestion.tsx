@@ -6,7 +6,7 @@ import PhotoField from '@/components/photo-field';
 import Pagination from '@/components/pagination';
 import { Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
-import { type Cadrage, CADRAGE_NEUTRE, lireCadrage, pourEnvoi } from '@/lib/cadrage';
+import { type Cadrage, CADRAGE_NEUTRE, lireCadrage, pourEnvoiExplicite } from '@/lib/cadrage';
 import { useRechercheInstantanee } from '@/lib/recherche';
 import { cn, routes } from '@/lib/utils';
 import type { Paginated, SharedProps } from '@/types';
@@ -146,7 +146,7 @@ export default function GestionBadges({
             nom_affiche: demande.nomAffiche,
             application_id: String(demande.institut?.id ?? LE_GROUPE.id),
             photo_file: null,
-            photo_cadrage: pourEnvoi(cadrage),
+            photo_cadrage: pourEnvoiExplicite(cadrage),
         });
         formulaireEdition.clearErrors();
         setApercuEdition(demande.photoUrl);
@@ -210,7 +210,7 @@ export default function GestionBadges({
             // On repart de sa photo de compte : c'est elle que le badge
             // portera, et le guichet peut la recadrer sans la remplacer.
             photo_file: null,
-            photo_cadrage: pourEnvoi(cadrage),
+            photo_cadrage: pourEnvoiExplicite(cadrage),
         }));
 
         setApercuDepot(personne.photoUrl);
@@ -809,7 +809,7 @@ export default function GestionBadges({
                                         cadrage={cadrageDepot}
                                         onCadrage={(valeur) => {
                                             setCadrageDepot(valeur);
-                                            formulaireDepot.setData('photo_cadrage', pourEnvoi(valeur));
+                                            formulaireDepot.setData('photo_cadrage', pourEnvoiExplicite(valeur));
                                         }}
                                         onPick={(fichier) => {
                                             formulaireDepot.setData('photo_file', fichier);
@@ -912,7 +912,7 @@ export default function GestionBadges({
                                 cadrage={cadrageEdition}
                                 onCadrage={(valeur) => {
                                     setCadrageEdition(valeur);
-                                    formulaireEdition.setData('photo_cadrage', pourEnvoi(valeur));
+                                    formulaireEdition.setData('photo_cadrage', pourEnvoiExplicite(valeur));
                                 }}
                                 onPick={(fichier) => {
                                     formulaireEdition.setData('photo_file', fichier);

@@ -177,6 +177,65 @@ class CadragePhotoTest extends TestCase
         $this->assertSame($demande->photoCadrage(), $demande->toUiArray()['photoCadrage']);
     }
 
+    /**
+     * Recentrer doit tenir, meme sur un badge qui reprend la photo du compte.
+     *
+     * « Au centre » est un choix comme un autre : s'il ne s'enregistrait pas,
+     * c'est le cadrage du compte qui reviendrait, et le recadrage du guichet
+     * paraitrait n'avoir servi a rien.
+     */
+    public function test_recentrer_un_badge_ne_fait_pas_revenir_le_cadrage_du_compte(): void
+    {
+        $institut = Application::factory()->create(['name' => 'IUM']);
+        Application::factory()->module('badges')->create(['name' => 'Badges']);
+
+        $employe = User::factory()->create([
+            'status' => 'active',
+            'avatar' => 'utilisateurs/photos/moi.png',
+            'avatar_cadrage' => ['x' => 35.0, 'y' => 15.0, 'zoom' => 2.2],
+        ]);
+        $employe->applications()->attach($institut);
+
+        $this->actingAs($employe)->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $institut->id,
+            // Ce que le formulaire envoie quand on a recentre la photo.
+            'photo_cadrage' => '{"x":50,"y":50,"zoom":1}',
+        ])->assertSessionHasNoErrors();
+
+        $demande = DemandeBadge::with('user')->firstOrFail();
+
+        $this->assertEquals(['x' => 50.0, 'y' => 50.0, 'zoom' => 1.0], $demande->photoCadrage());
+    }
+
+    /**
+     * Une photo jointe n'herite pas du cadrage du compte : il designerait un
+     * point d'une autre image, et la carte montrerait de travers.
+     */
+    public function test_une_photo_jointe_n_herite_pas_du_cadrage_du_compte(): void
+    {
+        Storage::fake('public');
+
+        $institut = Application::factory()->create(['name' => 'IUM']);
+        Application::factory()->module('badges')->create(['name' => 'Badges']);
+
+        $employe = User::factory()->create([
+            'status' => 'active',
+            'avatar' => 'utilisateurs/photos/moi.png',
+            'avatar_cadrage' => ['x' => 35.0, 'y' => 15.0, 'zoom' => 2.2],
+        ]);
+        $employe->applications()->attach($institut);
+
+        $demande = DemandeBadge::create([
+            'numero' => 'BDG-000009', 'user_id' => $employe->id, 'application_id' => $institut->id,
+            'nom_affiche' => 'NKOA Claire', 'modele' => 'classique', 'motif' => 'premiere',
+            'statut' => 'en_attente', 'photo' => 'badges/photos/claire.png',
+        ]);
+
+        $this->assertNull($demande->photoCadrage());
+    }
+
     public function test_le_guichet_recadre_sans_remplacer_la_photo(): void
     {
         Storage::fake('public');

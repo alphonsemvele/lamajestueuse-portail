@@ -4,7 +4,7 @@ import Icon from '@/components/icon';
 import PhotoField from '@/components/photo-field';
 import { Alert, Card, Input, Select, Textarea } from '@/components/ui';
 import PortalLayout from '@/layouts/portal-layout';
-import { type Cadrage, lireCadrage, pourEnvoi } from '@/lib/cadrage';
+import { type Cadrage, lireCadrage, pourEnvoiExplicite } from '@/lib/cadrage';
 import { cn, routes } from '@/lib/utils';
 import type { SharedProps } from '@/types';
 import { ApercuBadge, estLeGroupe, LE_GROUPE, type DonneesBadge, type Institut } from './carte';
@@ -94,7 +94,7 @@ export default function MonBadge({
         application_id: choixParDefaut ? String(choixParDefaut.id) : '',
         commentaire: '',
         photo_file: null,
-        photo_cadrage: pourEnvoi(lireCadrage(identite.photoCadrage)),
+        photo_cadrage: pourEnvoiExplicite(lireCadrage(identite.photoCadrage)),
     });
 
     const institutChoisi =
@@ -201,7 +201,7 @@ export default function MonBadge({
                                         cadrage={cadrage}
                                         onCadrage={(valeur) => {
                                             setCadrage(valeur);
-                                            formulaire.setData('photo_cadrage', pourEnvoi(valeur));
+                                            formulaire.setData('photo_cadrage', pourEnvoiExplicite(valeur));
                                         }}
                                         onPick={(fichier) => {
                                             formulaire.setData('photo_file', fichier);
@@ -211,7 +211,7 @@ export default function MonBadge({
                                             formulaire.setData('photo_file', null);
                                             setPhotoApercu(identite.photoUrl);
                                             setCadrage(lireCadrage(identite.photoCadrage));
-                                            formulaire.setData('photo_cadrage', pourEnvoi(lireCadrage(identite.photoCadrage)));
+                                            formulaire.setData('photo_cadrage', pourEnvoiExplicite(lireCadrage(identite.photoCadrage)));
                                         }}
                                     />
                                 </div>

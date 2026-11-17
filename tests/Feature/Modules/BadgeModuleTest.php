@@ -187,6 +187,50 @@ class BadgeModuleTest extends TestCase
         $this->assertSame($this->ium->id, $demande->application_id);
     }
 
+    /**
+     * Le nom saisi dans l'autre sens revient dans l'ordre de la carte.
+     *
+     * Celui qui ecrit « Claire NKOA » n'a pas voulu un autre nom : il l'a
+     * ecrit comme on le dit. Les memes mots reprennent donc l'ordre officiel,
+     * sans quoi deux badges voisins se liraient a l'envers l'un de l'autre.
+     */
+    public function test_un_nom_saisi_prenom_en_tete_revient_dans_l_ordre_de_la_carte(): void
+    {
+        $this->actingAs($this->employe($this->ium))->post(route('badges.store'), [
+            'nom_affiche' => 'Claire NKOA',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+        ])->assertRedirect();
+
+        $this->assertSame('NKOA Claire', DemandeBadge::firstOrFail()->nom_affiche);
+    }
+
+    /** Un nom d'usage reste celui qu'on a demande : le champ est a son titulaire. */
+    public function test_un_nom_d_usage_n_est_pas_remis_dans_l_ordre(): void
+    {
+        $this->actingAs($this->employe($this->ium))->post(route('badges.store'), [
+            'nom_affiche' => 'Dr Claire N.',
+            'motif' => 'premiere',
+            'application_id' => $this->ium->id,
+        ])->assertRedirect();
+
+        $this->assertSame('Dr Claire N.', DemandeBadge::firstOrFail()->nom_affiche);
+    }
+
+    /** La correction du guichet suit la meme regle. */
+    public function test_le_guichet_corrige_et_le_nom_reprend_son_ordre(): void
+    {
+        $employe = $this->employe($this->ium);
+        $demande = $this->demande($employe, ['nom_affiche' => 'NKOA Claire']);
+
+        $this->actingAs($this->guichet())->post(route('badges.modifier', $demande), [
+            'nom_affiche' => 'claire nkoa',
+            'application_id' => $this->ium->id,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('NKOA Claire', $demande->refresh()->nom_affiche);
+    }
+
     public function test_les_numeros_se_suivent(): void
     {
         $this->demande($this->employe($this->ium));
@@ -631,7 +675,8 @@ class BadgeModuleTest extends TestCase
 
         $this->assertCount(1, $noms);
         $this->assertStringContainsString(mb_strtolower($employe->matricule), $noms[0]);
-        $this->assertStringContainsString('claire-nkoa', $noms[0]);
+        // Le nom de l'archive suit celui du badge : nom de famille d'abord.
+        $this->assertStringContainsString('nkoa-claire', $noms[0]);
         $this->assertStringContainsString($demande->numero, mb_strtoupper($noms[0]));
     }
 

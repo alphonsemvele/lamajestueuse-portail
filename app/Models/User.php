@@ -302,6 +302,35 @@ class User extends Authenticatable
         return trim(trim((string) $this->lastname).' '.trim((string) $this->name));
     }
 
+    /**
+     * Le nom a imprimer quand la saisie ne dit rien de plus que l'etat civil.
+     *
+     * Celui qui ecrit « Alphonse MVELE » dans le champ du badge n'a pas voulu
+     * un autre nom : il l'a ecrit comme on le dit, pas comme une carte le
+     * porte. Les memes mots dans un autre ordre reprennent donc l'ordre
+     * officiel. Une saisie qui dit vraiment autre chose — un prenom d'usage,
+     * un nom abrege, un seul des deux prenoms — reste telle quelle : le champ
+     * appartient a son titulaire.
+     */
+    public function nomOfficielSi(?string $saisi): string
+    {
+        $saisi = trim(preg_replace('/\s+/', ' ', (string) $saisi) ?? '');
+        $officiel = $this->nomOfficiel();
+
+        if ($saisi === '' || $officiel === '') {
+            return $saisi;
+        }
+
+        $mots = function (string $nom): array {
+            $liste = preg_split('/\s+/', mb_strtolower(Str::ascii($nom))) ?: [];
+            sort($liste);
+
+            return $liste;
+        };
+
+        return $mots($saisi) === $mots($officiel) ? $officiel : $saisi;
+    }
+
     public function initials(): string
     {
         return Str::upper(Str::substr($this->name, 0, 1).Str::substr($this->lastname ?? '', 0, 1));

@@ -62,3 +62,15 @@ export function estNeutre(cadrage?: Cadrage | null): boolean {
 export function pourEnvoi(cadrage?: Cadrage | null): string | null {
     return estNeutre(cadrage) ? null : JSON.stringify(cadrage);
 }
+
+/**
+ * Le cadrage envoyé tel quel, « au centre » compris.
+ *
+ * À utiliser là où l'on recadre une photo qui n'est pas la sienne — celle du
+ * compte, reprise par un badge. Sans cela, recentrer ne s'enregistre pas :
+ * rien ne distingue « pas de cadrage » de « cadrage au centre », et c'est
+ * l'ancien qui revient.
+ */
+export function pourEnvoiExplicite(cadrage?: Cadrage | null): string {
+    return JSON.stringify(cadrage ?? CADRAGE_NEUTRE);
+}

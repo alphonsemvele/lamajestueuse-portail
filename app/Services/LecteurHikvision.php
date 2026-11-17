@@ -52,14 +52,16 @@ class LecteurHikvision
     }
 
     /**
-     * Le numero envoye au lecteur pour une personne.
+     * Le numero envoye au lecteur pour un matricule.
      *
      * Les chiffres du matricule, ou le matricule tel quel s'il ne suit pas
-     * le gabarit du groupe — un numero repris d'un ancien systeme.
+     * le gabarit du groupe — un numero repris d'un ancien systeme. Le
+     * DS-K1T321MFWX refuse les lettres dans ce champ : « LM-260147 » lui est
+     * rendu avec un errorMsg employeeNo, « 260147 » passe.
      */
-    public static function numeroDe(User $personne): string
+    public static function numeroDepuisMatricule(?string $matricule): string
     {
-        $matricule = trim((string) $personne->matricule);
+        $matricule = trim((string) $matricule);
 
         return preg_match(self::MATRICULE, $matricule, $trouve) === 1
             ? $trouve[1]
@@ -67,22 +69,46 @@ class LecteurHikvision
     }
 
     /**
-     * Le nom tel que le lecteur l'affiche.
-     *
-     * Nom de famille d'abord, comme sur le badge, et coupe a trente-deux
-     * caracteres : au-dela, l'appareil refuse l'enregistrement.
+     * Le nom tel que le lecteur l'affiche : coupe a trente-deux caracteres,
+     * au-dela l'appareil refuse l'enregistrement.
      */
-    public static function nomDe(User $personne): string
+    public static function nomCourt(?string $nom): string
     {
-        return mb_substr($personne->nomOfficiel(), 0, 32);
+        return mb_substr(trim((string) $nom), 0, 32);
     }
 
-    /** Modele, firmware et numero de serie : de quoi verifier qu'on parle au bon appareil. */
+    public static function numeroDe(User $personne): string
+    {
+        return self::numeroDepuisMatricule($personne->matricule);
+    }
+
+    /** Nom de famille d'abord, comme sur le badge. */
+    public static function nomDe(User $personne): string
+    {
+        return self::nomCourt($personne->nomOfficiel());
+    }
+
+    /**
+     * Modele, firmware et numero de serie : de quoi verifier qu'on parle au
+     * bon appareil.
+     *
+     * Le DS-K1T321MFWX repond en XML a cet endroit, meme interroge en JSON :
+     * on lit donc les deux.
+     */
     public function informations(): array
     {
-        $corps = $this->lire('GET', '/ISAPI/System/deviceInfo?format=json');
+        $this->verifierLeReglage();
 
-        return $corps['DeviceInfo'] ?? [];
+        $reponse = $this->requete()->get($this->adresse().'/ISAPI/System/deviceInfo?format=json');
+        $corps = $this->verdict($reponse, '/ISAPI/System/deviceInfo');
+
+        if ($corps !== []) {
+            return $corps['DeviceInfo'] ?? $corps;
+        }
+
+        $xml = @simplexml_load_string($reponse->body());
+
+        return $xml === false ? [] : array_map('strval', (array) $xml);
     }
 
     /** Combien de personnes le lecteur connait deja. */
@@ -112,11 +138,13 @@ class LecteurHikvision
      * Pose une personne dans le lecteur : ajoutee, ou mise a jour si le
      * numero y est deja. Rend ce qui a ete fait.
      *
+     * Ni empreinte ni badge ne sont touches : ils vivent sous le numero, et
+     * une mise a jour du nom les laisse en place.
+     *
      * @return 'ajoute'|'mis a jour'
      */
-    public function enregistrer(User $personne): string
+    public function enregistrer(string $numero, string $nom): string
     {
-        $numero = self::numeroDe($personne);
         $deja = $this->chercher($numero) !== null;
 
         $this->lire(
@@ -124,7 +152,7 @@ class LecteurHikvision
             $deja
                 ? '/ISAPI/AccessControl/UserInfo/Modify?format=json'
                 : '/ISAPI/AccessControl/UserInfo/Record?format=json',
-            ['UserInfo' => $this->fiche($numero, self::nomDe($personne))],
+            ['UserInfo' => $this->fiche($numero, self::nomCourt($nom))],
         );
 
         return $deja ? 'mis a jour' : 'ajoute';
@@ -172,11 +200,7 @@ class LecteurHikvision
      */
     private function lire(string $verbe, string $chemin, array $corps = []): array
     {
-        if (! $this->estConfigure()) {
-            throw new RuntimeException(
-                'Le lecteur n’est pas configuré : renseignez HIKVISION_URL et HIKVISION_MOT_DE_PASSE dans le .env.'
-            );
-        }
+        $this->verifierLeReglage();
 
         $requete = $this->requete();
         $url = $this->adresse().$chemin;
@@ -188,6 +212,16 @@ class LecteurHikvision
         };
 
         return $this->verdict($reponse, $chemin);
+    }
+
+    /** Sans adresse ni mot de passe, on ne sort pas sur le reseau. */
+    private function verifierLeReglage(): void
+    {
+        if (! $this->estConfigure()) {
+            throw new RuntimeException(
+                'Le lecteur n’est pas configuré : renseignez HIKVISION_URL et HIKVISION_MOT_DE_PASSE dans le .env.'
+            );
+        }
     }
 
     private function requete(): PendingRequest

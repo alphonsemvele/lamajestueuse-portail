@@ -86,7 +86,12 @@ class LecteurHikvisionTest extends TestCase
             '*UserInfo/Record*' => Http::response(['statusCode' => 1, 'statusString' => 'OK']),
         ]);
 
-        $this->assertSame('ajoute', $this->lecteur()->enregistrer($this->personne()));
+        $personne = $this->personne();
+
+        $this->assertSame('ajoute', $this->lecteur()->enregistrer(
+            LecteurHikvision::numeroDe($personne),
+            LecteurHikvision::nomDe($personne),
+        ));
 
         Http::assertSent(function ($requete) {
             if (! str_contains($requete->url(), 'UserInfo/Record')) {
@@ -113,7 +118,12 @@ class LecteurHikvisionTest extends TestCase
             '*UserInfo/Modify*' => Http::response(['statusCode' => 1, 'statusString' => 'OK']),
         ]);
 
-        $this->assertSame('mis a jour', $this->lecteur()->enregistrer($this->personne()));
+        $personne = $this->personne();
+
+        $this->assertSame('mis a jour', $this->lecteur()->enregistrer(
+            LecteurHikvision::numeroDe($personne),
+            LecteurHikvision::nomDe($personne),
+        ));
 
         Http::assertSent(fn ($requete) => str_contains($requete->url(), 'UserInfo/Modify')
             && $requete->method() === 'PUT');
@@ -134,7 +144,9 @@ class LecteurHikvisionTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('employeeNoAlreadyExist');
 
-        $this->lecteur()->enregistrer($this->personne());
+        $personne = $this->personne();
+
+        $this->lecteur()->enregistrer(LecteurHikvision::numeroDe($personne), LecteurHikvision::nomDe($personne));
     }
 
     /** Un mot de passe refuse se dit clairement, sans parler de HTTP. */
@@ -175,6 +187,41 @@ class LecteurHikvisionTest extends TestCase
             ->assertSuccessful();
 
         Http::assertNothingSent();
+    }
+
+    /**
+     * Le fichier du portail remplace la base : c'est par la que passe le
+     * personnel quand la base vit ailleurs que sur le poste du site.
+     */
+    public function test_la_commande_lit_le_fichier_du_portail(): void
+    {
+        $chemin = tempnam(sys_get_temp_dir(), 'personnel').'.csv';
+        file_put_contents($chemin, "\xEF\xBB\xBFMatricule;Nom;Prénom;E-mail\n"
+            ."LM-260147;MVELE;Alphonse;a@b.cm\n"
+            .";SANS;Matricule;c@d.cm\n"
+            ."LM-260148;NGONO;Marie;e@f.cm\n");
+
+        Http::fake();
+
+        $this->artisan('hikvision:personnel --simuler --fichier='.$chemin)
+            ->expectsOutputToContain('2 personne(s) seraient envoyées')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+        unlink($chemin);
+    }
+
+    /** Un fichier sans les bonnes colonnes est refuse, avec le chemin a suivre. */
+    public function test_un_fichier_etranger_est_refuse(): void
+    {
+        $chemin = tempnam(sys_get_temp_dir(), 'autre').'.csv';
+        file_put_contents($chemin, "colonne;autre\nvaleur;valeur\n");
+
+        $this->artisan('hikvision:personnel --simuler --fichier='.$chemin)
+            ->expectsOutputToContain('Personnel')
+            ->assertFailed();
+
+        unlink($chemin);
     }
 
     /** Sans reglage, la commande le dit et ne part pas en erreur silencieuse. */

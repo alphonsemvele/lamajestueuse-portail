@@ -58,10 +58,30 @@ class LecteurHikvisionTest extends TestCase
         $this->assertSame('260147', LecteurHikvision::numeroDe($this->personne()));
     }
 
-    /** Un numero repris d'un autre systeme part tel quel. */
-    public function test_un_matricule_hors_gabarit_part_tel_quel(): void
+    /** Un numero repris d'un autre systeme garde ses chiffres : le lecteur refuse le reste. */
+    public function test_un_matricule_hors_gabarit_garde_ses_chiffres(): void
     {
-        $this->assertSame('A-77', LecteurHikvision::numeroDe($this->personne(['matricule' => 'A-77'])));
+        $this->assertSame('110020', LecteurHikvision::numeroDepuisMatricule('1100E-20'));
+        $this->assertSame('77', LecteurHikvision::numeroDepuisMatricule('A-77'));
+    }
+
+    /**
+     * Deux matricules qui donnent le meme numero arretent la commande : sur
+     * le lecteur, le second ecraserait le premier, empreintes comprises.
+     */
+    public function test_deux_matricules_sur_un_meme_numero_arretent_tout(): void
+    {
+        $chemin = tempnam(sys_get_temp_dir(), 'doublon').'.csv';
+        file_put_contents($chemin, "Matricule;Nom;Prénom\nLM-260147;MVELE;Alphonse\n26-0147;NGONO;Marie\n");
+
+        Http::fake();
+
+        $this->artisan('hikvision:personnel --simuler --fichier='.$chemin)
+            ->expectsOutputToContain('même numéro')
+            ->assertFailed();
+
+        Http::assertNothingSent();
+        unlink($chemin);
     }
 
     /** Le nom part dans l'ordre officiel : nom de famille d'abord. */

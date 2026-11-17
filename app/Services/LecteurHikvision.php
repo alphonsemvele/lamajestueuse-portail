@@ -30,6 +30,9 @@ class LecteurHikvision
     /** Ce qui fait un matricule du groupe : LM- suivi de six chiffres. */
     private const MATRICULE = '/^LM-(\d+)$/';
 
+    /** Le lecteur n'accepte pas plus de chiffres que cela dans un numero. */
+    private const LONGUEUR_MAX = 32;
+
     public function __construct(private readonly array $reglages)
     {
     }
@@ -63,9 +66,13 @@ class LecteurHikvision
     {
         $matricule = trim((string) $matricule);
 
-        return preg_match(self::MATRICULE, $matricule, $trouve) === 1
-            ? $trouve[1]
-            : $matricule;
+        if (preg_match(self::MATRICULE, $matricule, $trouve) === 1) {
+            return $trouve[1];
+        }
+
+        // Un numero repris d'un autre systeme — « 1100E-20 » — garde ses
+        // chiffres et perd le reste : c'est tout ce que le lecteur accepte.
+        return mb_substr(preg_replace('/\D+/', '', $matricule) ?? '', 0, self::LONGUEUR_MAX);
     }
 
     /**
@@ -108,7 +115,21 @@ class LecteurHikvision
 
         $xml = @simplexml_load_string($reponse->body());
 
-        return $xml === false ? [] : array_map('strval', (array) $xml);
+        if ($xml === false) {
+            return [];
+        }
+
+        $valeurs = [];
+
+        // Seules les balises simples nous interessent — modele, firmware,
+        // numero de serie ; les blocs imbriques ne sont pas des chaines.
+        foreach ($xml->children() as $nom => $valeur) {
+            if ($valeur->count() === 0) {
+                $valeurs[(string) $nom] = (string) $valeur;
+            }
+        }
+
+        return $valeurs;
     }
 
     /** Combien de personnes le lecteur connait deja. */

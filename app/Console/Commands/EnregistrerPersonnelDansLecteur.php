@@ -63,9 +63,42 @@ class EnregistrerPersonnelDansLecteur extends Command
             return self::SUCCESS;
         }
 
+        if (($collision = $this->collisions($personnes)) !== []) {
+            $this->error('Deux matricules donnent le même numéro de lecteur : il faut trancher');
+            $this->line('avant d’envoyer, sans quoi une personne prendrait l’identité de l’autre.');
+            $this->newLine();
+            $this->table(['Numéro', 'Matricules'], $collision);
+
+            return self::FAILURE;
+        }
+
         return $this->option('simuler')
             ? $this->simuler($personnes)
             : $this->envoyer($lecteur, $personnes);
+    }
+
+    /**
+     * Les numeros que deux matricules se disputent.
+     *
+     * Les chiffres seuls peuvent rapprocher deux numeros differents — un
+     * matricule repris d'un ancien systeme et un matricule du groupe. Le
+     * lecteur, lui, n'a qu'un seul emplacement par numero : la seconde
+     * personne ecraserait la premiere, empreintes comprises.
+     *
+     * @param  Collection<int, array{matricule: string, nom: string}>  $personnes
+     * @return array<int, array{0: string, 1: string}>
+     */
+    private function collisions(Collection $personnes): array
+    {
+        return $personnes
+            ->groupBy(fn (array $p) => LecteurHikvision::numeroDepuisMatricule($p['matricule']))
+            ->filter(fn (Collection $groupe) => $groupe->count() > 1)
+            ->map(fn (Collection $groupe, string $numero) => [
+                $numero === '' ? '(aucun chiffre)' : $numero,
+                $groupe->pluck('matricule')->implode(', '),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

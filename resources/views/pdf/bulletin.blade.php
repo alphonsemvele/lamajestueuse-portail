@@ -68,6 +68,13 @@
         td, th { vertical-align: top; }
         .nombre { text-align: right; }
 
+        /*
+         * filigrane : le logo délavé, posé une fois par page et peint avant
+         * tout le reste — ce qui suit se lit donc par-dessus.
+         */
+        .filigrane { position: fixed; top: 72mm; left: 0; width: 184mm; text-align: center; z-index: -1; }
+        .filigrane img { width: 120mm; }
+
         /* en-tête */
         .entete td { vertical-align: middle; }
         .marque { font-size: 18px; font-weight: bold; color: {{ $couleur }}; letter-spacing: .2px; }
@@ -122,6 +129,10 @@
     </style>
 </head>
 <body>
+
+@if (! empty($filigrane))
+    <div class="filigrane"><img src="{{ $filigrane }}" alt=""></div>
+@endif
 
 <table class="entete">
     <tr>

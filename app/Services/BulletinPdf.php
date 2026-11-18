@@ -25,6 +25,14 @@ class BulletinPdf
     private const COULEUR = '#002484';
 
     /**
+     * L'intensite du filigrane, en pourcentage.
+     *
+     * Assez pour qu'on voie la marque sous le decompte, pas assez pour gener
+     * la lecture d'un chiffre ni pour ressortir sur une photocopie.
+     */
+    private const FILIGRANE = 9;
+
+    /**
      * Rend le bulletin, a l'ecran ou en telechargement.
      *
      * `$apercu` sert le document en ligne, pour la previsualisation ; sinon
@@ -58,9 +66,14 @@ class BulletinPdf
         // doit pas disparaitre du document pour autant.
         $agent = $bulletin->agent ?? $bulletin->contrat?->agent;
 
+        $enTete = $this->enTete($bulletin);
+
         return Pdf::setOptions($this->options())->loadView('pdf.bulletin', [
             'bulletin' => $bulletin,
-            'enTete' => $this->enTete($bulletin),
+            'enTete' => $enTete,
+            // Le logo de l'en-tete, delave, pose en fond de page. A defaut
+            // d'un logo d'employeur, c'est la marque du groupe qui filigrane.
+            'filigrane' => $this->filigrane($enTete['logo'] ?: $this->logoDuGroupe()),
             'employeur' => $bulletin->employeur,
             'contrat' => $bulletin->contrat,
             'agent' => $agent,
@@ -186,6 +199,61 @@ class BulletinPdf
     private function logoDuModule(): ?string
     {
         return Application::where('module_key', self::MODULE)->value('logo');
+    }
+
+    /**
+     * Le logo en filigrane : la meme image, rendue transparente.
+     *
+     * Le fondu se calcule ici plutot que de se confier a une transparence
+     * CSS : dompdf ne l'applique pas aux images avec la meme fidelite selon
+     * les versions. Surtout, l'image garde sa transparence — un calque pose
+     * sur du blanc effacerait ce qu'il recouvre, et le net a payer avec.
+     */
+    public function filigrane(?string $image): ?string
+    {
+        if (blank($image) || ! str_contains((string) $image, 'base64,') || ! function_exists('imagecreatefromstring')) {
+            return null;
+        }
+
+        $binaire = base64_decode(substr($image, strpos($image, 'base64,') + 7), true);
+        $source = $binaire === false ? false : @imagecreatefromstring($binaire);
+
+        if ($source === false) {
+            return null;
+        }
+
+        // Un filigrane s'imprime grand mais n'a pas besoin de finesse : on
+        // ramene l'image a une taille raisonnable avant de la parcourir.
+        $largeur = min(640, imagesx($source));
+        $hauteur = max(1, (int) round(imagesy($source) * $largeur / imagesx($source)));
+
+        $pale = imagecreatetruecolor($largeur, $hauteur);
+        imagealphablending($pale, false);
+        imagesavealpha($pale, true);
+        imagefilledrectangle($pale, 0, 0, $largeur - 1, $hauteur - 1,
+            (int) imagecolorallocatealpha($pale, 255, 255, 255, 127));
+        imagecopyresampled($pale, $source, 0, 0, 0, 0, $largeur, $hauteur, imagesx($source), imagesy($source));
+
+        // Chaque point garde sa couleur et perd de son opacite : 0 est opaque,
+        // 127 transparent, et l'on va de l'un vers l'autre.
+        for ($y = 0; $y < $hauteur; $y++) {
+            for ($x = 0; $x < $largeur; $x++) {
+                $point = imagecolorat($pale, $x, $y);
+                $opacite = ($point >> 24) & 0x7F;
+
+                imagesetpixel($pale, $x, $y,
+                    ((int) round(127 - (127 - $opacite) * self::FILIGRANE / 100) << 24) | ($point & 0xFFFFFF));
+            }
+        }
+
+        ob_start();
+        imagepng($pale);
+        $png = (string) ob_get_clean();
+
+        imagedestroy($source);
+        imagedestroy($pale);
+
+        return 'data:image/png;base64,'.base64_encode($png);
     }
 
     /**

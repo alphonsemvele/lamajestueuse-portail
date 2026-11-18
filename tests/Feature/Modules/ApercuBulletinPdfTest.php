@@ -361,6 +361,50 @@ class ApercuBulletinPdfTest extends TestCase
         $this->assertStringContainsString('Provisoire', $html);
     }
 
+    /**
+     * Le filigrane : le logo, mais si pale qu'il se devine sans rien cacher.
+     *
+     * Et transparent, surtout : un calque pose sur du blanc effacerait ce
+     * qu'il recouvre — le net a payer le premier.
+     */
+    public function test_le_filigrane_est_le_logo_rendu_transparent(): void
+    {
+        $service = app(BulletinPdf::class);
+        $logo = $service->logoDuGroupe();
+
+        $this->assertNotNull($logo, 'La marque du groupe doit etre lisible depuis public/.');
+
+        $filigrane = $service->filigrane($logo);
+
+        $this->assertStringStartsWith('data:image/png;base64,', (string) $filigrane);
+
+        $image = imagecreatefromstring(
+            (string) base64_decode(substr((string) $filigrane, strlen('data:image/png;base64,')))
+        );
+
+        $this->assertNotFalse($image);
+
+        // Le point le plus marque de l'image : 0 est invisible, 127 opaque.
+        $opacite = 0;
+
+        for ($y = 0; $y < imagesy($image); $y += 3) {
+            for ($x = 0; $x < imagesx($image); $x += 3) {
+                $opacite = max($opacite, 127 - ((imagecolorat($image, $x, $y) >> 24) & 0x7F));
+            }
+        }
+
+        $this->assertGreaterThan(0, $opacite, 'Un filigrane invisible ne sert a rien.');
+        $this->assertLessThanOrEqual(13, $opacite, 'Un filigrane trop marque gene la lecture.');
+    }
+
+    public function test_sans_logo_le_bulletin_n_a_pas_de_filigrane(): void
+    {
+        $service = app(BulletinPdf::class);
+
+        $this->assertNull($service->filigrane(null));
+        $this->assertNull($service->filigrane('ceci n’est pas une image'));
+    }
+
     public function test_le_fichier_porte_le_matricule_et_la_periode(): void
     {
         $bulletin = $this->bulletin('valide');

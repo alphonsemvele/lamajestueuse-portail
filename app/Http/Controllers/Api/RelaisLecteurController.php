@@ -30,7 +30,7 @@ class RelaisLecteurController extends Controller
             return response()->json(['message' => 'Relais inconnu.'], 401);
         }
 
-        $relais->update(['derniere_visite' => now()]);
+        $relais->forceFill(['derniere_visite' => now()])->save();
 
         TacheLecteur::reprendreLesAbandonnees();
 
@@ -62,7 +62,7 @@ class RelaisLecteurController extends Controller
             'erreur' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $relais->update(['derniere_visite' => now()]);
+        $relais->forceFill(['derniere_visite' => now()])->save();
 
         $tache->update([
             'statut' => filled($donnees['erreur'] ?? null) ? 'echouee' : 'faite',

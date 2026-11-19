@@ -176,6 +176,28 @@ class RelaisLecteurTest extends TestCase
         $this->assertSame('MVELE Alphonse', $ordre->parametres['personnes'][0]['nom']);
     }
 
+    /**
+     * Le secret peut venir du .env du portail : c'est la voie de celui qui
+     * n'a pas la main sur la base, et elle doit valoir celle de la base.
+     */
+    public function test_le_secret_peut_venir_du_env_du_portail(): void
+    {
+        // La base porte un autre secret : c'est bien celui du .env qui sert.
+        $this->relais->update(['client_secret' => str_repeat('z', 64)]);
+
+        config()->set('hikvision.portail.client_id', 'relais-lecteur');
+        config()->set('hikvision.portail.secret', $secret = str_repeat('e', 64));
+
+        $ordre = $this->ordre();
+
+        $this->withToken(JetonRelais::signer('relais-lecteur', $secret, 'lecteur'))
+            ->getJson(route('api.lecteur.taches'))
+            ->assertOk()
+            ->assertJsonPath('taches.0.id', $ordre->id);
+
+        $this->assertNotNull($this->relais->refresh()->derniere_visite);
+    }
+
     public function test_un_ordre_inconnu_est_refuse(): void
     {
         $this->artisan('lecteur:demander danser')->assertFailed();

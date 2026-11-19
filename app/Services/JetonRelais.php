@@ -54,9 +54,11 @@ class JetonRelais
             ? (json_decode((string) JWT::urlsafeB64Decode($parties[1]), true)['iss'] ?? null)
             : null;
 
-        $relais = is_string($emetteur) && $emetteur !== ''
-            ? RelaisLecteur::where('client_id', $emetteur)->first()
-            : null;
+        if (! is_string($emetteur) || $emetteur === '') {
+            return null;
+        }
+
+        $relais = self::relais($emetteur);
 
         if ($relais === null || blank($relais->client_secret)) {
             return null;
@@ -77,5 +79,28 @@ class JetonRelais
         }
 
         return $relais;
+    }
+
+    /**
+     * Le relais qui porte cet identifiant, et le secret qui va avec.
+     *
+     * Deux sources, dans cet ordre. Le .env du portail d'abord : c'est la
+     * voie de celui qui n'a pas la main sur la base, et elle permet de poser
+     * le meme secret des deux cotes sans rien lire nulle part. La base
+     * ensuite, ou un secret a ete tire au sort a l'installation.
+     */
+    private static function relais(string $clientId): ?RelaisLecteur
+    {
+        $declare = (string) config('hikvision.portail.client_id');
+        $secret = (string) config('hikvision.portail.secret');
+
+        if ($clientId === $declare && $secret !== '') {
+            $relais = RelaisLecteur::firstOrNew(['client_id' => $clientId], ['nom' => 'Relais du site']);
+            $relais->client_secret = $secret;
+
+            return $relais;
+        }
+
+        return RelaisLecteur::where('client_id', $clientId)->first();
     }
 }

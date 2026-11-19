@@ -143,6 +143,78 @@ class PresenceTest extends TestCase
                 ->where('pointages.data.0.numero', '260147'));
     }
 
+    /** Une periode se regarde d'un bout a l'autre, et se recapitule par personne. */
+    public function test_une_periode_se_regarde_et_se_recapitule(): void
+    {
+        foreach ([3, 2, 2] as $i => $joursAvant) {
+            $this->postJson('/api/lecteur/pointage/'.$this->jeton(), $this->passage(
+                $i === 2 ? '260039' : '260147',
+                now()->subDays($joursAvant)->setTime(7, 30 + $i)->toIso8601String()
+            ))->assertOk();
+        }
+
+        $this->actingAs($this->rh())
+            ->get(route('personnel.presence', [
+                'du' => now()->subDays(4)->toDateString(),
+                'au' => now()->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('resume.passages', 3)
+                ->where('resume.personnes', 2)
+                ->where('resume.jours', 2)
+                ->has('parPersonne', 2));
+    }
+
+    /** Les bornes a l'envers se remettent dans l'ordre plutot que de ne rien rendre. */
+    public function test_une_periode_a_l_envers_se_remet_dans_l_ordre(): void
+    {
+        $this->postJson('/api/lecteur/pointage/'.$this->jeton(), $this->passage(
+            '260147', now()->subDay()->setTime(8, 0)->toIso8601String()
+        ))->assertOk();
+
+        $this->actingAs($this->rh())
+            ->get(route('personnel.presence', [
+                'du' => now()->toDateString(),
+                'au' => now()->subDays(3)->toDateString(),
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('resume.passages', 1));
+    }
+
+    public function test_la_periode_s_emporte_en_tableur(): void
+    {
+        $this->postJson('/api/lecteur/pointage/'.$this->jeton(), $this->passage(
+            '260147', now()->setTime(8, 12)->toIso8601String()
+        ))->assertOk();
+
+        $reponse = $this->actingAs($this->rh())
+            ->get(route('personnel.presence.export', ['du' => now()->toDateString()]));
+
+        $reponse->assertOk();
+
+        $contenu = $reponse->streamedContent();
+
+        $this->assertStringContainsString('Date;Heure;Matricule;Nom;Sens;Moyen', $contenu);
+        $this->assertStringContainsString('MVELE Alphonse', $contenu);
+        // Le marqueur qu'Excel attend pour lire les accents.
+        $this->assertStringStartsWith("\xEF\xBB\xBF", $contenu);
+    }
+
+    public function test_la_periode_s_emporte_en_pdf(): void
+    {
+        $this->postJson('/api/lecteur/pointage/'.$this->jeton(), $this->passage(
+            '260147', now()->setTime(8, 12)->toIso8601String()
+        ))->assertOk();
+
+        $reponse = $this->actingAs($this->rh())
+            ->get(route('personnel.presence.export', ['du' => now()->toDateString(), 'format' => 'pdf']));
+
+        $reponse->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $reponse->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF', (string) $reponse->getContent());
+    }
+
     public function test_un_employe_ordinaire_n_entre_pas_dans_la_presence(): void
     {
         $this->actingAs(User::factory()->create(['status' => 'active']))

@@ -190,6 +190,7 @@ Route::middleware('auth')->group(function () {
          * l'annonce. L'ecran ne fait que montrer ce qui est arrive.
          */
         Route::get('/presence', [PresenceController::class, 'index'])->name('presence');
+        Route::get('/presence/export', [PresenceController::class, 'exporter'])->name('presence.export');
 
         // Matricules et fichier du personnel.
         Route::get('/matricules/a-pourvoir', [PersonnelController::class, 'matriculesAPourvoir'])->name('matricules.apourvoir');

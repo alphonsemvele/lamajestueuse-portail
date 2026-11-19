@@ -100,6 +100,7 @@ export const routes = {
         index: '/personnel',
         agents: '/personnel/agents',
         presence: '/personnel/presence',
+        presenceExport: '/personnel/presence/export',
         agentStore: '/personnel/agents',
         matriculesAPourvoir: '/personnel/matricules/a-pourvoir',
         matriculeProchain: '/personnel/matricules/prochain',

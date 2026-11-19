@@ -28,6 +28,12 @@ class RelaisLecteurTest extends TestCase
     {
         parent::setUp();
 
+        /*
+         * Le secret du poste qui fait tourner les tests n'a rien a faire
+         * ici : sans cela, un .env local deciderait du resultat.
+         */
+        config()->set('hikvision.portail.secret', null);
+
         // Le relais naît avec la migration : on lui donne juste un secret
         // connu, pour pouvoir signer comme lui.
         $this->relais = RelaisLecteur::firstOrFail();

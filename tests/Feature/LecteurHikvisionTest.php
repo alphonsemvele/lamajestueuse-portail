@@ -200,6 +200,72 @@ class LecteurHikvisionTest extends TestCase
         $this->lecteur()->informations();
     }
 
+    /**
+     * Les cartes se posent par le reseau : un fichier « matricule;carte »
+     * suffit, sans toucher a l'appareil ni presenter la moindre carte.
+     */
+    public function test_les_cartes_se_posent_depuis_un_fichier(): void
+    {
+        Http::fake([
+            '*UserInfo/Search*' => Http::response([
+                'UserInfoSearch' => [
+                    'responseStatusStrg' => 'OK',
+                    'UserInfo' => [['employeeNo' => '260147', 'name' => 'MVELE Alphonse']],
+                ],
+            ]),
+            '*CardInfo/Search*' => Http::response([
+                'CardInfoSearch' => ['responseStatusStrg' => 'NO MATCH'],
+            ]),
+            '*CardInfo/Record*' => Http::response(['statusCode' => 1, 'statusString' => 'OK']),
+        ]);
+
+        $chemin = tempnam(sys_get_temp_dir(), 'cartes').'.csv';
+        file_put_contents($chemin, "Matricule;Carte\nLM-260147;2046362426\nLM-999999;2046362427\n");
+
+        $this->artisan('hikvision:cartes --fichier='.$chemin)
+            ->expectsOutputToContain('1 carte(s) posée(s)')
+            // Celui que le lecteur ne porte pas est signale, pas pose au hasard.
+            ->expectsOutputToContain('inconnu du lecteur')
+            ->assertFailed();
+
+        Http::assertSent(function ($requete) {
+            if (! str_contains($requete->url(), 'CardInfo/Record')) {
+                return false;
+            }
+
+            $carte = $requete->data()['CardInfo'];
+
+            return $carte['employeeNo'] === '260147'
+                && $carte['cardNo'] === '2046362426'
+                && $carte['cardType'] === 'normalCard';
+        });
+
+        unlink($chemin);
+    }
+
+    /** Qui porte deja une carte n'est pas redemande. */
+    public function test_une_personne_qui_a_deja_sa_carte_est_passee(): void
+    {
+        Http::fake([
+            '*UserInfo/Search*' => Http::response([
+                'UserInfoSearch' => [
+                    'responseStatusStrg' => 'OK',
+                    'UserInfo' => [['employeeNo' => '260147', 'name' => 'MVELE Alphonse']],
+                ],
+            ]),
+            '*CardInfo/Search*' => Http::response([
+                'CardInfoSearch' => [
+                    'responseStatusStrg' => 'OK',
+                    'CardInfo' => [['employeeNo' => '260147', 'cardNo' => '2046362426']],
+                ],
+            ]),
+        ]);
+
+        $this->artisan('hikvision:cartes')
+            ->expectsOutputToContain('Tout le monde porte déjà une carte')
+            ->assertSuccessful();
+    }
+
     /** Sans adresse ni mot de passe, on ne tente rien. */
     public function test_sans_reglage_le_lecteur_n_est_pas_appele(): void
     {

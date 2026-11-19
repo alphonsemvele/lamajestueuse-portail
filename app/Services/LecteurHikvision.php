@@ -33,6 +33,9 @@ class LecteurHikvision
     /** Le lecteur n'accepte pas plus de chiffres que cela dans un numero. */
     private const LONGUEUR_MAX = 32;
 
+    /** Ce que l'appareil accepte de rendre d'un coup lors d'une recherche. */
+    private const PAR_PAGE = 30;
+
     public function __construct(private readonly array $reglages)
     {
     }
@@ -179,6 +182,122 @@ class LecteurHikvision
         return $deja ? 'mis a jour' : 'ajoute';
     }
 
+    /**
+     * Les cartes deja posees : le numero de la personne, et celui de sa carte.
+     *
+     * @return array<string, string>
+     */
+    public function cartes(): array
+    {
+        $cartes = [];
+        $position = 0;
+
+        do {
+            $corps = $this->lire('POST', '/ISAPI/AccessControl/CardInfo/Search?format=json', [
+                'CardInfoSearchCond' => [
+                    'searchID' => (string) \Illuminate\Support\Str::uuid(),
+                    'searchResultPosition' => $position,
+                    'maxResults' => self::PAR_PAGE,
+                ],
+            ]);
+
+            $trouvees = $corps['CardInfoSearch']['CardInfo'] ?? [];
+
+            foreach ($trouvees as $carte) {
+                $cartes[(string) ($carte['employeeNo'] ?? '')] = (string) ($carte['cardNo'] ?? '');
+            }
+
+            $position += count($trouvees);
+            $suite = ($corps['CardInfoSearch']['responseStatusStrg'] ?? 'NO MATCH') === 'MORE';
+        } while ($suite && $trouvees !== []);
+
+        unset($cartes['']);
+
+        return $cartes;
+    }
+
+    /**
+     * Attend qu'une carte soit presentee au lecteur, et rend son numero.
+     *
+     * L'appareil ne repond pas tant que rien n'est passe devant lui : c'est
+     * la lecture elle-meme qui fait la reponse. Au-dela du temps accorde, il
+     * se tait et l'on rend null — personne n'a presente de carte.
+     */
+    public function capturerCarte(int $attente = 30): ?string
+    {
+        $this->verifierLeReglage();
+
+        try {
+            $reponse = $this->requete($attente + 5)
+                ->get($this->adresse().'/ISAPI/AccessControl/CaptureCardInfo?format=json');
+        } catch (\Illuminate\Http\Client\ConnectionException) {
+            return null;
+        }
+
+        $corps = $this->verdict($reponse, '/ISAPI/AccessControl/CaptureCardInfo');
+        $carte = trim((string) ($corps['CardInfo']['cardNo'] ?? $corps['cardNo'] ?? ''));
+
+        return $carte === '' ? null : $carte;
+    }
+
+    /**
+     * Pose une carte sur une personne deja presente dans le lecteur.
+     *
+     * Rien d'autre n'est touche : ni l'empreinte, ni le nom, ni les droits.
+     */
+    public function poserCarte(string $numero, string $carte): void
+    {
+        $this->lire('POST', '/ISAPI/AccessControl/CardInfo/Record?format=json', [
+            'CardInfo' => [
+                'employeeNo' => $numero,
+                'cardNo' => $carte,
+                'cardType' => 'normalCard',
+            ],
+        ]);
+    }
+
+    /** Retire une carte du lecteur, sans toucher a la personne. */
+    public function retirerCarte(string $carte): void
+    {
+        $this->lire('PUT', '/ISAPI/AccessControl/CardInfo/Delete?format=json', [
+            'CardInfoDelCond' => ['CardNoList' => [['cardNo' => $carte]]],
+        ]);
+    }
+
+    /**
+     * Les personnes que le lecteur porte : leur numero et leur nom.
+     *
+     * @return array<string, string>
+     */
+    public function personnes(): array
+    {
+        $gens = [];
+        $position = 0;
+
+        do {
+            $corps = $this->lire('POST', '/ISAPI/AccessControl/UserInfo/Search?format=json', [
+                'UserInfoSearchCond' => [
+                    'searchID' => (string) \Illuminate\Support\Str::uuid(),
+                    'searchResultPosition' => $position,
+                    'maxResults' => self::PAR_PAGE,
+                ],
+            ]);
+
+            $trouvees = $corps['UserInfoSearch']['UserInfo'] ?? [];
+
+            foreach ($trouvees as $personne) {
+                $gens[(string) ($personne['employeeNo'] ?? '')] = (string) ($personne['name'] ?? '');
+            }
+
+            $position += count($trouvees);
+            $suite = ($corps['UserInfoSearch']['responseStatusStrg'] ?? 'NO MATCH') === 'MORE';
+        } while ($suite && $trouvees !== []);
+
+        unset($gens['']);
+
+        return $gens;
+    }
+
     /** Retire un numero du lecteur. */
     public function retirer(string $numero): void
     {
@@ -245,7 +364,7 @@ class LecteurHikvision
         }
     }
 
-    private function requete(): PendingRequest
+    private function requete(?int $delai = null): PendingRequest
     {
         return Http::withOptions([
             'auth' => [
@@ -254,7 +373,7 @@ class LecteurHikvision
                 'digest',
             ],
             'verify' => (bool) ($this->reglages['verifier_certificat'] ?? false),
-        ])->timeout((int) ($this->reglages['delai'] ?? 20))->acceptJson();
+        ])->timeout($delai ?? (int) ($this->reglages['delai'] ?? 20))->acceptJson();
     }
 
     private function verdict(Response $reponse, string $chemin): array

@@ -99,6 +99,7 @@ export const routes = {
     personnel: {
         index: '/personnel',
         agents: '/personnel/agents',
+        presence: '/personnel/presence',
         agentStore: '/personnel/agents',
         matriculesAPourvoir: '/personnel/matricules/a-pourvoir',
         matriculeProchain: '/personnel/matricules/prochain',

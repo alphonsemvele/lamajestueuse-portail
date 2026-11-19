@@ -82,6 +82,36 @@ class JetonRelais
     }
 
     /**
+     * Le jeton que le lecteur porte dans l'adresse ou il pousse ses
+     * evenements.
+     *
+     * Il se deduit du secret partage plutot que d'etre tire au sort : les
+     * deux cotes le calculent, personne ne le transporte, et il n'y a donc
+     * qu'une seule valeur a installer — le secret.
+     */
+    public static function jetonPointage(?string $secret = null): ?string
+    {
+        $secret ??= self::secretDuRelais();
+
+        return $secret === null ? null : substr(hash_hmac('sha256', 'pointage', $secret), 0, 48);
+    }
+
+    /** Le secret du relais : celui du .env s'il y est, celui de la base sinon. */
+    public static function secretDuRelais(): ?string
+    {
+        $declare = (string) config('hikvision.portail.secret');
+
+        if ($declare !== '') {
+            return $declare;
+        }
+
+        $relais = RelaisLecteur::where('client_id', (string) config('hikvision.portail.client_id'))->first()
+            ?? RelaisLecteur::first();
+
+        return blank($relais?->client_secret) ? null : (string) $relais->client_secret;
+    }
+
+    /**
      * Le relais qui porte cet identifiant, et le secret qui va avec.
      *
      * Deux sources, dans cet ordre. Le .env du portail d'abord : c'est la

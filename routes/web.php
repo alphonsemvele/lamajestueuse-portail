@@ -22,6 +22,7 @@ use App\Http\Controllers\Modules\InformationController;
 use App\Http\Controllers\Modules\MesBulletinsController;
 use App\Http\Controllers\Modules\Personnel\PaieController;
 use App\Http\Controllers\Modules\Personnel\PersonnelController;
+use App\Http\Controllers\Modules\Personnel\PresenceController;
 use App\Http\Controllers\Modules\Personnel\ReferentielController;
 use App\Http\Controllers\Modules\ProfilController;
 use App\Http\Controllers\Modules\TutorielController;
@@ -183,6 +184,12 @@ Route::middleware('auth')->group(function () {
          */
         Route::get('/agents', [PersonnelController::class, 'agents'])->name('agents');
         Route::post('/agents', [PersonnelController::class, 'store'])->name('agents.store');
+
+        /*
+         * Presence : ce que le lecteur du site annonce, a mesure qu'il
+         * l'annonce. L'ecran ne fait que montrer ce qui est arrive.
+         */
+        Route::get('/presence', [PresenceController::class, 'index'])->name('presence');
 
         // Matricules et fichier du personnel.
         Route::get('/matricules/a-pourvoir', [PersonnelController::class, 'matriculesAPourvoir'])->name('matricules.apourvoir');

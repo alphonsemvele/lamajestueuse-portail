@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ApplicationRosterController;
 use App\Http\Controllers\Api\ApplicationSyncController;
+use App\Http\Controllers\Api\PointagesController;
 use App\Http\Controllers\Api\RelaisLecteurController;
 use Illuminate\Support\Facades\Route;
 
@@ -33,3 +34,16 @@ Route::get('/lecteur/taches', [RelaisLecteurController::class, 'prendre'])
 Route::post('/lecteur/taches/{tache}', [RelaisLecteurController::class, 'rendre'])
     ->middleware('throttle:120,1')
     ->name('api.lecteur.compte-rendu');
+
+/*
+ * Les pointages. Le lecteur pousse ici lui-meme, des qu'un passage a lieu :
+ * il ne sait porter qu'un jeton dans l'adresse, d'ou cette forme. Le relais,
+ * lui, rattrape ce qui a manque et signe comme pour le reste.
+ */
+Route::post('/lecteur/pointage/{jeton}', [PointagesController::class, 'recevoir'])
+    ->middleware('throttle:600,1')
+    ->name('api.lecteur.pointage');
+
+Route::post('/lecteur/pointages', [PointagesController::class, 'rattraper'])
+    ->middleware('throttle:60,1')
+    ->name('api.lecteur.pointages');

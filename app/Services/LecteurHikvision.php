@@ -384,6 +384,90 @@ class LecteurHikvision
         }
     }
 
+    /**
+     * A qui le lecteur pousse ses evenements.
+     *
+     * @return array{hote: ?string, protocole: ?string, port: ?string, adresse: ?string}
+     */
+    public function abonnement(): array
+    {
+        $this->verifierLeReglage();
+
+        $reponse = $this->requete()->get($this->adresse().'/ISAPI/Event/notification/httpHosts/1');
+        $this->verdictXml($reponse, '/ISAPI/Event/notification/httpHosts/1');
+
+        $xml = @simplexml_load_string($reponse->body());
+
+        return [
+            'hote' => $xml === false ? null : (string) $xml->hostName,
+            'protocole' => $xml === false ? null : (string) $xml->protocolType,
+            'port' => $xml === false ? null : (string) $xml->portNo,
+            'adresse' => $xml === false ? null : (string) $xml->url,
+        ];
+    }
+
+    /**
+     * Abonne le lecteur : il poussera chaque evenement a cette adresse.
+     *
+     * L'appareil n'accepte ni en-tete ni signature sur ces envois : le jeton
+     * voyage donc dans le chemin, et c'est pourquoi il doit etre long.
+     */
+    public function abonner(string $portail, string $chemin): string
+    {
+        $this->verifierLeReglage();
+
+        $morceaux = parse_url($portail);
+        $hote = $morceaux['host'] ?? $portail;
+        $protocole = ($morceaux['scheme'] ?? 'https') === 'http' ? 'HTTP' : 'HTTPS';
+        $port = (int) ($morceaux['port'] ?? ($protocole === 'HTTPS' ? 443 : 80));
+
+        $this->ecrireAbonnement([
+            'url' => $chemin,
+            'protocolType' => $protocole,
+            'parameterFormatType' => 'JSON',
+            'addressingFormatType' => 'hostname',
+            'hostName' => $hote,
+            'portNo' => (string) $port,
+            'httpAuthenticationMethod' => 'none',
+        ]);
+
+        return mb_strtolower($protocole).'://'.$hote;
+    }
+
+    /** Coupe l'abonnement : le lecteur ne pousse plus rien. */
+    public function desabonner(): void
+    {
+        $this->ecrireAbonnement([
+            'url' => '',
+            'protocolType' => 'HTTP',
+            'parameterFormatType' => 'XML',
+            'addressingFormatType' => 'ipaddress',
+            'ipAddress' => '0.0.0.0',
+            'portNo' => '0',
+            'httpAuthenticationMethod' => 'none',
+        ]);
+    }
+
+    /** @param array<string, string> $champs */
+    private function ecrireAbonnement(array $champs): void
+    {
+        $corps = '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<HttpHostNotification version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">'
+            .'<id>1</id>';
+
+        foreach ($champs as $nom => $valeur) {
+            $corps .= '<'.$nom.'>'.htmlspecialchars($valeur, ENT_XML1).'</'.$nom.'>';
+        }
+
+        $corps .= '</HttpHostNotification>';
+
+        $reponse = $this->requete()
+            ->withBody($corps, 'application/xml')
+            ->put($this->adresse().'/ISAPI/Event/notification/httpHosts/1');
+
+        $this->verdictXml($reponse, '/ISAPI/Event/notification/httpHosts/1');
+    }
+
     /** Retire un numero du lecteur. */
     public function retirer(string $numero): void
     {

@@ -38,6 +38,7 @@ export default function PersonnelLayout({ title, peutGerer, entete, children }: 
             liens: [
                 { libelle: 'Tableau de bord', href: routes.personnel.index, icon: 'grid' },
                 { libelle: 'Personnel', href: routes.personnel.agents, icon: 'users' },
+                { libelle: 'Présence', href: routes.personnel.presence, icon: 'clock' },
             ],
         },
         {

@@ -30,4 +30,17 @@ return [
 
     // Secondes avant d'abandonner un appel : le lecteur est lent sous charge.
     'delai' => (int) env('HIKVISION_DELAI', 20),
+    /*
+     * Le portail, vu depuis le relais.
+     *
+     * Le relais tourne sur un poste du site : il sort vers le portail pour
+     * y prendre les ordres, puis parle au lecteur sur le reseau local. Rien
+     * n'entre : aucun port n'est ouvert sur le reseau de l'etablissement.
+     */
+    'portail' => [
+        'url' => env('HIKVISION_PORTAIL_URL', 'https://lamajestueuse.com'),
+        'client_id' => env('HIKVISION_RELAIS_ID', 'relais-lecteur'),
+        'secret' => env('HIKVISION_RELAIS_SECRET'),
+        'intervalle' => (int) env('HIKVISION_RELAIS_INTERVALLE', 15),
+    ],
 ];

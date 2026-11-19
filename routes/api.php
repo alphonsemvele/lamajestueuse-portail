@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\ApplicationRosterController;
 use App\Http\Controllers\Api\ApplicationSyncController;
+use App\Http\Controllers\Api\RelaisLecteurController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -19,3 +20,16 @@ Route::post('/applications/synchronisation', ApplicationSyncController::class)
 Route::get('/applications/effectif', ApplicationRosterController::class)
     ->middleware('throttle:20,1')
     ->name('api.applications.effectif');
+
+/*
+ * Le relais du lecteur de presence : il vient chercher les ordres deposes
+ * par le portail, puis rapporte ce qu'il a fait. Le portail n'atteint pas
+ * le lecteur — c'est le relais, sur place, qui sort le chercher.
+ */
+Route::get('/lecteur/taches', [RelaisLecteurController::class, 'prendre'])
+    ->middleware('throttle:120,1')
+    ->name('api.lecteur.taches');
+
+Route::post('/lecteur/taches/{tache}', [RelaisLecteurController::class, 'rendre'])
+    ->middleware('throttle:120,1')
+    ->name('api.lecteur.compte-rendu');

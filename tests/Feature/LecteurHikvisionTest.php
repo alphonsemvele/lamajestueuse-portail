@@ -243,6 +243,40 @@ class LecteurHikvisionTest extends TestCase
         unlink($chemin);
     }
 
+    /**
+     * L'export du lecteur se relit tel quel : « Matricule, Nom, Carte ».
+     *
+     * Le meme fichier sert alors aux deux commandes — l'une pose les
+     * identites, l'autre les cartes — et un second lecteur se monte sans
+     * repasser une seule carte.
+     */
+    public function test_l_export_du_lecteur_se_relit_pour_les_cartes(): void
+    {
+        Http::fake([
+            '*UserInfo/Search*' => Http::response([
+                'UserInfoSearch' => [
+                    'responseStatusStrg' => 'OK',
+                    'UserInfo' => [['employeeNo' => '260147', 'name' => 'MVELE Alphonse']],
+                ],
+            ]),
+            '*CardInfo/Search*' => Http::response(['CardInfoSearch' => ['responseStatusStrg' => 'NO MATCH']]),
+            '*CardInfo/Record*' => Http::response(['statusCode' => 1, 'statusString' => 'OK']),
+        ]);
+
+        $chemin = tempnam(sys_get_temp_dir(), 'export').'.csv';
+        file_put_contents($chemin, "\xEF\xBB\xBFMatricule;Nom;Carte\n260147;\"MVELE Alphonse\";2046362426\n");
+
+        $this->artisan('hikvision:cartes --fichier='.$chemin)
+            ->expectsOutputToContain('1 carte(s) posée(s)')
+            ->assertSuccessful();
+
+        // Le nom est en deuxieme colonne : c'est bien la carte qui est partie.
+        Http::assertSent(fn ($requete) => ! str_contains($requete->url(), 'CardInfo/Record')
+            || $requete->data()['CardInfo']['cardNo'] === '2046362426');
+
+        unlink($chemin);
+    }
+
     /** Qui porte deja une carte n'est pas redemande. */
     public function test_une_personne_qui_a_deja_sa_carte_est_passee(): void
     {

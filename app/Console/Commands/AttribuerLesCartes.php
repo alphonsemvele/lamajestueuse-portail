@@ -119,10 +119,11 @@ class AttribuerLesCartes extends Command
         $fichier = fopen($chemin, 'r');
         $posees = 0;
         $echecs = [];
+        $ouEstLaCarte = $this->colonneDeLaCarte($fichier);
 
         while (($ligne = fgetcsv($fichier, 0, ';')) !== false) {
             $matricule = trim((string) ($ligne[0] ?? ''));
-            $carte = trim((string) ($ligne[1] ?? ''));
+            $carte = trim((string) ($ligne[$ouEstLaCarte] ?? ''));
 
             // L'en-tete d'un tableur passe ici comme une ligne ordinaire :
             // sans chiffres des deux cotes, ce n'en est pas une.
@@ -151,6 +152,42 @@ class AttribuerLesCartes extends Command
         $this->info("{$posees} carte(s) posée(s).");
 
         return $this->bilan($echecs);
+    }
+
+    /**
+     * Dans quelle colonne se trouve le numero de carte.
+     *
+     * L'export du lecteur porte « Matricule, Nom, Carte » — le meme fichier
+     * sert alors aux deux commandes, l'une lisant les identites, l'autre les
+     * cartes. Un fichier sans en-tete garde l'ancienne regle : la carte est
+     * en deuxieme colonne.
+     *
+     * @param  resource  $fichier
+     */
+    private function colonneDeLaCarte($fichier): int
+    {
+        $depart = ftell($fichier);
+        $entete = fgetcsv($fichier, 0, ';');
+
+        if ($entete === false) {
+            return 1;
+        }
+
+        // Le marqueur d'UTF-8 colle au premier titre.
+        $entete[0] = ltrim((string) ($entete[0] ?? ''), "\xEF\xBB\xBF");
+
+        $colonne = collect($entete)->search(
+            fn ($titre) => in_array(mb_strtolower(trim((string) $titre)), ['carte', 'card', 'cardno'], true)
+        );
+
+        if ($colonne === false) {
+            // Pas d'en-tete reconnu : la premiere ligne est une donnee.
+            fseek($fichier, $depart);
+
+            return 1;
+        }
+
+        return (int) $colonne;
     }
 
     /**

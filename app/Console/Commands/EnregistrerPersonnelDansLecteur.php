@@ -27,6 +27,7 @@ class EnregistrerPersonnelDansLecteur extends Command
 {
     protected $signature = 'hikvision:personnel
         {--fichier= : Le CSV exporte depuis le portail, au lieu de la base locale}
+        {--dernier : Prend le dernier export du personnel depose dans les Telechargements}
         {--simuler : Montre ce qui serait envoye, sans rien ecrire dans le lecteur}
         {--matricule=* : Ne traite que ces matricules}
         {--tous : Prend aussi les comptes suspendus ou en attente}';
@@ -48,8 +49,10 @@ class EnregistrerPersonnelDansLecteur extends Command
         }
 
         try {
-            $personnes = $this->option('fichier')
-                ? $this->depuisLeFichier((string) $this->option('fichier'))
+            $fichier = (string) ($this->option('fichier') ?: ($this->option('dernier') ? $this->dernierExport() : ''));
+
+            $personnes = $fichier !== ''
+                ? $this->depuisLeFichier($fichier)
                 : $this->depuisLaBase();
         } catch (Throwable $souci) {
             $this->error($souci->getMessage());
@@ -119,6 +122,45 @@ class EnregistrerPersonnelDansLecteur extends Command
             ->orderBy('matricule')
             ->get()
             ->map(fn (User $p) => ['matricule' => (string) $p->matricule, 'nom' => $p->nomOfficiel()]);
+    }
+
+    /**
+     * Le dernier export du personnel depose dans les Telechargements.
+     *
+     * La liste du portail vit en ligne ; sur le poste du site, elle arrive
+     * par le fichier que « Personnel › Exporter » telecharge. Plutot que de
+     * retaper un nom de fichier qui porte sa date, on prend le plus recent —
+     * et l'on dit lequel, pour que personne ne pousse sans le savoir une
+     * liste de l'an dernier.
+     */
+    private function dernierExport(): string
+    {
+        $dossier = rtrim((string) getenv('HOME'), '/').'/Downloads';
+
+        $candidats = collect(glob($dossier.'/personnel*.csv') ?: [])
+            ->filter(fn (string $chemin) => is_readable($chemin))
+            ->sortByDesc(fn (string $chemin) => filemtime($chemin));
+
+        if ($candidats->isEmpty()) {
+            throw new \RuntimeException(
+                'Aucun export du personnel dans '.$dossier.'. '
+                .'Telechargez-le depuis le portail : Personnel › Exporter.'
+            );
+        }
+
+        $choisi = (string) $candidats->first();
+
+        $this->line('Fichier : '.basename($choisi).' ('.date('d/m/Y', (int) filemtime($choisi)).')');
+
+        $jours = (int) floor((time() - filemtime($choisi)) / 86400);
+
+        if ($jours > 7) {
+            $this->warn('Cet export a '.$jours.' jours : les personnes saisies depuis ne seront pas envoyees.');
+        }
+
+        $this->newLine();
+
+        return $choisi;
     }
 
     /**

@@ -231,6 +231,46 @@ class LecteurHikvisionTest extends TestCase
         unlink($chemin);
     }
 
+    /**
+     * Sans nom de fichier, la commande prend le dernier export telecharge.
+     *
+     * Et elle dit lequel : pousser une liste de l'an dernier sans s'en
+     * apercevoir laisserait la moitie du personnel a la porte.
+     */
+    public function test_la_commande_prend_le_dernier_export_telecharge(): void
+    {
+        $maison = sys_get_temp_dir().'/telechargements-'.uniqid();
+        mkdir($maison.'/Downloads', 0775, true);
+
+        $vieux = $maison.'/Downloads/personnel-la-majestueuse-2026-01-01.csv';
+        $recent = $maison.'/Downloads/personnel-la-majestueuse-2026-11-18.csv';
+
+        file_put_contents($vieux, "Matricule;Nom;Prénom\nLM-260001;MVELE;Alphonse\n");
+        file_put_contents($recent, "Matricule;Nom;Prénom\nLM-260001;MVELE;Alphonse\nLM-260002;NGONO;Marie\n");
+
+        touch($vieux, time() - 86400 * 30);
+        touch($recent, time() - 60);
+
+        $avant = getenv('HOME');
+        putenv('HOME='.$maison);
+        Http::fake();
+
+        try {
+            $this->artisan('hikvision:personnel --dernier --simuler')
+                ->expectsOutputToContain('personnel-la-majestueuse-2026-11-18.csv')
+                ->expectsOutputToContain('2 personne(s) seraient envoyées')
+                ->assertSuccessful();
+        } finally {
+            putenv('HOME='.$avant);
+            unlink($vieux);
+            unlink($recent);
+            rmdir($maison.'/Downloads');
+            rmdir($maison);
+        }
+
+        Http::assertNothingSent();
+    }
+
     /** Un fichier sans les bonnes colonnes est refuse, avec le chemin a suivre. */
     public function test_un_fichier_etranger_est_refuse(): void
     {

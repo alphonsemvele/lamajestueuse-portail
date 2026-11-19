@@ -298,6 +298,92 @@ class LecteurHikvision
         return $gens;
     }
 
+    /**
+     * L'heure que porte le lecteur : son mode, son heure locale, son fuseau.
+     *
+     * Cet endroit-la repond en XML, comme deviceInfo.
+     *
+     * @return array{mode: ?string, heure: ?string, fuseau: ?string}
+     */
+    public function heure(): array
+    {
+        $this->verifierLeReglage();
+
+        $reponse = $this->requete()->get($this->adresse().'/ISAPI/System/time');
+        $this->verdict($reponse, '/ISAPI/System/time');
+
+        $xml = @simplexml_load_string($reponse->body());
+
+        return [
+            'mode' => $xml === false ? null : (string) $xml->timeMode,
+            'heure' => $xml === false ? null : (string) $xml->localTime,
+            'fuseau' => $xml === false ? null : (string) $xml->timeZone,
+        ];
+    }
+
+    /**
+     * Met le lecteur a l'heure d'un fuseau donne.
+     *
+     * Les appareils sortent d'usine a l'heure de Chine : un pointage y porte
+     * alors une heure fausse de sept heures, et le registre de presence ne
+     * veut plus rien dire.
+     *
+     * Hikvision ecrit ses fuseaux a l'envers du sens courant — « CST-1:00:00 »
+     * designe l'heure d'ete d'Europe centrale, c'est-a-dire UTC+1, celle du
+     * Cameroun. Le signe est donc inverse a dessein.
+     */
+    public function reglerHeure(string $fuseau = 'Africa/Douala'): string
+    {
+        $this->verifierLeReglage();
+
+        $maintenant = \Illuminate\Support\Carbon::now($fuseau);
+        $decalage = $maintenant->getOffset(); // en secondes, positif a l'est
+
+        $heures = intdiv(abs($decalage), 3600);
+        $minutes = intdiv(abs($decalage) % 3600, 60);
+        $secondes = abs($decalage) % 60;
+
+        $ecrit = sprintf('CST%s%d:%02d:%02d', $decalage >= 0 ? '-' : '+', $heures, $minutes, $secondes);
+
+        $corps = '<?xml version="1.0" encoding="UTF-8"?>'
+            .'<Time version="2.0" xmlns="http://www.isapi.org/ver20/XMLSchema">'
+            .'<timeMode>manual</timeMode>'
+            .'<localTime>'.$maintenant->format('Y-m-d\TH:i:s').'</localTime>'
+            .'<timeZone>'.$ecrit.'</timeZone>'
+            .'</Time>';
+
+        $reponse = $this->requete()
+            ->withBody($corps, 'application/xml')
+            ->put($this->adresse().'/ISAPI/System/time');
+
+        $this->verdictXml($reponse, '/ISAPI/System/time');
+
+        return $maintenant->format('Y-m-d H:i:s').' ('.$ecrit.')';
+    }
+
+    /**
+     * Le verdict d'une reponse XML : meme regle que pour le JSON, l'appareil
+     * repond 200 quand il refuse et c'est le statusCode qui tranche.
+     */
+    private function verdictXml(Response $reponse, string $chemin): void
+    {
+        if ($reponse->status() === 401) {
+            throw new RuntimeException('Le lecteur a refusé l’identifiant ou le mot de passe.');
+        }
+
+        if ($reponse->failed()) {
+            throw new RuntimeException("Le lecteur a répondu {$reponse->status()} sur {$chemin}.");
+        }
+
+        $xml = @simplexml_load_string($reponse->body());
+
+        if ($xml !== false && isset($xml->statusCode) && (int) $xml->statusCode !== 1) {
+            $detail = (string) ($xml->subStatusCode ?? $xml->statusString ?? 'refus sans motif');
+
+            throw new RuntimeException("Le lecteur a refusé {$chemin} : {$detail}.");
+        }
+    }
+
     /** Retire un numero du lecteur. */
     public function retirer(string $numero): void
     {

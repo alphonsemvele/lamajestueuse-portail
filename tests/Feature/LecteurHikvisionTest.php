@@ -189,6 +189,37 @@ class LecteurHikvisionTest extends TestCase
         $this->lecteur()->enregistrer(LecteurHikvision::numeroDe($personne), LecteurHikvision::nomDe($personne));
     }
 
+    /**
+     * L'heure du Cameroun, ecrite comme Hikvision l'attend.
+     *
+     * Le constructeur note ses fuseaux a l'envers du sens courant :
+     * « CST-1:00:00 » designe UTC+1. Les appareils sortent d'usine en
+     * « CST-8:00:00 », l'heure de Chine — sept heures d'ecart sur chaque
+     * pointage tant que personne n'y touche.
+     */
+    public function test_l_heure_part_au_fuseau_du_cameroun(): void
+    {
+        Http::fake(['*System/time*' => Http::response(
+            '<?xml version="1.0" encoding="UTF-8"?><ResponseStatus><statusCode>1</statusCode></ResponseStatus>'
+        )]);
+
+        $pose = $this->lecteur()->reglerHeure('Africa/Douala');
+
+        $this->assertStringContainsString('CST-1:00:00', $pose);
+
+        Http::assertSent(function ($requete) {
+            if ($requete->method() !== 'PUT') {
+                return false;
+            }
+
+            $corps = (string) $requete->body();
+
+            return str_contains($corps, '<timeZone>CST-1:00:00</timeZone>')
+                && str_contains($corps, '<timeMode>manual</timeMode>')
+                && str_contains($corps, now('Africa/Douala')->format('Y-m-d\TH:i'));
+        });
+    }
+
     /** Un mot de passe refuse se dit clairement, sans parler de HTTP. */
     public function test_un_mot_de_passe_refuse_est_dit_clairement(): void
     {

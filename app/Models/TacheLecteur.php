@@ -30,6 +30,7 @@ class TacheLecteur extends Model
         'personnel' => 'Envoyer le personnel',
         'cartes' => 'Attribuer des cartes',
         'lister' => 'Lire le contenu du lecteur',
+        'heure' => 'Remettre le lecteur à l’heure',
         'retirer' => 'Retirer des fiches',
     ];
 

@@ -127,6 +127,9 @@ class RelaisDuLecteur extends Command
                 'cartes' => $lecteur->cartes(),
             ],
             'retirer' => $this->retirer($lecteur, $parametres),
+            'heure' => ['posee' => $lecteur->reglerHeure(
+                (string) ($parametres['fuseau'] ?? 'Africa/Douala')
+            )],
             default => throw new \RuntimeException('Ordre inconnu : '.$action),
         };
     }

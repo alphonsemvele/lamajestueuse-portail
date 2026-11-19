@@ -84,6 +84,26 @@ class LecteurHikvisionTest extends TestCase
         unlink($chemin);
     }
 
+    /**
+     * Un matricule sans le moindre chiffre n'a pas de place sur le lecteur :
+     * on le dit, et les autres partent quand meme.
+     */
+    public function test_un_matricule_sans_chiffre_est_ecarte_et_signale(): void
+    {
+        $chemin = tempnam(sys_get_temp_dir(), 'lettres').'.csv';
+        file_put_contents($chemin, "Matricule;Nom;Prénom\nlamajestueuse;EDOUDA;Théodore\nLM-260147;MVELE;Alphonse\n");
+
+        Http::fake();
+
+        $this->artisan('hikvision:personnel --simuler --fichier='.$chemin)
+            ->expectsOutputToContain('sans chiffre dans le matricule')
+            ->expectsOutputToContain('1 personne(s) seraient envoyées')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+        unlink($chemin);
+    }
+
     /** Le nom part dans l'ordre officiel : nom de famille d'abord. */
     public function test_le_nom_part_dans_l_ordre_officiel(): void
     {

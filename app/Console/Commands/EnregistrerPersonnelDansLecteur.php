@@ -66,6 +66,22 @@ class EnregistrerPersonnelDansLecteur extends Command
             return self::SUCCESS;
         }
 
+        // Le numero du lecteur, ce sont les chiffres du matricule. Sans
+        // chiffre — un matricule saisi en toutes lettres — il n'y a pas de
+        // place ou poser la personne : on le dit, et on envoie les autres.
+        [$personnes, $sansNumero] = $personnes->partition(
+            fn (array $personne) => LecteurHikvision::numeroDepuisMatricule($personne['matricule']) !== ''
+        );
+
+        if ($sansNumero->isNotEmpty()) {
+            $this->warn($sansNumero->count().' personne(s) sans chiffre dans le matricule : le lecteur ne peut pas les porter.');
+            $this->table(
+                ['Matricule', 'Nom'],
+                $sansNumero->map(fn (array $personne) => [$personne['matricule'], $personne['nom']])->all(),
+            );
+            $this->newLine();
+        }
+
         if (($collision = $this->collisions($personnes)) !== []) {
             $this->error('Deux matricules donnent le même numéro de lecteur : il faut trancher');
             $this->line('avant d’envoyer, sans quoi une personne prendrait l’identité de l’autre.');

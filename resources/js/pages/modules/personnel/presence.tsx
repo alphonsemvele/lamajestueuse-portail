@@ -92,6 +92,7 @@ export default function Presence({ pointages, filtres, resume, parPersonne, lect
             du: filtres.du,
             au: filtres.au,
             q: filtres.q,
+            vue,
             format,
         }).toString()}`;
 
@@ -213,7 +214,7 @@ export default function Presence({ pointages, filtres, resume, parPersonne, lect
                             </a>
                             <a href={emporter('csv')} className="btn-ghost py-1.5 text-xs">
                                 <Icon name="download" className="h-3.5 w-3.5" />
-                                Tableur Excel
+                                {vue === 'personnes' ? 'Excel · par personne' : 'Excel · tous les passages'}
                             </a>
                         </span>
                     </div>

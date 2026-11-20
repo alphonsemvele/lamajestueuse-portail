@@ -74,9 +74,15 @@ class PresenceController extends Controller
         [$du, $au] = $this->periode($request);
         $recherche = trim((string) $request->query('q'));
 
+        // « personnes » rend le journal recapitule — une ligne par personne,
+        // avec le nombre de passages ; « passages » rend le detail.
+        $parPersonne = $request->query('vue') === 'personnes';
+
         return $request->query('format') === 'pdf'
             ? $this->registrePdf($du, $au, $recherche, $pdf)
-            : $this->tableur($du, $au, $recherche);
+            : ($parPersonne
+                ? $this->tableurParPersonne($du, $au, $recherche)
+                : $this->tableur($du, $au, $recherche));
     }
 
     // ------------------------------------------------------------ la lecture
@@ -210,6 +216,45 @@ class PresenceController extends Controller
             ->setPaper('a4');
 
         return $document->download('presence-'.$du.($unSeulJour ? '' : '-au-'.$au).'.pdf');
+    }
+
+    /**
+     * Le journal recapitule : une ligne par personne, et ce qu'elle y pese.
+     *
+     * C'est la forme que l'on emporte pour compter — combien de fois
+     * quelqu'un s'est presente sur la periode, et entre quelles dates — sans
+     * avoir a depouiller des milliers de lignes.
+     */
+    private function tableurParPersonne(string $du, string $au, string $recherche): SymfonyResponse
+    {
+        $personnes = $this->parPersonne($du, $au, $recherche);
+        $nom = 'presence-par-personne-'.$du.($du === $au ? '' : '-au-'.$au).'.csv';
+
+        return response()->streamDownload(function () use ($personnes, $du, $au) {
+            $sortie = fopen('php://output', 'w');
+
+            fwrite($sortie, "\xEF\xBB\xBF");
+            fputcsv($sortie, ['Période', $du.' → '.$au], ';');
+            fputcsv($sortie, [], ';');
+            fputcsv($sortie, [
+                'Numéro', 'Nom', 'Jours de présence', 'Nombre de passages',
+                'Premier passage', 'Dernier passage', 'Compte du portail',
+            ], ';');
+
+            foreach ($personnes as $personne) {
+                fputcsv($sortie, [
+                    $personne['numero'],
+                    $personne['nom'],
+                    $personne['jours'],
+                    $personne['passages'],
+                    $personne['premier'],
+                    $personne['dernier'],
+                    $personne['connu'] ? 'oui' : 'non',
+                ], ';');
+            }
+
+            fclose($sortie);
+        }, $nom, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**

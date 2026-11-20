@@ -201,6 +201,37 @@ class PresenceTest extends TestCase
         $this->assertStringStartsWith("\xEF\xBB\xBF", $contenu);
     }
 
+    /**
+     * Le journal recapitule : une ligne par personne, et combien de fois
+     * elle s'est presentee. C'est la forme que l'on emporte pour compter.
+     */
+    public function test_le_journal_s_emporte_recapitule_par_personne(): void
+    {
+        foreach ([['260147', 8], ['260147', 12], ['260147', 17], ['260039', 9]] as $i => [$numero, $heure]) {
+            $this->postJson('/api/lecteur/pointage/'.$this->jeton(), $this->passage(
+                $numero, now()->setTime($heure, 10 + $i)->toIso8601String()
+            ))->assertOk();
+        }
+
+        $reponse = $this->actingAs($this->rh())->get(route('personnel.presence.export', [
+            'du' => now()->toDateString(),
+            'vue' => 'personnes',
+        ]));
+
+        $reponse->assertOk();
+
+        $contenu = $reponse->streamedContent();
+        $lignes = array_values(array_filter(explode("\n", trim($contenu))));
+
+        $this->assertStringContainsString('Nombre de passages', $contenu);
+        // La periode, l'en-tete, puis une ligne par personne — la ligne vide
+        // qui les separe ne compte pas.
+        $this->assertCount(4, $lignes);
+        // Le nom porte une espace : le tableur le met entre guillemets.
+        $this->assertStringContainsString('260147;"MVELE Alphonse";1;3', $contenu);
+        $this->assertStringContainsString('260039;"MVELE Alphonse";1;1', $contenu);
+    }
+
     public function test_la_periode_s_emporte_en_pdf(): void
     {
         $this->postJson('/api/lecteur/pointage/'.$this->jeton(), $this->passage(

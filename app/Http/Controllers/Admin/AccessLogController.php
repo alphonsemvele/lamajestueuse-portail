@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AccessLog;
 use App\Models\User;
+use App\Services\BulletinPdf;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -74,6 +76,10 @@ class AccessLogController extends Controller
         [$du, $au] = $this->periode($request);
         $action = (string) $request->query('action');
         $recherche = trim((string) $request->query('q'));
+
+        if ($request->query('format') === 'pdf') {
+            return $this->listeEnPdf($du, $au, $action, $recherche, app(BulletinPdf::class));
+        }
 
         return $request->query('vue') === 'utilisateurs'
             ? $this->tableurParUtilisateur($du, $au, $action, $recherche)
@@ -152,15 +158,20 @@ class AccessLogController extends Controller
             ->orderByDesc('entrees')
             ->get();
 
-        $gens = User::whereIn('id', $lignes->pluck('user_id'))->get()->keyBy('id');
+        /*
+         * Seul le personnel figure ici. Un compte d'administration qui ne
+         * travaille pas dans le groupe — un superadministrateur technique —
+         * fausserait la liste de ceux qui se servent du logiciel.
+         */
+        $gens = User::whereIn('id', $lignes->pluck('user_id'))->duPersonnel()->get()->keyBy('id');
 
-        return $lignes->map(function ($ligne) use ($gens) {
+        return $lignes->filter(fn ($ligne) => $gens->has($ligne->user_id))->values()->map(function ($ligne) use ($gens) {
             $personne = $gens->get($ligne->user_id);
 
             return [
                 'userId' => (int) $ligne->user_id,
-                'nom' => $personne?->nomOfficiel() ?: 'Compte supprimé',
-                'matricule' => $personne?->matricule,
+                'nom' => $personne->nomOfficiel(),
+                'matricule' => $personne->matricule,
                 'connexions' => (int) $ligne->connexions,
                 'visites' => (int) $ligne->visites,
                 'ouvertures' => (int) $ligne->ouvertures,
@@ -184,18 +195,16 @@ class AccessLogController extends Controller
             fputcsv($sortie, ['Période', $du.' → '.$au], ';');
             fputcsv($sortie, [], ';');
             fputcsv($sortie, [
-                'Employé', 'Matricule', 'Connexions', 'Pages visitées',
-                'Ouvertures d’application', 'Total', 'Première trace', 'Dernière trace',
+                'Nom et prénom', 'Matricule', 'Pages visitées',
+                'Ouvertures d’application', 'Première trace', 'Dernière trace',
             ], ';');
 
             foreach ($gens as $ligne) {
                 fputcsv($sortie, [
                     $ligne['nom'],
                     $ligne['matricule'] ?: '—',
-                    $ligne['connexions'],
                     $ligne['visites'],
                     $ligne['ouvertures'],
-                    $ligne['entrees'],
                     $ligne['premier'],
                     $ligne['dernier'],
                 ], ';');
@@ -232,6 +241,28 @@ class AccessLogController extends Controller
 
             fclose($sortie);
         });
+    }
+
+    /**
+     * La liste du personnel qui se sert du logiciel, mise en page.
+     *
+     * Rien d'autre que ce qui identifie la personne : son nom et son
+     * matricule. Le compte des pages reste au tableur.
+     */
+    private function listeEnPdf(string $du, string $au, string $action, string $recherche, BulletinPdf $pdf): SymfonyResponse
+    {
+        $document = Pdf::setOptions($pdf->optionsDocument())
+            ->loadView('pdf.personnel-logiciel', [
+                'gens' => $this->parUtilisateur($du, $au, $action, $recherche),
+                'du' => Carbon::parse($du)->translatedFormat('j F Y'),
+                'au' => Carbon::parse($au)->translatedFormat('j F Y'),
+                'editeLe' => now()->translatedFormat('j F Y'),
+                'couleur' => '#0f766e',
+                'logo' => $pdf->logoDuGroupe(),
+            ])
+            ->setPaper('a4');
+
+        return $document->download('personnel-utilisant-le-logiciel-'.$du.'-au-'.$au.'.pdf');
     }
 
     private function fichier(string $nom, callable $ecrire): SymfonyResponse

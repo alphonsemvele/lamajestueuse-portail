@@ -68,13 +68,14 @@ export default function LogsIndex({ logs, parUtilisateur, resume, filters }: Pro
     };
 
     /** Le lien d'export porte la période, le filtre et la vue affichés. */
-    const emporter = () =>
+    const emporter = (format: 'csv' | 'pdf' = 'csv') =>
         `${routes.admin.logsExport}?${new URLSearchParams({
             du: filters.du,
             au: filters.au,
             q: filters.q,
             action: filters.action ?? '',
             vue,
+            format,
         }).toString()}`;
 
     const chercher = (event: FormEvent) => {
@@ -167,10 +168,16 @@ export default function LogsIndex({ logs, parUtilisateur, resume, filters }: Pro
                         </button>
                     ))}
 
-                    <a href={emporter()} className="btn-ghost ml-auto py-1.5 text-xs">
-                        <Icon name="download" className="h-3.5 w-3.5" />
-                        {vue === 'utilisateurs' ? t('Excel · par utilisateur') : t('Excel · détail')}
-                    </a>
+                    <span className="ml-auto flex flex-wrap gap-2">
+                        <a href={emporter('pdf')} className="btn-ghost py-1.5 text-xs">
+                            <Icon name="document" className="h-3.5 w-3.5" />
+                            {t('PDF · personnel utilisant le logiciel')}
+                        </a>
+                        <a href={emporter()} className="btn-ghost py-1.5 text-xs">
+                            <Icon name="download" className="h-3.5 w-3.5" />
+                            {vue === 'utilisateurs' ? t('Excel · par utilisateur') : t('Excel · détail')}
+                        </a>
+                    </span>
                 </div>
             </Card>
 

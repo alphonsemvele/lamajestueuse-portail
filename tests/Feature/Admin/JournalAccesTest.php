@@ -20,9 +20,22 @@ class JournalAccesTest extends TestCase
 {
     use RefreshDatabase;
 
+    /** Un compte d'administration technique : il n'est pas du personnel. */
     private function patron(): User
     {
-        return User::factory()->superadmin()->create(['status' => 'active']);
+        return User::factory()->superadmin()->create([
+            'status' => 'active',
+            'dans_le_personnel' => false,
+        ]);
+    }
+
+    /** Un membre du personnel, celui qui compte dans la liste. */
+    private function agent(): User
+    {
+        return User::factory()->create([
+            'name' => 'Claire', 'lastname' => 'NKOA', 'matricule' => 'LM-260147',
+            'dans_le_personnel' => true, 'status' => 'active',
+        ]);
     }
 
     private function trace(User $personne, string $action, ?string $cible = null, int $joursAvant = 0): AccessLog
@@ -98,19 +111,21 @@ class JournalAccesTest extends TestCase
     public function test_le_journal_se_compte_par_personne(): void
     {
         $patron = $this->patron();
-        $autre = User::factory()->create(['name' => 'Claire', 'lastname' => 'NKOA', 'status' => 'active']);
+        $agent = $this->agent();
 
+        $this->trace($agent, 'login');
+        $this->trace($agent, 'login');
+        $this->trace($agent, 'visite', 'personnel.presence');
+        $this->trace($agent, 'sso');
         $this->trace($patron, 'login');
-        $this->trace($patron, 'login');
-        $this->trace($patron, 'visite', 'personnel.presence');
-        $this->trace($patron, 'sso');
-        $this->trace($autre, 'login');
 
         $this->actingAs($patron)
             ->get(route('admin.logs.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/logs/index')
+                // Seul l'agent figure au compte : le patron n'est pas du personnel.
+                ->has('parUtilisateur', 1)
                 ->where('parUtilisateur.0.connexions', 2)
                 ->where('parUtilisateur.0.ouvertures', 1)
                 ->where('resume.personnes', 2));
@@ -119,10 +134,10 @@ class JournalAccesTest extends TestCase
     public function test_le_journal_s_emporte_par_utilisateur(): void
     {
         $patron = $this->patron();
+        $agent = $this->agent();
 
-        $this->trace($patron, 'login');
-        $this->trace($patron, 'login');
-        $this->trace($patron, 'visite', 'badges.index');
+        $this->trace($agent, 'login');
+        $this->trace($agent, 'visite', 'badges.index');
 
         $reponse = $this->actingAs($patron)
             ->get(route('admin.logs.export', ['vue' => 'utilisateurs']));
@@ -131,11 +146,45 @@ class JournalAccesTest extends TestCase
 
         $contenu = $reponse->streamedContent();
 
-        $this->assertStringContainsString('Connexions;"Pages visitées"', $contenu);
-        $this->assertStringContainsString($patron->nomOfficiel(), $contenu);
-        // Deux connexions, une page vue — la visite de l'écran du journal
-        // lui-même s'ajoute, donc on ne compte que les connexions.
-        $this->assertMatchesRegularExpression('/;2;/', $contenu);
+        $this->assertStringContainsString('"Nom et prénom";Matricule;"Pages visitées"', $contenu);
+        $this->assertStringContainsString('NKOA Claire', $contenu);
+        $this->assertStringContainsString('LM-260147', $contenu);
+        // Le nombre de connexions ne figure plus dans le téléchargement.
+        $this->assertStringNotContainsString('Connexions', $contenu);
+    }
+
+    /**
+     * Un compte d'administration qui ne travaille pas dans le groupe n'a
+     * rien a faire dans la liste de ceux qui se servent du logiciel.
+     */
+    public function test_un_superadministrateur_hors_du_personnel_n_y_figure_pas(): void
+    {
+        $patron = $this->patron();
+        $agent = $this->agent();
+
+        $this->trace($patron, 'login');
+        $this->trace($agent, 'login');
+
+        $contenu = $this->actingAs($patron)
+            ->get(route('admin.logs.export', ['vue' => 'utilisateurs']))
+            ->streamedContent();
+
+        $this->assertStringContainsString('NKOA Claire', $contenu);
+        $this->assertStringNotContainsString($patron->nomOfficiel(), $contenu);
+    }
+
+    /** Le PDF : le nom, le prénom, le matricule, et rien d'autre. */
+    public function test_la_liste_s_emporte_en_pdf(): void
+    {
+        $patron = $this->patron();
+        $this->trace($this->agent(), 'visite', 'badges.index');
+
+        $reponse = $this->actingAs($patron)
+            ->get(route('admin.logs.export', ['format' => 'pdf']));
+
+        $reponse->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $reponse->headers->get('content-type'));
+        $this->assertStringStartsWith('%PDF', (string) $reponse->getContent());
     }
 
     public function test_le_journal_s_emporte_en_detail(): void

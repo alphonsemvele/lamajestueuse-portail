@@ -163,7 +163,12 @@ class AccessLogController extends Controller
          * travaille pas dans le groupe — un superadministrateur technique —
          * fausserait la liste de ceux qui se servent du logiciel.
          */
-        $gens = User::whereIn('id', $lignes->pluck('user_id'))->duPersonnel()->get()->keyBy('id');
+        $gens = User::whereIn('id', $lignes->pluck('user_id'))
+            ->duPersonnel()
+            // Les instituts que chacun sert : une personne peut en servir deux.
+            ->with(['applications' => fn ($q) => $q->where('applications.type', 'application')])
+            ->get()
+            ->keyBy('id');
 
         return $lignes->filter(fn ($ligne) => $gens->has($ligne->user_id))->values()->map(function ($ligne) use ($gens) {
             $personne = $gens->get($ligne->user_id);
@@ -172,6 +177,7 @@ class AccessLogController extends Controller
                 'userId' => (int) $ligne->user_id,
                 'nom' => $personne->nomOfficiel(),
                 'matricule' => $personne->matricule,
+                'entites' => $personne->applications->pluck('name')->implode(' · '),
                 'connexions' => (int) $ligne->connexions,
                 'visites' => (int) $ligne->visites,
                 'ouvertures' => (int) $ligne->ouvertures,
@@ -195,7 +201,7 @@ class AccessLogController extends Controller
             fputcsv($sortie, ['Période', $du.' → '.$au], ';');
             fputcsv($sortie, [], ';');
             fputcsv($sortie, [
-                'Nom et prénom', 'Matricule', 'Pages visitées',
+                'Nom et prénom', 'Matricule', 'Entité', 'Pages visitées',
                 'Ouvertures d’application', 'Première trace', 'Dernière trace',
             ], ';');
 
@@ -203,6 +209,7 @@ class AccessLogController extends Controller
                 fputcsv($sortie, [
                     $ligne['nom'],
                     $ligne['matricule'] ?: '—',
+                    $ligne['entites'] ?: '—',
                     $ligne['visites'],
                     $ligne['ouvertures'],
                     $ligne['premier'],

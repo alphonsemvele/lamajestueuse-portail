@@ -146,7 +146,7 @@ class JournalAccesTest extends TestCase
 
         $contenu = $reponse->streamedContent();
 
-        $this->assertStringContainsString('"Nom et prénom";Matricule;"Pages visitées"', $contenu);
+        $this->assertStringContainsString('"Nom et prénom";Matricule;Entité;"Pages visitées"', $contenu);
         $this->assertStringContainsString('NKOA Claire', $contenu);
         $this->assertStringContainsString('LM-260147', $contenu);
         // Le nombre de connexions ne figure plus dans le téléchargement.

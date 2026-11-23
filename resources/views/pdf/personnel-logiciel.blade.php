@@ -28,7 +28,8 @@
         .liste tbody tr:nth-child(even) td { background: #fcfcfd; }
         .rang { width: 34px; color: #c3c7cd; font-size: 9.5px; text-align: right; }
         .nom { text-transform: uppercase; letter-spacing: .2px; }
-        .matricule { width: 120px; font-weight: bold; color: #111827; }
+        .matricule { width: 118px; font-weight: bold; color: #111827; }
+        .entite { width: 150px; color: #374151; }
         .sans { color: #c3c7cd; font-weight: normal; }
         .rien { padding: 28px 0; text-align: center; color: #9ca3af; }
 
@@ -50,10 +51,7 @@
             @endif
         </td>
         <td width="73%">
-            <div class="titre">
-                PERSONNEL UTILISANT LE LOGICIEL<br>
-                <span class="portail">{{ $du === $au ? $du : 'DU '.mb_strtoupper($du).' AU '.mb_strtoupper($au) }}</span>
-            </div>
+            <div class="titre">PERSONNEL UTILISANT LE LOGICIEL</div>
             <div class="sous">Édité le {{ $editeLe }}</div>
         </td>
         <td width="16%" class="compte">
@@ -71,6 +69,7 @@
             <th class="rang">N°</th>
             <th>Nom et prénom</th>
             <th class="matricule">Matricule</th>
+            <th class="entite">Entité</th>
         </tr>
     </thead>
     <tbody>
@@ -81,9 +80,12 @@
                 <td class="matricule {{ $personne['matricule'] ? '' : 'sans' }}">
                     {{ $personne['matricule'] ?: '—' }}
                 </td>
+                <td class="entite {{ $personne['entites'] ? '' : 'sans' }}">
+                    {{ $personne['entites'] ?: '—' }}
+                </td>
             </tr>
         @empty
-            <tr><td colspan="3" class="rien">Personne n’a ouvert le logiciel sur cette période.</td></tr>
+            <tr><td colspan="4" class="rien">Personne n’a ouvert le logiciel sur cette période.</td></tr>
         @endforelse
     </tbody>
 </table>

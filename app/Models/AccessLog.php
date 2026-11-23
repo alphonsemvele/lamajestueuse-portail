@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AccessLog extends Model
 {
-    protected $fillable = ['user_id', 'application_id', 'action', 'ip_address', 'user_agent'];
+    protected $fillable = ['user_id', 'application_id', 'action', 'cible', 'ip_address', 'user_agent'];
 
     public function user(): BelongsTo
     {

@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\JournaliserLaVisite;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -22,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
             SetLocale::class,
             EnsureAccountIsActive::class,
             HandleInertiaRequests::class,
+            // En dernier : la visite ne s'inscrit qu'une fois la page rendue.
+            JournaliserLaVisite::class,
         ]);
 
         $middleware->alias([

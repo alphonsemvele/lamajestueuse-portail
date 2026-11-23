@@ -184,5 +184,6 @@ export const routes = {
         emailApercu: (cle: string) => `/admin/email/modeles/${cle}/apercu`,
         emailEnvoyer: (cle: string) => `/admin/email/modeles/${cle}/envoyer`,
         logs: '/admin/journal',
+        logsExport: '/admin/journal/export',
     },
 };

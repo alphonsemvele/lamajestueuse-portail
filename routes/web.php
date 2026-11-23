@@ -321,4 +321,5 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->name('admin.')->group(fun
     Route::post('email/modeles/{cle}/envoyer', [ModeleEmailController::class, 'envoyer'])->name('email.envoyer');
 
     Route::get('journal', [AccessLogController::class, 'index'])->name('logs.index');
+    Route::get('journal/export', [AccessLogController::class, 'exporter'])->name('logs.export');
 });
